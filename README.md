@@ -1,3 +1,4 @@
+[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/VSPuLl7_)
 # Szakdolgozat 2.0 – Sprint 1 Kickoff
 
 Szia! Üdv a kurzus első, legfontosabb sprintjében. A következő három hétben nem kódot írsz, hanem feltárod a valódi problémát: interjúzol, piacot elemzel és döntéseket dokumentálsz. Ha jól dolgozol, a sprint végére bizonyítod, hogy létező igényre építesz – ez a teljes projekt alapja.
