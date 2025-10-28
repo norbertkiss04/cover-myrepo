@@ -1,21 +1,22 @@
-{
+ {
   "id": "INT-002",
-  "date": "2025-02-06",
-  "method": "in_person",
+  "date": "2025-10-04",
+  "method": "online",
   "participant": {
     "pseudonym": "Bence",
-    "segment": "Levelezős hallgató, aki munka mellett ír szakdolgozatot"
+    "segment": "35 éves gyerekkönyv-író, aki évente 20-30 könyvet ad ki"
   },
   "consent": true,
   "insights": [
-    "Munka utáni időben mobilon is szeretne jegyzetelni.",
-    "Naptárban jelöli, hogy melyik forrást mikor dolgozta fel." 
+    "Gyerekkönyvek borítóinak színesnek és vonzónak kell lenniük gyerekek számára, barátságos karakterekkel.",
+    "Kulcsfontosságú a konzisztencia a sorozatokban a márka felismerhetősége érdekében."
   ],
   "pain_points": [
-    "Nem fér hozzá a céges gépen a személyes Google Drive-jához.",
-    "A bibliográfia frissítése manuális és hibás." 
+    "Nehéz megtalálni megfizethető, gyors grafikust gyerekkönyvekhez.",
+    "Bárcsak lenne egy megoldás, ami lehetővé teszi a gyors, konzisztens borító készítést több könyv esetén.",
+    "Bár léteznek sablon borítók amik olcsóbbak mint egy custom made, sosem talál olyan ami igazan illene a könyvhöz."
   ],
   "quotes": [
-    "\"Ha lenne egy gomb, ami generálja a hivatkozást, azzal órákat spórolnék hetente.\""
+    "\"Jó lenne ha lenne egy módja az aranyos gyerekkönyv-borítók kötegelt létrehozására a hercehurca nélkül!\""
   ]
 }

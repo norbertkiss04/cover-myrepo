@@ -1,16 +1,18 @@
 goals:
-  - "Piackutatási cikkek gyors összefoglalása a ResearchFlow témakörében."
-  - "Nyitott interjúkérdés sablonok generálása különböző hallgatói szegmensekhez."
-  - "Versenytárs-összehasonlítás táblázatos formába rendezése."
+  - "Indie könyvkiadási piac kutatási anyagainak összefoglalása és elemzése az InstaCover projekthez."
+  - "Interjúkérdések előkészítése különböző író szegmensekhez (fantasy, gyerekkönyv, romance, thriller)."
+  - "PRD dokumentum struktúrájának és tartalmának kidolgozása."
+  - "Versenytárs-összehasonlítás táblázatos formába rendezése és elemzése."
+  - "ADR (Architecture Decision Record) dokumentálása a technológiai választásokhoz."
 operational_cadence:
-  check_in: "Heti két alkalommal értékelem az MI-eszközök által adott javaslatokat."
-  review_partner: "A konzulenssel sprintenként egyszer átbeszélem az MI által generált artefaktumokat."
+  check_in: "Sprint során folyamatosan használom AI eszközöket kutatási, dokumentációs és coding feladatokhoz."
+  review_partner: "Minden generált tartalmat manuálisan felülvizsgálok és szerkesztek használat előtt."
 guardrails:
-  - "Személyes azonosító adatot nem továbbítok külső MI eszköz felé."
-  - "Minden generált tartalmat manuálisan ellenőrzök a felhasználás előtt."
-  - "Érzékeny interjúrészleteket anonimizálok, mielőtt MI-vel elemeztetem."
+  - "Interjúalanyok személyes adatait nem továbbítom külső AI eszköz felé - csak anonimizált adatokat használok."
+  - "Minden AI által generált tartalmat kritikusan értékelek és szükség szerint átírok."
+  - "AI eszközöket segédletként használom, de a végső döntéseket és tartalmakat én hozom meg."
 tools:
-  - name: "ChatGPT"
-    use_cases: ["cikk összegzés", "interjúkérdés ötletek", "szöveg finomhangolás"]
-  - name: "GitHub Copilot"
-    use_cases: ["ADR sablon generálása", "szkriptek kereteinek megírása"]
+  - name: "Roo Code"
+    use_cases: ["Kód írás és refaktorálás", "YAML és Markdown formázás", "Kód validációs szkriptek"]
+  - name: "Perplexity"
+    use_cases: ["Piackutatás és forrás-alapú információgyűjtés", "Versenytárs-elemzés", "Brainstorming és ötletgenerálás"]

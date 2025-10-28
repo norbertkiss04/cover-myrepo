@@ -1,21 +1,22 @@
 {
   "id": "INT-005",
-  "date": "2025-02-08",
-  "method": "in_person",
+  "date": "2025-10-11",
+  "method": "online",
   "participant": {
     "pseudonym": "Flóra",
-    "segment": "Doktori előkészítős hallgató"
+    "segment": "48 éves non-fiction író, aki szakmai könyveket ír"
   },
   "consent": true,
   "insights": [
-    "Saját Notion adatbázist használ, de hiányzik a hivatkozás-ellenőrzés.",
-    "Szüksége van konzulensi státuszriportokra." 
+    "Non-fiction borítóknak tisztának és professzionálisnak kell lenniük, egyértelmű tipográfiával és releváns ikonokkal.",
+    "Hitelességet és téma világosságot kell közvetíteniük."
   ],
   "pain_points": [
-    "A jegyzetek megosztása során eltűnnek a kommentek.",
-    "Nincs automatizált értesítés a hiányzó adatokról." 
+    "A borítóknak informatívnak kell lenniük, nem csak esztétikusnak.",
+    "Nehéz megtalálni grafikust, aki megérti a tartalmat.",
+    "Bárcsak lenne egy egyszerű módja non-fiction borítók gyors előállításának."
   ],
   "quotes": [
-    "\"Ha a konzulensem valamit kér, manuálisan kell visszakeresnem a vonatkozó forrásokat.\""
+    "\"Jó lenne, ha lenne egy módszer, ami a könyvösszefoglalóimból lenyűgöző, professzionális borítókat csinál.\""
   ]
 }

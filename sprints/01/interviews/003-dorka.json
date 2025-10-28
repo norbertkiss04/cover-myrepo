@@ -1,21 +1,22 @@
 {
   "id": "INT-003",
-  "date": "2025-02-07",
+  "date": "2025-10-06",
   "method": "online",
   "participant": {
     "pseudonym": "Dorka",
-    "segment": "Gazdaságinformatika MSc hallgató"
+    "segment": "38 éves romance író, aki sorozatokat ír"
   },
   "consent": true,
   "insights": [
-    "Több forráskezelő eszközt próbált, de túl technikásak." ,
-    "A konzulens kommentjeit szeretné egy helyen látni."
+    "Romance borítóknak romantikus párokat, lágy megvilágítást és érzelmes kifejezéseket kell tartalmazniuk.",
+    "A sorozat konzisztenciája segít az olvasóknak azonosítani a könyveket."
   ],
   "pain_points": [
-    "Az EndNote exportja gyakran hibás karakterkódolású.",
-    "Nincs összekötve a jegyzet a hivatkozással." 
+    "A professzionális romance borítók drágák, de elengedhetetlenek az eladáshoz.",
+    "Bárcsak lenne egy megfizethető módja a konzisztens, műfajnak megfelelő borítók megszerzésének.",
+    "Nehéz pontosan leírni a designernek, hogy milyen borítót képzel el, és a sok körös revisionokkal együtt hetekbe telik, mire elégedett az eredménnyel."
   ],
   "quotes": [
-    "\"A konzulens mindig külön dokumentumban kommentel, így elvesznek a kontextusok.\""
+    "\"Vágyom egy eszközre, ami megragadja a romance szenvedélyét a borítóimban anélkül, hogy csődbe vinné a bankszámlámat!\""
   ]
 }

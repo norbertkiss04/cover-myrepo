@@ -1,21 +1,20 @@
 {
   "id": "INT-004",
-  "date": "2025-02-08",
+  "date": "2025-10-08",
   "method": "online",
   "participant": {
     "pseudonym": "Ernő",
-    "segment": "Első generációs egyetemista"
+    "segment": "42 éves thriller író, aki feszült, sötét történeteket ír"
   },
   "consent": true,
   "insights": [
-    "Word dokumentumban vezeti a jegyzeteit, amit nehéz verziózni.",
-    "Szívesen kapna sablonokat a fejezetekhez." 
+    "Thriller borítóknak sötét, feszült atmoszférával kell rendelkezniük, árnyékokkal és izgalmas elemekkel."
   ],
   "pain_points": [
-    "Nem érti a különbséget az MLA és IEEE hivatkozások között.",
-    "Bonyolultnak találja a források importját."
+    "Nehéz megfelelő tervezőt találni, aki olyan borítót tud készíteni, ami azonnal megragadja a thriller olvasók figyelmét",
+    "Időigényes több tervezővel konzultálni, amíg talál valakit, aki megérti a víziót"
   ],
   "quotes": [
-    "\"Mindig attól félek, hogy elveszik egy fontos idézet, mert rossz verziót küldök el.\""
+    "\"Egy thriller borítónak már az első pillantásra feszültséget és sötétséget kell sugároznia, különben az olvasó továbblép.\""
   ]
 }

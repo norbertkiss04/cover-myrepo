@@ -1,8 +1,8 @@
 student:
-  name: "Bilicki Viktor"
-  id: "BILICCI"
+  name: "Kiss Norbert"
+  id: "NREWLO"
 project:
-  title: "ResearchFlow – szakdolgozatkutatás-támogató webalkalmazás"
-  product_ml_features: false
+  title: "InstaCover – könyvborító-készítő webalkalmazás"
+  product_ml_features: true
 ai:
   log_min_entries_per_sprint: 3

@@ -1,21 +1,22 @@
 {
   "id": "INT-001",
-  "date": "2025-02-06",
+  "date": "2025-10-04",
   "method": "online",
   "participant": {
     "pseudonym": "Anna",
-    "segment": "Harmadéves nappali mérnökinformatikus"
+    "segment": "28 éves kezdő fantasy író, aki első regényét írja munka mellett"
   },
   "consent": true,
   "insights": [
-    "Minden forrásról saját Google Sheetben vezet listát, de nehezen kereshető vissza.",
-    "A konzulens visszajelzését emailben kapja, ami szétesett folyamatot okoz."
+    "Szeretne borítókat mágikus elemekkel, mint sárkányok, kastélyok és misztikus erdők.",
+    "Élénk színeket preferál, amelyek csodát és kalandot keltenek."
   ],
   "pain_points": [
-    "Sok idő a jegyzetek átmásolása Word dokumentumba.",
-    "Kézi APA hivatkozás formázás." 
-  ],
+    "Kezdőként nehezen tudja létrehozni olyan borítókat, amelyek megragadják a fantasy világok lényegét.",
+    "Bárcsak lenne egy egyszerű módja a professzionális fantasy borítók generálására design szakértelem nélkül.",
+    "Nehéz egyedül jó borítót csinálni, nem elégedett az eredményekkel."
+    ],
   "quotes": [
-    "\"Nem látom át, hogy melyik jegyzet melyik fejezethez tartozik, mindig ide-oda görgetek.\""
+    "\"Bárcsak leírhatnám a fantasy világomat, és azonnal kapnék egy borítót, ami életre kelti azt!\""
   ]
 }

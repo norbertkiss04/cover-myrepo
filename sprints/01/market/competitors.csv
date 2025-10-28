@@ -1,4 +1,4 @@
 name,url,pricing_model,key_strengths,key_weaknesses
-Notion,https://www.notion.so,freemium,"Rugalmas adatbázis;Széles sablongyűjtemény","Nincs natív hivatkozásformázás;Konfigurációs időigény"
-Zotero,https://www.zotero.org,open_source,"Automatikus bibliográfia;Bővítmények","Meredek tanulási görbe;Korlátozott együttműködés"
-Mendeley,https://www.mendeley.com,freemium,"Cikkajánló motor;PDF annotáció","Szinkronizációs problémák;Adatvédelmi aggályok"
+Canva AI Book Cover Generator,https://www.canva.com/ai-book-cover-generator/,"Freemium (korlátozott AI), Pro (regiófüggő havi díjak), Teams (felhasználói díj)",Nagy template könyvtár; ismert márka; Magic Media AI képgenerálás; sok integráció,AI jellemzően csak képet generál (tipográfia és layout finomítása manuálisan szükséges); karakterkonzisztencia hiánya; ingyenes használat korlátozott
+TheBookCoverDesigner,https://thebookcoverdesigner.com,"Premade borítók $50‑$159 körül, egyedi cím/szerző név módosítás",Sok genre‑specifikus premade cover katalógus; gyors vásárlás,"Nincs AI generálás; korlátozott testreszabhatóság; ha nem találsz megfelelő premade‑et, lehet üresjárat"
+GetCovers Custom Design,https://getcovers.com,"Egyedi design kezdő ár $10‑tól, átlag $25‑$35 rendelésenként",Emberi designerek; átlátható árak; unlimited revisions; gyorsabb mint hagyományos kivitelezés,Nem automatikus; minőség változhat; nincs beépített AI karakterkövetés
