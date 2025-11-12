@@ -1,6 +1,6 @@
 student:
   name: "Kiss Norbert"
-  id: "NREWLO"
+  neptun: "NREWLO"
 project:
   title: "InstaCover – könyvborító-készítő webalkalmazás"
   product_ml_features: true
