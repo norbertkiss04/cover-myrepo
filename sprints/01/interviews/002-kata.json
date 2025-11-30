@@ -1,9 +1,9 @@
- {
+{
   "id": "INT-002",
   "date": "2025-10-04",
   "method": "online",
   "participant": {
-    "pseudonym": "Bence",
+    "pseudonym": "Kata",
     "segment": "35 éves gyerekkönyv-író, aki évente 20-30 könyvet ad ki"
   },
   "consent": true,

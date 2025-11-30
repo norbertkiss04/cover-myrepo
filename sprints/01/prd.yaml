@@ -27,18 +27,18 @@ value_proposition:
     - "Több borító egyidejű kezelése"
 scope:
   in:
-  - "AI borítógenerálás prompt alapján"
-  - "LoRA modell training egyedi karakterekhez és vizuális stílushoz"
-  - "Sorozat-konzisztencia (ugyanaz a karakter/stílus több borítón)"
-  - "SVG szerző név/logo feltöltés és elhelyezés"
-  - "Exportálás különböző formátumokban"
+    - "AI borítógenerálás prompt alapján"
+    - "LoRA modell training egyedi karakterekhez és vizuális stílushoz"
+    - "Sorozat-konzisztencia (ugyanaz a karakter/stílus több borítón)"
+    - "SVG szerző név/logo feltöltés és elhelyezés"
+    - "Exportálás különböző formátumokban"
   out:
     - "Belső könyvdesign (oldalszámozás, tipográfia, fejezetkezdet)"
     - "Automatikus feltöltés publikáló platformokra (KDP, Draft2Digital stb.)"
     - "Print-on-demand integráció"
     - "Előre gyártott sablonok és műfaj-specifikus template-ek"
 success_metrics:
-  - "≥15 aktív early adopter indie szerző használja rendszeresen 3 hónapon belül"
+  - "15 early KDP adopter"
   - "Felhasználói elégedettség ≥4.5/5 a generált borítók minőségével"
   - "70%-a a felhasználóknak képes használható borítót létrehozni 15 percen belül"
   - "≥20% konverziós arány ingyenes tesztelőből fizető előfizetővé"
