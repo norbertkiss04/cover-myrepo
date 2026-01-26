@@ -26,23 +26,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setSupabaseUser(session?.user ?? null);
-      if (session?.user) {
-        syncUser(session);
-      } else {
-        setIsLoading(false);
-      }
-    });
-
-    // Listen for auth changes
+    // Use onAuthStateChange as the single source of truth.
+    // Supabase JS v2 fires an INITIAL_SESSION event on mount which
+    // restores the session from localStorage — this eliminates the
+    // race condition between getSession() and onAuthStateChange that
+    // could cause a missed login on page refresh.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setSession(session);
         setSupabaseUser(session?.user ?? null);
-        
+
         if (session?.user) {
           await syncUser(session);
         } else {
