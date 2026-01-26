@@ -103,14 +103,25 @@ export const generationApi = {
   },
 
   // Style reference endpoints
-  analyzeStyle: async (imageBase64: string): Promise<StyleReference> => {
-    const response = await api.post('/api/analyze-style', { image: imageBase64 });
+  analyzeStyle: async (imageBase64: string, title?: string): Promise<StyleReference> => {
+    const response = await api.post('/api/analyze-style', {
+      image: imageBase64,
+      ...(title ? { title } : {}),
+    });
     return response.data;
   },
 
   getStyleReferences: async (): Promise<StyleReference[]> => {
     const response = await api.get('/api/style-references');
     return response.data.style_references;
+  },
+
+  updateStyleReference: async (
+    id: number,
+    data: Partial<Pick<StyleReference, 'title' | 'feeling' | 'layout' | 'illustration_rules' | 'typography'>>,
+  ): Promise<StyleReference> => {
+    const response = await api.put(`/api/style-references/${id}`, data);
+    return response.data;
   },
 
   deleteStyleReference: async (id: number): Promise<void> => {

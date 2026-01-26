@@ -26,6 +26,7 @@ export interface StyleAnalysis {
 
 export interface StyleReference {
   id: number;
+  title: string;
   image_url: string;
   feeling: string | null;
   layout: string | null;
@@ -68,7 +69,6 @@ export interface GenerationInput {
   color_preference?: string;
   character_description?: string;
   keywords?: string[];
-  reference_image_description?: string;
   style_analysis?: StyleAnalysis;
 }
 
