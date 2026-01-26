@@ -9,6 +9,7 @@ class StyleReference:
     image_url: str
     image_path: str
     id: Optional[int] = None
+    title: Optional[str] = None
     feeling: Optional[str] = None
     layout: Optional[str] = None
     illustration_rules: Optional[str] = None
@@ -23,6 +24,7 @@ class StyleReference:
             user_id=row.get('user_id'),
             image_url=row.get('image_url', ''),
             image_path=row.get('image_path', ''),
+            title=row.get('title'),
             feeling=row.get('feeling'),
             layout=row.get('layout'),
             illustration_rules=row.get('illustration_rules'),
@@ -34,6 +36,7 @@ class StyleReference:
         """Convert style reference to dictionary."""
         return {
             'id': self.id,
+            'title': self.title,
             'image_url': self.image_url,
             'feeling': self.feeling,
             'layout': self.layout,

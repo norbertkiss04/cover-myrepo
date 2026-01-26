@@ -145,6 +145,7 @@ def analyze_style(current_user):
             'user_id': current_user.id,
             'image_url': image_url,
             'image_path': image_path,
+            'title': data.get('title', 'Untitled Reference'),
             'feeling': analysis.get('feeling', ''),
             'layout': analysis.get('layout', ''),
             'illustration_rules': analysis.get('illustration_rules', ''),
@@ -206,6 +207,58 @@ def delete_style_reference(current_user, ref_id):
 
     logger.info("Style reference #%d deleted", ref_id)
     return jsonify({'message': 'Style reference deleted successfully'})
+
+
+@generate_bp.route('/style-references/<int:ref_id>', methods=['PUT'])
+@token_required
+def update_style_reference(current_user, ref_id):
+    """
+    Update a style reference's title and/or analysis fields.
+
+    Accepts JSON body with any of: title, feeling, layout,
+    illustration_rules, typography.  Only provided fields are updated.
+    """
+    logger.info(
+        "Update request for style reference #%d from user id=%s",
+        ref_id, current_user.id,
+    )
+
+    # Verify ownership
+    result = _sb().table('style_references').select('*').eq(
+        'id', ref_id
+    ).eq('user_id', current_user.id).execute()
+
+    if not result.data:
+        logger.warning(
+            "Style reference #%d not found for user id=%s",
+            ref_id, current_user.id,
+        )
+        return jsonify({'error': 'Style reference not found'}), 404
+
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    # Only allow updating these fields
+    allowed = {'title', 'feeling', 'layout', 'illustration_rules', 'typography'}
+    updates = {k: v for k, v in data.items() if k in allowed}
+
+    if not updates:
+        return jsonify({'error': 'No valid fields to update'}), 400
+
+    logger.info(
+        "Updating style reference #%d fields: %s",
+        ref_id, list(updates.keys()),
+    )
+
+    updated = _sb().table('style_references').update(updates).eq(
+        'id', ref_id
+    ).eq('user_id', current_user.id).execute()
+
+    style_ref = StyleReference.from_row(updated.data[0])
+    logger.info("Style reference #%d updated", ref_id)
+
+    return jsonify(style_ref.to_dict())
 
 
 # ── Generation Endpoints ──
