@@ -38,6 +38,48 @@ TEXT_OVERLAY_SCHEMA = {
     },
 }
 
+STYLE_ANALYSIS_SCHEMA = {
+    "name": "style_analysis",
+    "strict": True,
+    "schema": {
+        "type": "object",
+        "properties": {
+            "feeling": {
+                "type": "string",
+                "title": "Feeling & Atmosphere",
+            },
+            "layout": {
+                "type": "string",
+                "title": "Layout & Composition",
+            },
+            "illustration_rules": {
+                "type": "string",
+                "title": "Illustration Rules / Visual Style",
+            },
+            "typography": {
+                "type": "string",
+                "title": "Typography Analysis",
+            },
+        },
+        "required": ["feeling", "layout", "illustration_rules", "typography"],
+        "additionalProperties": False,
+    },
+}
+
+STYLE_ANALYSIS_PROMPT = """Act as an expert Senior Art Director and Book Cover Designer. Analyze the visual style of the provided image to create a transferable design brief. 
+
+Ignore the specific subject matter (e.g., do not describe "a dog" or "a mermaid"); instead, describe the artistic techniques and design choices so they can be applied to a completely different subject.
+
+Provide your analysis for these four areas:
+
+1. Feeling: Describe the emotional resonance and atmosphere. What is the psychological hook? (e.g., whimsical, terrifying, authoritative, romantic). Who is the target audience and what promise does the cover make to them?
+
+2. Layout: Analyze the composition structure. How is the space divided (e.g., rule of thirds, central symmetry, top-heavy)? Where is the negative space? How does the text interact with the imagery (framed by it, overlapping it, isolated from it)?
+
+3. Illustration Rules (or Visual Style): Describe the medium and artistic technique. If illustrated: Analyze the line work (clean vs. sketchy), shading (cel-shaded, gradient, cross-hatched), and texture (grainy, paper, smooth digital). If photographic: Describe the lighting (soft, harsh, cinematic), depth of field, and color grading. Color Palette: Describe the dominant colors, saturation levels, and contrast.
+
+4. Typography: Analyze the font choices and hierarchy. Describe the Title font (Serif, Sans-Serif, Display, Handwritten, Grunge). Describe the treatments (embossing, drop shadows, distressing, glowing, interlocking letters). How does the Author Name compare to the Title in size and weight?"""
+
 
 class LLMService:
     """Service for interacting with OpenRouter LLM API."""
@@ -112,7 +154,51 @@ class LLMService:
                 return json.loads(match.group(0))
             raise ValueError(f"Could not parse JSON from LLM response: {content[:200]}")
 
-    def generate_base_image_prompt(self, book_data):
+    def analyze_style_reference(self, image_data_url):
+        """
+        Analyze a reference image using multimodal vision (Gemini).
+
+        Args:
+            image_data_url: Base64 data URL of the image (data:image/...;base64,...)
+
+        Returns:
+            dict with keys: feeling, layout, illustration_rules, typography
+        """
+        logger.info("Analyzing style reference image via Gemini vision")
+
+        messages = [
+            {
+                'role': 'user',
+                'content': [
+                    {
+                        'type': 'image_url',
+                        'image_url': {
+                            'url': image_data_url,
+                        },
+                    },
+                    {
+                        'type': 'text',
+                        'text': STYLE_ANALYSIS_PROMPT,
+                    },
+                ],
+            }
+        ]
+
+        result = self._make_request(
+            messages,
+            schema=STYLE_ANALYSIS_SCHEMA,
+            model='google/gemini-3-flash-preview',
+        )
+
+        logger.info("Style analysis complete (feeling=%d chars, layout=%d chars, illustration=%d chars, typography=%d chars)",
+                     len(result.get('feeling', '')),
+                     len(result.get('layout', '')),
+                     len(result.get('illustration_rules', '')),
+                     len(result.get('typography', '')))
+
+        return result
+
+    def generate_base_image_prompt(self, book_data, style_analysis=None):
         """
         Generate a prompt for the base book cover image (without text).
 
@@ -120,6 +206,8 @@ class LLMService:
             book_data: dict with book_title, author_name, summary, genres, mood,
                       color_preference, character_description, keywords,
                       reference_image_description
+            style_analysis: optional dict with feeling, layout, illustration_rules
+                           from a reference image analysis
 
         Returns:
             str: The image generation prompt
@@ -155,6 +243,16 @@ Summary: {book_data.get('summary')}
         if book_data.get('reference_image_description'):
             user_content += f"Style Reference: {book_data.get('reference_image_description')}\n"
 
+        # Append style analysis from reference image (feeling, layout, illustration rules)
+        if style_analysis:
+            user_content += "\n--- Visual Style Reference (apply these artistic rules to the cover) ---\n"
+            if style_analysis.get('feeling'):
+                user_content += f"Feeling & Atmosphere: {style_analysis['feeling']}\n"
+            if style_analysis.get('layout'):
+                user_content += f"Layout & Composition: {style_analysis['layout']}\n"
+            if style_analysis.get('illustration_rules'):
+                user_content += f"Illustration Style: {style_analysis['illustration_rules']}\n"
+
         user_content += "\nGenerate the image prompt now:"
 
         messages = [
@@ -165,13 +263,13 @@ Summary: {book_data.get('summary')}
         result = self._make_request(messages, schema=BASE_PROMPT_SCHEMA)
         return result['prompt']
 
-    def generate_text_overlay_prompt(self, book_data, base_image_description=None):
+    def generate_text_overlay_prompt(self, book_data, style_analysis=None):
         """
         Generate a prompt for adding text (title, author) to the cover.
 
         Args:
             book_data: dict with book_title, author_name, genres, mood
-            base_image_description: optional description of the base image
+            style_analysis: optional dict with typography from reference image analysis
 
         Returns:
             str: The text overlay prompt
@@ -203,8 +301,16 @@ The text should be:
 - Title prominently displayed
 - Author name in a complementary but smaller style
 - Positioned for maximum visual impact and readability
+"""
 
-Generate the text overlay prompt now:"""
+        # Append typography analysis from reference image
+        if style_analysis and style_analysis.get('typography'):
+            user_content += f"""
+--- Typography Reference (apply this typography style) ---
+{style_analysis['typography']}
+"""
+
+        user_content += "\nGenerate the text overlay prompt now:"
 
         messages = [
             {'role': 'system', 'content': system_prompt},
