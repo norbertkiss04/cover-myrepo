@@ -1,9 +1,11 @@
+import base64
 import logging
 import math
 from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify, current_app
 
 from app.models.generation import Generation, ASPECT_RATIOS
+from app.models.style_reference import StyleReference
 from app.routes.auth import token_required
 from app.services.llm_service import llm_service
 from app.services.image_service import image_service
@@ -13,6 +15,8 @@ logger = logging.getLogger(__name__)
 
 generate_bp = Blueprint('generate', __name__)
 
+# Max image size: 5MB of raw bytes (~6.7MB base64)
+MAX_IMAGE_BASE64_SIZE = 7 * 1024 * 1024  # 7MB base64 limit
 
 # Available genres for the dropdown
 AVAILABLE_GENRES = [
@@ -71,6 +75,142 @@ def get_aspect_ratios():
     return jsonify({'aspect_ratios': ASPECT_RATIOS})
 
 
+# ── Style Reference Endpoints ──
+
+
+@generate_bp.route('/analyze-style', methods=['POST'])
+@token_required
+def analyze_style(current_user):
+    """
+    Upload a reference image and analyze its visual style via Gemini vision.
+
+    Expected JSON body:
+    {
+        "image": "data:image/png;base64,..."
+    }
+
+    Returns the saved StyleReference with analysis results.
+    """
+    data = request.get_json()
+    image_data_url = data.get('image')
+
+    if not image_data_url:
+        return jsonify({'error': 'Missing required field: image'}), 400
+
+    # Validate it's a data URL
+    if not image_data_url.startswith('data:image/'):
+        return jsonify({'error': 'Image must be a base64 data URL (data:image/...)'}), 400
+
+    # Validate size
+    if len(image_data_url) > MAX_IMAGE_BASE64_SIZE:
+        return jsonify({'error': 'Image too large. Maximum size is 5MB.'}), 400
+
+    logger.info("Style analysis request from user id=%s", current_user.id)
+
+    try:
+        # Decode base64 to upload to storage
+        # Format: data:image/png;base64,iVBOR...
+        header, b64_data = image_data_url.split(',', 1)
+        content_type = header.split(':')[1].split(';')[0]  # e.g. image/png
+        ext = content_type.split('/')[-1]  # e.g. png
+        if ext == 'jpeg':
+            ext = 'jpg'
+
+        image_bytes = base64.b64decode(b64_data)
+        logger.info("Decoded image: %.1f KB (%s)", len(image_bytes) / 1024, content_type)
+
+        # Upload to Supabase Storage
+        upload_result = storage_service.upload_file(
+            file_data=image_bytes,
+            filename=f"reference.{ext}",
+            content_type=content_type,
+            folder='references',
+        )
+        # upload_file returns a public URL string
+        image_url = upload_result
+        # Extract storage path from public URL for potential deletion later
+        bucket = current_app.config['SUPABASE_STORAGE_BUCKET']
+        marker = f"/public/{bucket}/"
+        image_path = image_url.split(marker)[-1] if marker in image_url else ''
+
+        logger.info("Reference image uploaded: %s", image_path)
+
+        # Analyze via Gemini vision
+        logger.info("Calling Gemini vision for style analysis...")
+        analysis = llm_service.analyze_style_reference(image_data_url)
+        logger.info("Style analysis complete")
+
+        # Save to database
+        ref_data = {
+            'user_id': current_user.id,
+            'image_url': image_url,
+            'image_path': image_path,
+            'feeling': analysis.get('feeling', ''),
+            'layout': analysis.get('layout', ''),
+            'illustration_rules': analysis.get('illustration_rules', ''),
+            'typography': analysis.get('typography', ''),
+        }
+
+        result = _sb().table('style_references').insert(ref_data).execute()
+        style_ref = StyleReference.from_row(result.data[0])
+        logger.info("Style reference #%s saved", style_ref.id)
+
+        return jsonify(style_ref.to_dict()), 201
+
+    except Exception as e:
+        logger.error("Style analysis failed: %s", e, exc_info=True)
+        return jsonify({'error': 'Style analysis failed', 'details': str(e)}), 500
+
+
+@generate_bp.route('/style-references', methods=['GET'])
+@token_required
+def get_style_references(current_user):
+    """Get all style references for the current user."""
+    logger.info("Listing style references for user id=%s", current_user.id)
+
+    result = _sb().table('style_references').select('*').eq(
+        'user_id', current_user.id
+    ).order('created_at', desc=True).execute()
+
+    refs = [StyleReference.from_row(row).to_dict() for row in result.data]
+    logger.info("Returning %d style references", len(refs))
+
+    return jsonify({'style_references': refs})
+
+
+@generate_bp.route('/style-references/<int:ref_id>', methods=['DELETE'])
+@token_required
+def delete_style_reference(current_user, ref_id):
+    """Delete a style reference and its image from storage."""
+    logger.info("Delete request for style reference #%d from user id=%s", ref_id, current_user.id)
+
+    result = _sb().table('style_references').select('*').eq(
+        'id', ref_id
+    ).eq('user_id', current_user.id).execute()
+
+    if not result.data:
+        logger.warning("Style reference #%d not found for user id=%s", ref_id, current_user.id)
+        return jsonify({'error': 'Style reference not found'}), 404
+
+    ref = StyleReference.from_row(result.data[0])
+
+    # Delete image from storage
+    if ref.image_url:
+        logger.info("Deleting reference image from storage: %s", ref.image_path)
+        storage_service.delete_file(ref.image_url)
+
+    # Delete DB record
+    _sb().table('style_references').delete().eq(
+        'id', ref_id
+    ).eq('user_id', current_user.id).execute()
+
+    logger.info("Style reference #%d deleted", ref_id)
+    return jsonify({'message': 'Style reference deleted successfully'})
+
+
+# ── Generation Endpoints ──
+
+
 @generate_bp.route('/generate', methods=['POST'])
 @token_required
 def create_generation(current_user):
@@ -81,14 +221,20 @@ def create_generation(current_user):
     {
         "book_title": "string (required)",
         "author_name": "string (required)",
-        "summary": "string (required)",
-        "genres": ["array of strings (required)"],
-        "mood": "string (required)",
+        "summary": "string (optional)",
+        "genres": ["array of strings (optional)"],
+        "mood": "string (optional)",
         "aspect_ratio": "string (default: 2:3)",
         "color_preference": "string (optional)",
         "character_description": "string (optional)",
         "keywords": ["array (optional)"],
-        "reference_image_description": "string (optional)"
+        "reference_image_description": "string (optional)",
+        "style_analysis": {
+            "feeling": "string",
+            "layout": "string",
+            "illustration_rules": "string",
+            "typography": "string"
+        }
     }
     """
     data = request.get_json()
@@ -117,6 +263,9 @@ def create_generation(current_user):
             'error': f'Invalid aspect_ratio. Must be one of: {list(ASPECT_RATIOS.keys())}'
         }), 400
 
+    # Extract style analysis if provided
+    style_analysis = data.get('style_analysis')
+
     # Insert generation record
     gen_data = {
         'user_id': current_user.id,
@@ -130,6 +279,7 @@ def create_generation(current_user):
         'character_description': data.get('character_description'),
         'keywords': data.get('keywords'),
         'reference_image_description': data.get('reference_image_description'),
+        'style_analysis': style_analysis,
         'status': 'generating',
     }
 
@@ -153,7 +303,9 @@ def create_generation(current_user):
             'reference_image_description': generation.reference_image_description
         }
 
-        base_prompt = llm_service.generate_base_image_prompt(book_data)
+        base_prompt = llm_service.generate_base_image_prompt(
+            book_data, style_analysis=style_analysis
+        )
         logger.info("Gen #%s Step 1/4 done. Prompt length: %d chars", gen_id, len(base_prompt))
         _sb().table('generations').update(
             {'base_prompt': base_prompt}
@@ -177,7 +329,9 @@ def create_generation(current_user):
 
         # Step 3: Generate text overlay prompt
         logger.info("Gen #%s Step 3/4: Generating text overlay prompt via LLM...", gen_id)
-        text_prompt = llm_service.generate_text_overlay_prompt(book_data)
+        text_prompt = llm_service.generate_text_overlay_prompt(
+            book_data, style_analysis=style_analysis
+        )
         logger.info("Gen #%s Step 3/4 done. Prompt length: %d chars", gen_id, len(text_prompt))
         _sb().table('generations').update(
             {'text_prompt': text_prompt}
@@ -334,12 +488,14 @@ def regenerate(current_user, generation_id):
         'character_description': original.character_description,
         'keywords': original.keywords,
         'reference_image_description': original.reference_image_description,
+        'style_analysis': original.style_analysis,
         'status': 'generating',
     }
 
     insert_result = _sb().table('generations').insert(new_gen_data).execute()
     new_generation = Generation.from_row(insert_result.data[0])
     gen_id = new_generation.id
+    style_analysis = new_generation.style_analysis
     logger.info("Gen #%s created for regeneration (from #%d)", gen_id, generation_id)
 
     try:
@@ -357,7 +513,9 @@ def regenerate(current_user, generation_id):
 
         # Generate new prompts (might be slightly different due to temperature)
         logger.info("Gen #%s Step 1/4: Generating base image prompt via LLM...", gen_id)
-        base_prompt = llm_service.generate_base_image_prompt(book_data)
+        base_prompt = llm_service.generate_base_image_prompt(
+            book_data, style_analysis=style_analysis
+        )
         logger.info("Gen #%s Step 1/4 done. Prompt length: %d chars", gen_id, len(base_prompt))
         _sb().table('generations').update(
             {'base_prompt': base_prompt}
@@ -383,7 +541,9 @@ def regenerate(current_user, generation_id):
 
         # Generate text prompt and final image
         logger.info("Gen #%s Step 3/4: Generating text overlay prompt via LLM...", gen_id)
-        text_prompt = llm_service.generate_text_overlay_prompt(book_data)
+        text_prompt = llm_service.generate_text_overlay_prompt(
+            book_data, style_analysis=style_analysis
+        )
         logger.info("Gen #%s Step 3/4 done. Prompt length: %d chars", gen_id, len(text_prompt))
 
         # Use signed URL so WaveSpeed can download without Cloudflare blocking
