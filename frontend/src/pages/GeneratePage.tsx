@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
 import { generationApi } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import type { GenerationInput, Generation, AspectRatioInfo, StyleAnalysis } from '../types';
+import type { GenerationInput, Generation, AspectRatioInfo, StyleReference } from '../types';
 
-// All optional field definitions
+// Optional field definitions (removed reference_image_description — now handled by the
+// always-visible style reference selector instead of the optional-field system)
 const OPTIONAL_FIELD_DEFS = [
   { key: 'summary', label: 'Book Summary' },
   { key: 'genres', label: 'Genres' },
@@ -12,94 +12,15 @@ const OPTIONAL_FIELD_DEFS = [
   { key: 'color_preference', label: 'Color Preference' },
   { key: 'character_description', label: 'Character Description' },
   { key: 'keywords', label: 'Keywords' },
-  { key: 'reference_image_description', label: 'Style Reference' },
 ] as const;
 
 type OptionalFieldKey = typeof OPTIONAL_FIELD_DEFS[number]['key'];
 
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
-
-// Resize image on a canvas if it exceeds max dimensions
-function resizeImage(file: File, maxDim = 2048): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const img = new Image();
-      img.onload = () => {
-        let { width, height } = img;
-        if (width <= maxDim && height <= maxDim && file.size <= MAX_IMAGE_SIZE) {
-          resolve(reader.result as string);
-          return;
-        }
-        // Scale down
-        const scale = Math.min(maxDim / width, maxDim / height, 1);
-        width = Math.round(width * scale);
-        height = Math.round(height * scale);
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d')!;
-        ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', 0.85));
-      };
-      img.onerror = reject;
-      img.src = reader.result as string;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-// ── Accordion Section Component ──
-function AccordionSection({
-  title,
-  value,
-  onChange,
-  defaultOpen = false,
-}: {
-  title: string;
-  value: string;
-  onChange: (v: string) => void;
-  defaultOpen?: boolean;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-
-  return (
-    <div className="border border-border rounded-lg overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-4 py-2.5 bg-surface-alt hover:bg-surface-hover transition-colors text-left"
-      >
-        <span className="text-sm font-medium text-text">{title}</span>
-        <svg
-          className={`w-4 h-4 text-text-muted transition-transform ${open ? 'rotate-180' : ''}`}
-          fill="none"
-          viewBox="0 0 24 24"
-          strokeWidth={2}
-          stroke="currentColor"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-        </svg>
-      </button>
-      {open && (
-        <div className="p-3">
-          <textarea
-            rows={3}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent resize-y"
-          />
-        </div>
-      )}
-    </div>
-  );
-}
+// Fields that are auto-hidden when a style reference is selected
+const FIELDS_HIDDEN_BY_STYLE_REF: readonly string[] = ['mood', 'color_preference'];
 
 export default function GeneratePage() {
   const { user } = useAuth();
-  const location = useLocation();
-  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Generation | null>(null);
@@ -109,12 +30,16 @@ export default function GeneratePage() {
   const [moods, setMoods] = useState<string[]>([]);
   const [aspectRatios, setAspectRatios] = useState<Record<string, AspectRatioInfo>>({});
 
+  // Style references for the selector
+  const [styleReferences, setStyleReferences] = useState<StyleReference[]>([]);
+  const [selectedRefId, setSelectedRefId] = useState<number | null>(null);
+
   // Temp fields added for this session only (not saved to preferences)
   const [tempFields, setTempFields] = useState<Set<string>>(new Set());
   const [addFieldOpen, setAddFieldOpen] = useState(false);
   const addFieldRef = useRef<HTMLDivElement>(null);
 
-  // Form state — starts empty
+  // Form state
   const [formData, setFormData] = useState<GenerationInput>({
     book_title: '',
     author_name: '',
@@ -125,67 +50,52 @@ export default function GeneratePage() {
     color_preference: '',
     character_description: '',
     keywords: [],
-    reference_image_description: '',
   });
 
   const [keywordInput, setKeywordInput] = useState('');
-
-  // Style reference state
-  const [styleTab, setStyleTab] = useState<'describe' | 'upload'>('describe');
-  const [referenceImage, setReferenceImage] = useState<string | null>(null); // base64 data URL
-  const [styleAnalysis, setStyleAnalysis] = useState<StyleAnalysis | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Compute which optional fields are visible
   const prefsFields = user?.preferences?.visible_fields || [];
   const visibleOptionalKeys = new Set<string>([...prefsFields, ...tempFields]);
 
-  const visibleOptionalFields = OPTIONAL_FIELD_DEFS.filter((f) =>
-    visibleOptionalKeys.has(f.key)
-  );
-  const hiddenOptionalFields = OPTIONAL_FIELD_DEFS.filter(
-    (f) => !visibleOptionalKeys.has(f.key)
+  // When a style reference is selected, hide mood and color_preference
+  const hasStyleRef = selectedRefId !== null;
+  const effectiveVisibleKeys = new Set(
+    [...visibleOptionalKeys].filter(
+      (k) => !(hasStyleRef && FIELDS_HIDDEN_BY_STYLE_REF.includes(k))
+    )
   );
 
-  // Load form options
+  const visibleOptionalFields = OPTIONAL_FIELD_DEFS.filter((f) =>
+    effectiveVisibleKeys.has(f.key)
+  );
+  const hiddenOptionalFields = OPTIONAL_FIELD_DEFS.filter(
+    (f) =>
+      !effectiveVisibleKeys.has(f.key) &&
+      // Don't show hidden-by-ref fields in the "add field" dropdown either
+      !(hasStyleRef && FIELDS_HIDDEN_BY_STYLE_REF.includes(f.key))
+  );
+
+  // Load form options + style references
   useEffect(() => {
     const loadOptions = async () => {
       try {
-        const [genresData, moodsData, ratiosData] = await Promise.all([
+        const [genresData, moodsData, ratiosData, refsData] = await Promise.all([
           generationApi.getGenres(),
           generationApi.getMoods(),
           generationApi.getAspectRatios(),
+          generationApi.getStyleReferences(),
         ]);
         setGenres(genresData);
         setMoods(moodsData);
         setAspectRatios(ratiosData);
+        setStyleReferences(refsData);
       } catch (err) {
         console.error('Failed to load options:', err);
       }
     };
     loadOptions();
   }, []);
-
-  // Handle incoming style reference from /references page
-  useEffect(() => {
-    const state = location.state as { styleRef?: { feeling: string; layout: string; illustration_rules: string; typography: string; image_url: string } } | null;
-    if (state?.styleRef) {
-      // Make sure the style reference field is visible
-      setTempFields((prev) => new Set([...prev, 'reference_image_description']));
-      setStyleTab('upload');
-      setStyleAnalysis({
-        feeling: state.styleRef.feeling || '',
-        layout: state.styleRef.layout || '',
-        illustration_rules: state.styleRef.illustration_rules || '',
-        typography: state.styleRef.typography || '',
-      });
-      setReferenceImage(state.styleRef.image_url);
-      // Clear the state so it doesn't re-apply on re-render
-      navigate(location.pathname, { replace: true, state: {} });
-    }
-  }, [location.state, navigate, location.pathname]);
 
   // Close add-field dropdown on outside click
   useEffect(() => {
@@ -213,31 +123,35 @@ export default function GeneratePage() {
         aspect_ratio: formData.aspect_ratio,
       };
 
-      if (visibleOptionalKeys.has('summary') && formData.summary) {
+      if (effectiveVisibleKeys.has('summary') && formData.summary) {
         payload.summary = formData.summary;
       }
-      if (visibleOptionalKeys.has('genres') && formData.genres && formData.genres.length > 0) {
+      if (effectiveVisibleKeys.has('genres') && formData.genres && formData.genres.length > 0) {
         payload.genres = formData.genres;
       }
-      if (visibleOptionalKeys.has('mood') && formData.mood) {
+      if (effectiveVisibleKeys.has('mood') && formData.mood) {
         payload.mood = formData.mood;
       }
-      if (visibleOptionalKeys.has('color_preference') && formData.color_preference) {
+      if (effectiveVisibleKeys.has('color_preference') && formData.color_preference) {
         payload.color_preference = formData.color_preference;
       }
-      if (visibleOptionalKeys.has('character_description') && formData.character_description) {
+      if (effectiveVisibleKeys.has('character_description') && formData.character_description) {
         payload.character_description = formData.character_description;
       }
-      if (visibleOptionalKeys.has('keywords') && formData.keywords && formData.keywords.length > 0) {
+      if (effectiveVisibleKeys.has('keywords') && formData.keywords && formData.keywords.length > 0) {
         payload.keywords = formData.keywords;
       }
 
-      // Style reference: either text description or analyzed image (mutually exclusive based on active tab)
-      if (visibleOptionalKeys.has('reference_image_description')) {
-        if (styleTab === 'describe' && formData.reference_image_description) {
-          payload.reference_image_description = formData.reference_image_description;
-        } else if (styleTab === 'upload' && styleAnalysis) {
-          payload.style_analysis = styleAnalysis;
+      // Style reference: send style_analysis from the selected reference
+      if (selectedRefId !== null) {
+        const ref = styleReferences.find((r) => r.id === selectedRefId);
+        if (ref) {
+          payload.style_analysis = {
+            feeling: ref.feeling || '',
+            layout: ref.layout || '',
+            illustration_rules: ref.illustration_rules || '',
+            typography: ref.typography || '',
+          };
         }
       }
 
@@ -299,15 +213,8 @@ export default function GeneratePage() {
       else if (key === 'mood') updated.mood = '';
       else if (key === 'color_preference') updated.color_preference = '';
       else if (key === 'character_description') updated.character_description = '';
-      else if (key === 'reference_image_description') updated.reference_image_description = '';
       return updated;
     });
-    // Also clear style analysis state if removing style reference field
-    if (key === 'reference_image_description') {
-      setStyleAnalysis(null);
-      setReferenceImage(null);
-      setAnalyzeError(null);
-    }
   };
 
   const handleRegenerate = async () => {
@@ -325,259 +232,11 @@ export default function GeneratePage() {
     }
   };
 
-  // ── Image upload handlers ──
-
-  const handleImageSelect = useCallback(async (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      setAnalyzeError('Please select an image file.');
-      return;
-    }
-    setAnalyzeError(null);
-    setStyleAnalysis(null);
-
-    try {
-      const dataUrl = await resizeImage(file);
-      setReferenceImage(dataUrl);
-    } catch {
-      setAnalyzeError('Failed to process image.');
-    }
-  }, []);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) handleImageSelect(file);
-  };
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (file) handleImageSelect(file);
-  }, [handleImageSelect]);
-
-  const handleAnalyze = async () => {
-    if (!referenceImage) return;
-    setIsAnalyzing(true);
-    setAnalyzeError(null);
-
-    try {
-      const ref = await generationApi.analyzeStyle(referenceImage);
-      setStyleAnalysis({
-        feeling: ref.feeling || '',
-        layout: ref.layout || '',
-        illustration_rules: ref.illustration_rules || '',
-        typography: ref.typography || '',
-      });
-      // Update the referenceImage to the stored URL (from Supabase) so it persists
-      if (ref.image_url) {
-        setReferenceImage(ref.image_url);
-      }
-    } catch (err: any) {
-      setAnalyzeError(err.response?.data?.error || 'Failed to analyze image.');
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-
-  const handleClearStyleRef = () => {
-    setReferenceImage(null);
-    setStyleAnalysis(null);
-    setAnalyzeError(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
-  };
-
   // Helper: is this field a temp-added field (not in preferences)?
   const isTempField = (key: string) => tempFields.has(key) && !prefsFields.includes(key);
 
-  // ── Render Style Reference field (tabbed) ──
-  const renderStyleReferenceField = () => {
-    const showRemove = isTempField('reference_image_description');
-    const removeBtn = showRemove ? (
-      <button
-        type="button"
-        onClick={() => handleRemoveTempField('reference_image_description')}
-        className="ml-2 p-0.5 text-text-muted hover:text-error transition-colors"
-        aria-label="Remove style reference field"
-      >
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-        </svg>
-      </button>
-    ) : null;
-
-    return (
-      <div key="reference_image_description">
-        <div className="flex items-center mb-3">
-          <label className="block text-sm font-medium text-text-secondary">Style Reference</label>
-          {removeBtn}
-        </div>
-
-        {/* Tabs */}
-        <div className="flex mb-3 bg-surface-alt border border-border rounded-lg p-0.5">
-          <button
-            type="button"
-            onClick={() => setStyleTab('describe')}
-            className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              styleTab === 'describe'
-                ? 'bg-surface text-text shadow-sm border border-border'
-                : 'text-text-muted hover:text-text'
-            }`}
-          >
-            Describe
-          </button>
-          <button
-            type="button"
-            onClick={() => setStyleTab('upload')}
-            className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              styleTab === 'upload'
-                ? 'bg-surface text-text shadow-sm border border-border'
-                : 'text-text-muted hover:text-text'
-            }`}
-          >
-            Upload Image
-          </button>
-        </div>
-
-        {/* Tab content */}
-        {styleTab === 'describe' ? (
-          <textarea
-            rows={2}
-            value={formData.reference_image_description || ''}
-            onChange={(e) => setFormData({ ...formData, reference_image_description: e.target.value })}
-            className={inputClass}
-            placeholder="Describe a visual style you'd like to emulate..."
-          />
-        ) : (
-          <div className="space-y-3">
-            {/* Image upload area */}
-            {!referenceImage ? (
-              <div
-                onDrop={handleDrop}
-                onDragOver={(e) => e.preventDefault()}
-                onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-accent/40 hover:bg-surface-alt/50 transition-colors"
-              >
-                <svg className="w-10 h-10 text-text-muted mx-auto mb-3" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
-                </svg>
-                <p className="text-sm text-text-secondary">
-                  Drop an image here or <span className="text-accent font-medium">browse</span>
-                </p>
-                <p className="text-xs text-text-muted mt-1">Max 5MB. JPG, PNG, WebP</p>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-              </div>
-            ) : (
-              <>
-                {/* Image preview + actions */}
-                <div className="flex gap-3 items-start">
-                  <img
-                    src={referenceImage}
-                    alt="Style reference"
-                    className="w-24 h-24 object-cover rounded-lg border border-border flex-shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    {!styleAnalysis && !isAnalyzing && (
-                      <button
-                        type="button"
-                        onClick={handleAnalyze}
-                        className="w-full bg-accent text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-accent-hover transition-colors"
-                      >
-                        Analyze Style
-                      </button>
-                    )}
-                    {isAnalyzing && (
-                      <div className="flex items-center gap-2 text-sm text-text-secondary py-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-accent border-t-transparent"></div>
-                        Analyzing with Gemini...
-                      </div>
-                    )}
-                    {styleAnalysis && (
-                      <p className="text-xs text-accent font-medium py-1">Analysis complete</p>
-                    )}
-                    <div className="flex gap-2 mt-2">
-                      <button
-                        type="button"
-                        onClick={handleClearStyleRef}
-                        className="text-xs text-text-muted hover:text-error transition-colors"
-                      >
-                        Remove image
-                      </button>
-                      <span className="text-xs text-text-muted">|</span>
-                      <button
-                        type="button"
-                        onClick={() => navigate('/references')}
-                        className="text-xs text-accent hover:text-accent-hover transition-colors"
-                      >
-                        Use from library
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Analysis error */}
-                {analyzeError && (
-                  <p className="text-sm text-error">{analyzeError}</p>
-                )}
-
-                {/* Editable analysis accordion */}
-                {styleAnalysis && (
-                  <div className="space-y-2">
-                    <AccordionSection
-                      title="Feeling & Atmosphere"
-                      value={styleAnalysis.feeling}
-                      onChange={(v) => setStyleAnalysis({ ...styleAnalysis, feeling: v })}
-                    />
-                    <AccordionSection
-                      title="Layout & Composition"
-                      value={styleAnalysis.layout}
-                      onChange={(v) => setStyleAnalysis({ ...styleAnalysis, layout: v })}
-                    />
-                    <AccordionSection
-                      title="Illustration Rules"
-                      value={styleAnalysis.illustration_rules}
-                      onChange={(v) => setStyleAnalysis({ ...styleAnalysis, illustration_rules: v })}
-                    />
-                    <AccordionSection
-                      title="Typography"
-                      value={styleAnalysis.typography}
-                      onChange={(v) => setStyleAnalysis({ ...styleAnalysis, typography: v })}
-                    />
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* Link to library when no image is uploaded */}
-            {!referenceImage && (
-              <button
-                type="button"
-                onClick={() => navigate('/references')}
-                className="flex items-center gap-1.5 text-xs text-accent hover:text-accent-hover transition-colors font-medium"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-                </svg>
-                Use from library
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  };
-
   // ── Render a single optional field ──
   const renderOptionalField = (key: OptionalFieldKey) => {
-    // Style reference gets special treatment
-    if (key === 'reference_image_description') {
-      return renderStyleReferenceField();
-    }
-
     const showRemove = isTempField(key);
     const removeBtn = showRemove ? (
       <button
@@ -777,6 +436,12 @@ export default function GeneratePage() {
                   <span className="font-medium text-text-secondary w-24 flex-shrink-0">Ratio</span>
                   <span className="text-text">{result.aspect_ratio_info?.name}</span>
                 </div>
+                {result.style_analysis && (
+                  <div className="flex gap-2">
+                    <span className="font-medium text-text-secondary w-24 flex-shrink-0">Style Ref</span>
+                    <span className="text-text">Applied</span>
+                  </div>
+                )}
               </div>
 
               <div className="mt-8 space-y-3">
@@ -809,12 +474,9 @@ export default function GeneratePage() {
                       color_preference: '',
                       character_description: '',
                       keywords: [],
-                      reference_image_description: '',
                     });
                     setTempFields(new Set());
-                    setStyleAnalysis(null);
-                    setReferenceImage(null);
-                    setStyleTab('describe');
+                    setSelectedRefId(null);
                   }}
                   className="w-full text-text-muted py-2.5 px-4 rounded-lg hover:text-text transition-colors"
                 >
@@ -899,6 +561,41 @@ export default function GeneratePage() {
               </option>
             ))}
           </select>
+        </div>
+
+        {/* Always visible: Style Reference selector */}
+        <div>
+          <label className="block text-sm font-medium text-text-secondary mb-1.5">
+            Style Reference
+          </label>
+          <select
+            value={selectedRefId ?? ''}
+            onChange={(e) => {
+              const val = e.target.value;
+              setSelectedRefId(val === '' ? null : Number(val));
+            }}
+            className={inputClass}
+          >
+            <option value="">None</option>
+            {styleReferences.map((ref) => (
+              <option key={ref.id} value={ref.id}>
+                {ref.title || 'Untitled Reference'}
+              </option>
+            ))}
+          </select>
+          {hasStyleRef && (
+            <p className="mt-1.5 text-xs text-text-muted">
+              Mood and color preference are provided by the style reference.
+            </p>
+          )}
+          {styleReferences.length === 0 && (
+            <p className="mt-1.5 text-xs text-text-muted">
+              No references yet.{' '}
+              <a href="/references" className="text-accent hover:text-accent-hover transition-colors">
+                Create one
+              </a>
+            </p>
+          )}
         </div>
 
         {/* Visible optional fields */}
