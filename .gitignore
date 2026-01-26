@@ -1,7 +1,37 @@
+# Environment / secrets
+.env
+.env.local
+.env.*.local
+
+# Python
 __pycache__/
 *.pyc
-.env
-.DS_Store
+*.pyo
+venv/
+*.egg-info/
+.pytest_cache/
+coverage.xml
+htmlcov/
+.coverage
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# IDE
 .vscode/
 .idea/
-venv/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Course docs (not part of the application)
+szakodga.txt
