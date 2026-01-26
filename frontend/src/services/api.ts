@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { supabase } from '../lib/supabase';
-import type { User, UserPreferences, Generation, GenerationInput, PaginatedResponse, AspectRatioInfo } from '../types';
+import type { User, UserPreferences, Generation, GenerationInput, PaginatedResponse, AspectRatioInfo, StyleReference } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -100,6 +100,21 @@ export const generationApi = {
   
   delete: async (id: number): Promise<void> => {
     await api.delete(`/api/generations/${id}`);
+  },
+
+  // Style reference endpoints
+  analyzeStyle: async (imageBase64: string): Promise<StyleReference> => {
+    const response = await api.post('/api/analyze-style', { image: imageBase64 });
+    return response.data;
+  },
+
+  getStyleReferences: async (): Promise<StyleReference[]> => {
+    const response = await api.get('/api/style-references');
+    return response.data.style_references;
+  },
+
+  deleteStyleReference: async (id: number): Promise<void> => {
+    await api.delete(`/api/style-references/${id}`);
   },
 };
 

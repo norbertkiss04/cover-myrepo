@@ -17,6 +17,23 @@ export interface AspectRatioInfo {
   name: string;
 }
 
+export interface StyleAnalysis {
+  feeling: string;
+  layout: string;
+  illustration_rules: string;
+  typography: string;
+}
+
+export interface StyleReference {
+  id: number;
+  image_url: string;
+  feeling: string | null;
+  layout: string | null;
+  illustration_rules: string | null;
+  typography: string | null;
+  created_at: string;
+}
+
 export interface Generation {
   id: number;
   book_title: string;
@@ -28,6 +45,7 @@ export interface Generation {
   character_description: string | null;
   keywords: string[] | null;
   reference_image_description: string | null;
+  style_analysis: StyleAnalysis | null;
   aspect_ratio: string;
   aspect_ratio_info: AspectRatioInfo | null;
   base_prompt: string | null;
@@ -51,6 +69,7 @@ export interface GenerationInput {
   character_description?: string;
   keywords?: string[];
   reference_image_description?: string;
+  style_analysis?: StyleAnalysis;
 }
 
 export interface PaginatedResponse<T> {

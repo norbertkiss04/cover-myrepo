@@ -7,6 +7,7 @@ import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import AuthCallbackPage from './pages/AuthCallbackPage';
 import GeneratePage from './pages/GeneratePage';
+import StyleReferencesPage from './pages/StyleReferencesPage';
 import HistoryPage from './pages/HistoryPage';
 
 const queryClient = new QueryClient();
@@ -26,6 +27,14 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <GeneratePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="references"
+                element={
+                  <ProtectedRoute>
+                    <StyleReferencesPage />
                   </ProtectedRoute>
                 }
               />

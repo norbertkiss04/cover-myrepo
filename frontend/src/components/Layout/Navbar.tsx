@@ -92,6 +92,16 @@ export default function Navbar() {
                     Generate
                   </Link>
                   <Link
+                    to="/references"
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      isActive('/references')
+                        ? 'text-accent bg-accent-soft'
+                        : 'text-text-secondary hover:text-text hover:bg-surface-alt'
+                    }`}
+                  >
+                    References
+                  </Link>
+                  <Link
                     to="/history"
                     className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                       isActive('/history')
