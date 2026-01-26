@@ -143,7 +143,7 @@ export default function StyleReferencesPage() {
 
   const handleImageFile = useCallback(async (file: File) => {
     if (!file.type.startsWith('image/')) {
-      setAnalyzeError('Please drop an image file.');
+      setAnalyzeError('Please select an image file.');
       return;
     }
     setAnalyzeError(null);
@@ -160,6 +160,28 @@ export default function StyleReferencesPage() {
     } finally {
       setIsAnalyzing(false);
     }
+  }, []);
+
+  // Stable ref so the paste listener always calls the latest handleImageFile
+  const handleImageFileRef = useRef(handleImageFile);
+  handleImageFileRef.current = handleImageFile;
+
+  // ── Paste support (Ctrl+V / Cmd+V) ──
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (file) handleImageFileRef.current(file);
+          return;
+        }
+      }
+    };
+    document.addEventListener('paste', handlePaste);
+    return () => document.removeEventListener('paste', handlePaste);
   }, []);
 
   const handleDrop = useCallback(
@@ -283,7 +305,7 @@ export default function StyleReferencesPage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-heading font-bold text-text">Style References</h1>
           <p className="text-text-secondary mt-1">
-            Upload reference images to extract reusable design styles for your covers.
+            Upload, drag-and-drop, or paste images to extract reusable design styles for your covers.
           </p>
         </div>
         <button
@@ -339,9 +361,9 @@ export default function StyleReferencesPage() {
           </svg>
           <h2 className="text-xl font-heading font-semibold text-text">No style references yet</h2>
           <p className="mt-2 text-text-secondary">
-            Drop an image here or click to upload. The AI will analyze its visual style.
+            Drop an image here, click to upload, or paste from clipboard. The AI will analyze its visual style.
           </p>
-          <p className="mt-1 text-xs text-text-muted">Max 5MB. JPG, PNG, WebP</p>
+          <p className="mt-1 text-xs text-text-muted">Max 5MB. JPG, PNG, WebP. Ctrl+V to paste.</p>
         </div>
       )}
 
