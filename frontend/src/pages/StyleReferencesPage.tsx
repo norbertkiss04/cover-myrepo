@@ -33,73 +33,93 @@ function resizeImage(file: File, maxDim = 2048): Promise<string> {
   });
 }
 
-function AccordionSection({
+function InlineTitle({
+  refId,
   title,
-  value,
-  onChange,
-  defaultOpen = false,
-  readOnly = false,
+  onSaved,
 }: {
+  refId: number;
   title: string;
-  value: string;
-  onChange?: (v: string) => void;
-  defaultOpen?: boolean;
-  readOnly?: boolean;
+  onSaved: (updated: StyleReference) => void;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [isEditing, setIsEditing] = useState(false);
+  const [value, setValue] = useState(title);
+  const [isSaving, setIsSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setValue(title);
+  }, [title]);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const save = async () => {
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === title) {
+      setValue(title);
+      setIsEditing(false);
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const updated = await generationApi.updateStyleReference(refId, { title: trimmed });
+      onSaved(updated);
+      setIsEditing(false);
+    } catch {
+      setValue(title);
+      setIsEditing(false);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      save();
+    }
+    if (e.key === 'Escape') {
+      setValue(title);
+      setIsEditing(false);
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <input
+        ref={inputRef}
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={save}
+        onKeyDown={handleKeyDown}
+        disabled={isSaving}
+        className="w-full font-medium text-text bg-surface-alt border border-accent rounded px-1.5 py-0.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+        placeholder="Give this style a name..."
+      />
+    );
+  }
 
   return (
-    <div className="border border-border rounded-lg overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between px-4 py-2.5 bg-surface-alt hover:bg-surface-hover transition-colors text-left"
-      >
-        <span className="text-sm font-medium text-text">{title}</span>
-        <svg
-          className={`w-4 h-4 text-text-muted transition-transform ${open ? 'rotate-180' : ''}`}
-          fill="none"
-          viewBox="0 0 24 24"
-          strokeWidth={2}
-          stroke="currentColor"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-        </svg>
-      </button>
-      {open && (
-        <div className="p-3">
-          {readOnly ? (
-            <p className="text-sm text-text whitespace-pre-wrap">{value || '(empty)'}</p>
-          ) : (
-            <textarea
-              rows={3}
-              value={value}
-              onChange={(e) => onChange?.(e.target.value)}
-              className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent resize-y"
-            />
-          )}
-        </div>
-      )}
-    </div>
+    <h3
+      onClick={() => setIsEditing(true)}
+      className="font-medium text-text truncate cursor-pointer hover:text-accent transition-colors"
+      title="Click to rename"
+    >
+      {title || 'Untitled Reference'}
+    </h3>
   );
-}
-
-interface EditState {
-  title: string;
-  feeling: string;
-  layout: string;
-  illustration_rules: string;
-  typography: string;
 }
 
 export default function StyleReferencesPage() {
   const [refs, setRefs] = useState<StyleReference[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editState, setEditState] = useState<EditState | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
@@ -109,16 +129,6 @@ export default function StyleReferencesPage() {
   useEffect(() => {
     loadRefs();
   }, []);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && editingId !== null && !isSaving) {
-        cancelEdit();
-      }
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [editingId, isSaving]);
 
   const loadRefs = async () => {
     setIsLoading(true);
@@ -199,35 +209,8 @@ export default function StyleReferencesPage() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const startEdit = (ref: StyleReference) => {
-    setEditingId(ref.id);
-    setEditState({
-      title: ref.title || '',
-      feeling: ref.feeling || '',
-      layout: ref.layout || '',
-      illustration_rules: ref.illustration_rules || '',
-      typography: ref.typography || '',
-    });
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setEditState(null);
-  };
-
-  const saveEdit = async () => {
-    if (!editingId || !editState) return;
-    setIsSaving(true);
-    try {
-      const updated = await generationApi.updateStyleReference(editingId, editState);
-      setRefs((prev) => prev.map((r) => (r.id === editingId ? updated : r)));
-      setEditingId(null);
-      setEditState(null);
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to save changes');
-    } finally {
-      setIsSaving(false);
-    }
+  const handleTitleSaved = (updated: StyleReference) => {
+    setRefs((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
   };
 
   const handleDelete = async (id: number) => {
@@ -235,7 +218,6 @@ export default function StyleReferencesPage() {
     try {
       await generationApi.deleteStyleReference(id);
       setRefs((prev) => prev.filter((r) => r.id !== id));
-      if (editingId === id) cancelEdit();
     } catch (err: any) {
       alert(err.response?.data?.error || 'Failed to delete');
     }
@@ -270,7 +252,6 @@ export default function StyleReferencesPage() {
       onDragLeave={handleDragLeave}
       className="min-h-[60vh] relative"
     >
-      {}
       {isDragOver && (
         <div className="fixed inset-0 z-50 bg-accent/10 border-4 border-dashed border-accent rounded-xl flex items-center justify-center pointer-events-none">
           <div className="bg-surface rounded-xl px-8 py-6 shadow-lg text-center">
@@ -282,7 +263,6 @@ export default function StyleReferencesPage() {
         </div>
       )}
 
-      {}
       <div className="mb-8 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-heading font-bold text-text">Style References</h1>
@@ -309,7 +289,6 @@ export default function StyleReferencesPage() {
         />
       </div>
 
-      {}
       {isAnalyzing && (
         <div className="mb-6 bg-info-bg border border-info-border text-info px-4 py-3 rounded-lg">
           <div className="flex items-center text-sm">
@@ -319,7 +298,6 @@ export default function StyleReferencesPage() {
         </div>
       )}
 
-      {}
       {analyzeError && (
         <div className="mb-6 bg-error-bg border border-error-border text-error px-4 py-3 rounded-lg text-sm">
           {analyzeError}
@@ -332,7 +310,6 @@ export default function StyleReferencesPage() {
         </div>
       )}
 
-      {}
       {refs.length === 0 && !isAnalyzing && (
         <div
           onClick={() => fileInputRef.current?.click()}
@@ -349,7 +326,6 @@ export default function StyleReferencesPage() {
         </div>
       )}
 
-      {}
       {refs.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {refs.map((ref) => (
@@ -366,21 +342,16 @@ export default function StyleReferencesPage() {
               </div>
 
               <div className="p-4">
-                <h3 className="font-medium text-text truncate">{ref.title || 'Untitled Reference'}</h3>
-                {ref.feeling && (
-                  <p className="text-sm text-text-secondary line-clamp-2 mt-1">{ref.feeling}</p>
-                )}
+                <InlineTitle
+                  refId={ref.id}
+                  title={ref.title || 'Untitled Reference'}
+                  onSaved={handleTitleSaved}
+                />
                 <p className="text-xs text-text-muted mt-2">
                   {new Date(ref.created_at).toLocaleDateString()}
                 </p>
 
-                <div className="mt-3 flex gap-2">
-                  <button
-                    onClick={() => startEdit(ref)}
-                    className="flex-1 text-center text-sm bg-surface-alt text-text border border-border py-1.5 px-3 rounded-lg hover:bg-surface-hover transition-colors font-medium"
-                  >
-                    Edit
-                  </button>
+                <div className="mt-3 flex justify-end">
                   <button
                     onClick={() => handleDelete(ref.id)}
                     className="text-sm text-text-muted hover:text-error py-1.5 px-3 transition-colors"
@@ -393,83 +364,6 @@ export default function StyleReferencesPage() {
           ))}
         </div>
       )}
-
-      {editingId !== null && editState && (() => {
-        const editingRef = refs.find((r) => r.id === editingId);
-        return (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-            onClick={(e) => { if (e.target === e.currentTarget && !isSaving) cancelEdit(); }}
-          >
-            <div className="bg-surface border border-border rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-              {editingRef && (
-                <div className="bg-surface-alt rounded-t-xl">
-                  <img
-                    src={editingRef.image_url}
-                    alt={editingRef.title || 'Style reference'}
-                    className="w-full h-auto max-h-64 object-contain"
-                  />
-                </div>
-              )}
-
-              <div className="p-5 space-y-4">
-                <div>
-                  <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
-                    Title
-                  </label>
-                  <input
-                    type="text"
-                    value={editState.title}
-                    onChange={(e) => setEditState({ ...editState, title: e.target.value })}
-                    className="w-full px-3 py-2 bg-surface-alt border border-border rounded-lg text-sm text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent"
-                    placeholder="Give this style a name..."
-                    autoFocus
-                  />
-                </div>
-
-                <AccordionSection
-                  title="Feeling & Atmosphere"
-                  value={editState.feeling}
-                  onChange={(v) => setEditState({ ...editState, feeling: v })}
-                  defaultOpen
-                />
-                <AccordionSection
-                  title="Layout & Composition"
-                  value={editState.layout}
-                  onChange={(v) => setEditState({ ...editState, layout: v })}
-                />
-                <AccordionSection
-                  title="Illustration Rules"
-                  value={editState.illustration_rules}
-                  onChange={(v) => setEditState({ ...editState, illustration_rules: v })}
-                />
-                <AccordionSection
-                  title="Typography"
-                  value={editState.typography}
-                  onChange={(v) => setEditState({ ...editState, typography: v })}
-                />
-
-                <div className="flex gap-2 pt-2">
-                  <button
-                    onClick={saveEdit}
-                    disabled={isSaving}
-                    className="flex-1 bg-accent text-white py-2 px-3 rounded-lg text-sm font-medium hover:bg-accent-hover disabled:opacity-50 transition-colors"
-                  >
-                    {isSaving ? 'Saving...' : 'Save'}
-                  </button>
-                  <button
-                    onClick={cancelEdit}
-                    disabled={isSaving}
-                    className="flex-1 bg-surface-alt text-text-secondary border border-border py-2 px-3 rounded-lg text-sm font-medium hover:bg-surface-hover transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
     </div>
   );
 }
