@@ -10,6 +10,8 @@ services:
       - FLASK_ENV=production
       - FRONTEND_URL=https://instacover.yourdomain.com
     restart: unless-stopped
+    networks:
+      - authorverse
 
   frontend:
     container_name: instacover-web
@@ -22,3 +24,9 @@ services:
     ports:
       - "7711:80"
     restart: unless-stopped
+    networks:
+      - authorverse
+
+networks:
+  authorverse:
+    external: true
