@@ -5,14 +5,14 @@ import type { GenerationInput, Generation, GenerationStatus } from '../types';
 
 const FAKE_STEPS = [
   { at: 0, message: 'Analyzing your description...' },
-  { at: 5, message: 'Crafting the visual concept...' },
-  { at: 12, message: 'Composing the layout...' },
-  { at: 22, message: 'Rendering the artwork...' },
-  { at: 38, message: 'Refining details...' },
-  { at: 50, message: 'Finalizing your cover...' },
+  { at: 8, message: 'Crafting the visual concept...' },
+  { at: 18, message: 'Composing the layout...' },
+  { at: 33, message: 'Rendering the artwork...' },
+  { at: 55, message: 'Refining details...' },
+  { at: 75, message: 'Finalizing your cover...' },
 ];
 
-const TOTAL_FAKE_DURATION = 60;
+const TOTAL_FAKE_DURATION = 90;
 const MAX_FAKE_PERCENT = 95;
 const SESSION_KEY = 'gen_start_time';
 
