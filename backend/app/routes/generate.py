@@ -208,24 +208,26 @@ def update_style_reference(current_user, ref_id):
     return jsonify(style_ref.to_dict())
 
 
-def run_standard_pipeline(gen_id, generation, book_data, style_analysis, aspect_ratio, on_progress=None):
+def run_standard_pipeline(gen_id, generation, book_data, style_analysis, aspect_ratio, on_progress=None, base_image_only=False):
+    total_steps = 2 if base_image_only else 4
+
     def progress(step, total, message):
         if on_progress:
             on_progress(step, total, message)
 
-    progress(1, 4, "Generating image prompt...")
+    progress(1, total_steps, "Generating image prompt...")
     base_prompt = llm_service.generate_base_image_prompt(
         book_data, style_analysis=style_analysis
     )
-    logger.info("Gen #%s Step 1/4 done. Prompt length: %d chars", gen_id, len(base_prompt))
+    logger.info("Gen #%s Step 1/%d done. Prompt length: %d chars", gen_id, total_steps, len(base_prompt))
     _sb().table('generations').update(
         {'base_prompt': base_prompt}
     ).eq('id', generation.id).execute()
 
-    progress(2, 4, "Creating base image...")
+    progress(2, total_steps, "Creating base image...")
     base_result = image_service.generate_base_image(base_prompt, aspect_ratio)
     base_image_url = base_result['image_url']
-    logger.info("Gen #%s Step 2/4 done. Base image URL received", gen_id)
+    logger.info("Gen #%s Step 2/%d done. Base image URL received", gen_id, total_steps)
 
     base_upload = storage_service.upload_from_url(base_image_url, folder='base')
     storage_base_url = base_upload['public_url']
@@ -234,7 +236,18 @@ def run_standard_pipeline(gen_id, generation, book_data, style_analysis, aspect_
         {'base_image_url': storage_base_url}
     ).eq('id', generation.id).execute()
 
-    progress(3, 4, "Designing typography...")
+    if base_image_only:
+        now = datetime.now(timezone.utc).isoformat()
+        update_result = _sb().table('generations').update({
+            'final_image_url': storage_base_url,
+            'status': 'completed',
+            'completed_at': now,
+        }).eq('id', generation.id).execute()
+        final_gen = Generation.from_row(update_result.data[0])
+        logger.info("Gen #%s COMPLETED successfully (base image only)", gen_id)
+        return final_gen
+
+    progress(3, total_steps, "Designing typography...")
     text_prompt = llm_service.generate_text_overlay_prompt(
         book_data, style_analysis=style_analysis
     )
@@ -243,7 +256,7 @@ def run_standard_pipeline(gen_id, generation, book_data, style_analysis, aspect_
         {'text_prompt': text_prompt}
     ).eq('id', generation.id).execute()
 
-    progress(4, 4, "Adding text to cover...")
+    progress(4, total_steps, "Adding text to cover...")
     signed_base_url = storage_service.get_signed_url(base_storage_path, expires_in=600)
     final_prompt = f"{base_prompt}\n\nText overlay: {text_prompt}"
     final_result = image_service.generate_image_with_text(
