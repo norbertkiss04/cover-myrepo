@@ -132,14 +132,9 @@ function ProgressPanel({ generation }: { generation: ReturnType<typeof useGenera
   );
 }
 
-function ResultPanel({ result, generation, user, onRegenerate }: {
-  result: Generation;
-  generation: ReturnType<typeof useGeneration>;
-  user: any;
-  onRegenerate: () => void;
-}) {
+function ResultPanel({ result }: { result: Generation }) {
   return (
-    <div className="flex flex-col items-center space-y-4">
+    <div className="flex flex-col items-center space-y-3">
       <div className="w-[85%] rounded-2xl overflow-hidden border border-border bg-surface">
         <img
           src={result.final_image_url || result.base_image_url || ''}
@@ -148,26 +143,16 @@ function ResultPanel({ result, generation, user, onRegenerate }: {
         />
       </div>
 
-      <div className="w-[85%] flex gap-2">
-        <a
-          href={result.final_image_url || result.base_image_url || ''}
-          download={`${result.book_title.replace(/\s+/g, '_')}_cover.png`}
-          className="flex-1 flex items-center justify-center gap-1.5 bg-accent text-white py-2 px-3 rounded-lg text-sm font-medium hover:bg-accent-hover transition-colors"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-          </svg>
-          Download
-        </a>
-
-        <button
-          onClick={onRegenerate}
-          disabled={generation.status !== 'completed' || (!user?.unlimited_credits && (user?.credits ?? 0) < 3)}
-          className="flex-1 border border-border text-text py-2 px-3 rounded-lg text-sm font-medium hover:bg-surface-alt disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-        >
-          Regenerate
-        </button>
-      </div>
+      <a
+        href={result.final_image_url || result.base_image_url || ''}
+        download={`${result.book_title.replace(/\s+/g, '_')}_cover.png`}
+        className="inline-flex items-center gap-1.5 bg-accent text-white py-1.5 px-4 rounded-lg text-sm font-medium hover:bg-accent-hover transition-colors"
+      >
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+        </svg>
+        Download
+      </a>
     </div>
   );
 }
@@ -346,11 +331,6 @@ export default function GeneratePage() {
       else if (key === 'character_description') updated.character_description = '';
       return updated;
     });
-  };
-
-  const handleRegenerate = () => {
-    if (!generation.result) return;
-    generation.startRegeneration(generation.result.id);
   };
 
   const handleClear = () => {
@@ -654,7 +634,7 @@ export default function GeneratePage() {
               <button
                 type="submit"
                 disabled={isGenerating || !generation.socketConnected || (!user?.unlimited_credits && (user?.credits ?? 0) < 3)}
-                className="flex-1 bg-accent text-white py-2 px-4 rounded-lg font-medium hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm"
+                className="flex-1 bg-accent text-white py-1.5 px-3 rounded-lg font-medium hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm"
               >
                 {isGenerating ? 'Generating...' : 'Generate (3 credits)'}
               </button>
@@ -662,9 +642,13 @@ export default function GeneratePage() {
                 type="button"
                 onClick={handleClear}
                 disabled={isGenerating}
-                className="px-3 py-2 border border-border text-text-secondary rounded-lg text-sm hover:bg-surface-alt disabled:opacity-40 transition-colors"
+                className="p-1.5 border border-border text-text-muted rounded-lg hover:bg-surface-alt hover:text-text-secondary disabled:opacity-40 transition-colors"
+                aria-label="Reset form"
+                title="Reset form"
               >
-                Clear
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.992 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182" />
+                </svg>
               </button>
             </div>
             {!user?.unlimited_credits && (user?.credits ?? 0) < 3 && (
@@ -677,12 +661,7 @@ export default function GeneratePage() {
           {(isIdle || isFailed) && <PlaceholderPanel />}
           {isGenerating && <ProgressPanel generation={generation} />}
           {isCompleted && generation.result && (
-            <ResultPanel
-              result={generation.result}
-              generation={generation}
-              user={user}
-              onRegenerate={handleRegenerate}
-            />
+            <ResultPanel result={generation.result} />
           )}
         </div>
       </div>

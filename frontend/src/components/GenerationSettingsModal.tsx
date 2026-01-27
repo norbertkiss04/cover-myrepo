@@ -61,10 +61,10 @@ export default function GenerationSettingsModal({ generation, styleReferenceName
           <SettingRow label="Style Reference" value={styleReferenceName} />
         </div>
 
-        <div className="sticky bottom-0 px-6 py-4 bg-surface border-t border-border rounded-b-2xl">
+        <div className="sticky bottom-0 px-6 py-3 bg-surface border-t border-border rounded-b-2xl">
           <button
             onClick={() => onUseSettings(generation)}
-            className="w-full bg-accent text-white py-2 rounded-lg font-medium text-sm hover:bg-accent-hover transition-colors cursor-pointer"
+            className="w-full bg-accent text-white py-1.5 rounded-lg font-medium text-sm hover:bg-accent-hover transition-colors cursor-pointer"
           >
             Use These Settings
           </button>
