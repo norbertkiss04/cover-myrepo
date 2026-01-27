@@ -117,7 +117,7 @@ export const generationApi = {
     return response.data.aspect_ratios;
   },
 
-  getAll: async (page = 1, perPage = 20): Promise<PaginatedResponse<Generation>> => {
+  getAll: async (page = 1, perPage = 12): Promise<PaginatedResponse<Generation>> => {
     const response = await api.get('/api/generations', {
       params: { page, per_page: perPage },
     });

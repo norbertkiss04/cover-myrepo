@@ -41,6 +41,39 @@ AVAILABLE_GENRES = [
 def _sb():
     return current_app.supabase
 
+
+def _extract_path(public_url):
+    bucket = current_app.config['SUPABASE_STORAGE_BUCKET']
+    marker = f"/public/{bucket}/"
+    if marker in public_url:
+        return public_url.split(marker)[-1]
+    return None
+
+
+def _sign_url(public_url):
+    path = _extract_path(public_url)
+    if not path:
+        return public_url
+    signed = storage_service.get_signed_url(path, expires_in=3600)
+    return signed or public_url
+
+
+def _sign_style_ref_dict(ref_dict, style_ref):
+    if style_ref.image_path:
+        signed = storage_service.get_signed_url(style_ref.image_path, expires_in=3600)
+        if signed:
+            ref_dict['image_url'] = signed
+    return ref_dict
+
+
+def _sign_generation_dict(gen_dict):
+    if gen_dict.get('base_image_url'):
+        gen_dict['base_image_url'] = _sign_url(gen_dict['base_image_url'])
+    if gen_dict.get('final_image_url'):
+        gen_dict['final_image_url'] = _sign_url(gen_dict['final_image_url'])
+    return gen_dict
+
+
 @generate_bp.route('/genres', methods=['GET'])
 def get_genres():
     return jsonify({'genres': AVAILABLE_GENRES})
@@ -114,7 +147,7 @@ def analyze_style(current_user):
         style_ref = StyleReference.from_row(result.data[0])
         logger.info("Style reference #%s saved", style_ref.id)
 
-        response_data = style_ref.to_dict()
+        response_data = _sign_style_ref_dict(style_ref.to_dict(), style_ref)
         response_data['remaining_credits'] = credit_result['remaining']
         return jsonify(response_data), 201
 
@@ -133,7 +166,10 @@ def get_style_references(current_user):
         'user_id', current_user.id
     ).order('created_at', desc=True).execute()
 
-    refs = [StyleReference.from_row(row).to_dict() for row in result.data]
+    refs = []
+    for row in result.data:
+        style_ref = StyleReference.from_row(row)
+        refs.append(_sign_style_ref_dict(style_ref.to_dict(), style_ref))
     logger.info("Returning %d style references", len(refs))
 
     return jsonify({'style_references': refs})
@@ -205,7 +241,7 @@ def update_style_reference(current_user, ref_id):
     style_ref = StyleReference.from_row(updated.data[0])
     logger.info("Style reference #%d updated", ref_id)
 
-    return jsonify(style_ref.to_dict())
+    return jsonify(_sign_style_ref_dict(style_ref.to_dict(), style_ref))
 
 
 def run_standard_pipeline(gen_id, generation, book_data, style_analysis, aspect_ratio, on_progress=None, base_image_only=False):
@@ -379,7 +415,7 @@ def get_generations(current_user):
         offset, offset + per_page - 1
     ).execute()
 
-    generations = [Generation.from_row(row).to_dict() for row in result.data]
+    generations = [_sign_generation_dict(Generation.from_row(row).to_dict()) for row in result.data]
 
     pages = math.ceil(total / per_page) if per_page > 0 else 0
 
@@ -409,7 +445,7 @@ def get_generation(current_user, generation_id):
         return jsonify({'error': 'Generation not found'}), 404
 
     generation = Generation.from_row(result.data[0])
-    return jsonify(generation.to_dict())
+    return jsonify(_sign_generation_dict(generation.to_dict()))
 
 @generate_bp.route('/generations/<int:generation_id>', methods=['DELETE'])
 @token_required

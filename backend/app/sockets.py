@@ -363,9 +363,10 @@ def _run_generation_task(app, generation, user_id, style_analysis, style_referen
                     base_image_only=base_image_only,
                 )
 
+            from app.routes.generate import _sign_generation_dict
             socketio.emit('generation_completed', {
                 'generation_id': gen_id,
-                'generation': final_gen.to_dict(),
+                'generation': _sign_generation_dict(final_gen.to_dict()),
             }, room=room)
 
             logger.info("Gen #%s background task completed successfully", gen_id)

@@ -106,8 +106,8 @@ export default function HistoryPage() {
             <img
               src={gen.final_image_url!}
               alt={gen.book_title}
-              loading="lazy"
-              className="w-full h-auto block"
+              className="w-full h-auto block opacity-0 transition-opacity duration-300"
+              onLoad={(e) => { (e.target as HTMLImageElement).style.opacity = '1'; }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
               <div className="absolute bottom-0 left-0 right-0 p-4">
