@@ -370,9 +370,7 @@ export default function StyleReferencesPage() {
                       <TrashIcon className="w-4 h-4 text-white" />
                     </button>
                   </div>
-                  <p className="text-xs text-white/50 mt-2">
-                    {new Date(ref.created_at).toLocaleDateString()}
-                  </p>
+
                 </div>
               </div>
             </div>

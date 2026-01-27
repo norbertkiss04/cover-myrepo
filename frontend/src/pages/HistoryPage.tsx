@@ -104,9 +104,6 @@ export default function HistoryPage() {
               <div className="absolute bottom-0 left-0 right-0 p-4">
                 <h3 className="font-heading font-semibold text-white truncate">{gen.book_title}</h3>
                 <p className="text-sm text-white/70 truncate">by {gen.author_name}</p>
-                <p className="text-xs text-white/50 mt-1">
-                  {new Date(gen.created_at).toLocaleDateString()}
-                </p>
                 <div className="mt-3 flex items-center gap-2">
                   <a
                     href={gen.final_image_url!}
