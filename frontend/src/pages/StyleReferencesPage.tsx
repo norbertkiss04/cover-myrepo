@@ -334,11 +334,11 @@ export default function StyleReferencesPage() {
               key={ref.id}
               className="bg-surface border border-border rounded-xl overflow-hidden hover:border-accent/30 transition-colors"
             >
-              <div className="bg-surface-alt">
+              <div className="h-48 bg-surface-alt">
                 <img
                   src={ref.image_url}
                   alt={ref.title || 'Style reference'}
-                  className="w-full h-auto"
+                  className="w-full h-full object-cover"
                 />
               </div>
 
