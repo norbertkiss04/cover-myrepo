@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import Masonry from 'react-masonry-css';
+import { ArrowDownTrayIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { generationApi } from '../services/api';
 import type { Generation } from '../types';
+
+const MASONRY_BREAKPOINTS = { default: 3, 1024: 2, 640: 1 };
 
 export default function HistoryPage() {
   const [generations, setGenerations] = useState<Generation[]>([]);
@@ -85,43 +89,49 @@ export default function HistoryPage() {
         <p className="text-text-secondary mt-1">All your generated book covers in one place.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <Masonry
+        breakpointCols={MASONRY_BREAKPOINTS}
+        className="masonry-grid"
+        columnClassName="masonry-grid-column"
+      >
         {generations.filter((gen) => gen.final_image_url).map((gen) => (
-          <div key={gen.id} className="bg-surface border border-border rounded-xl overflow-hidden hover:border-accent/30 transition-colors group">
-            <div className="aspect-[2/3] bg-surface-alt">
-              <img
-                src={gen.final_image_url!}
-                alt={gen.book_title}
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div className="p-4">
-              <h3 className="font-heading font-semibold text-text truncate">{gen.book_title}</h3>
-              <p className="text-sm text-text-secondary truncate">by {gen.author_name}</p>
-              <p className="text-xs text-text-muted mt-1">
-                {new Date(gen.created_at).toLocaleDateString()}
-              </p>
-              <div className="mt-3 flex gap-2">
-                <a
-                  href={gen.final_image_url!}
-                  download
-                  className="flex-1 text-center text-sm bg-accent-soft text-accent-text border border-accent/20 py-1.5 px-3 rounded-lg hover:bg-accent/10 transition-colors"
-                >
-                  Download
-                </a>
-                <button
-                  onClick={() => handleDelete(gen.id)}
-                  className="text-sm text-text-muted hover:text-error py-1.5 px-3 transition-colors"
-                >
-                  Delete
-                </button>
+          <div key={gen.id} className="relative group rounded-xl overflow-hidden cursor-pointer">
+            <img
+              src={gen.final_image_url!}
+              alt={gen.book_title}
+              className="w-full h-auto block"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              <div className="absolute bottom-0 left-0 right-0 p-4">
+                <h3 className="font-heading font-semibold text-white truncate">{gen.book_title}</h3>
+                <p className="text-sm text-white/70 truncate">by {gen.author_name}</p>
+                <p className="text-xs text-white/50 mt-1">
+                  {new Date(gen.created_at).toLocaleDateString()}
+                </p>
+                <div className="mt-3 flex items-center gap-2">
+                  <a
+                    href={gen.final_image_url!}
+                    download
+                    onClick={(e) => e.stopPropagation()}
+                    className="p-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors"
+                    title="Download"
+                  >
+                    <ArrowDownTrayIcon className="w-5 h-5 text-white" />
+                  </a>
+                  <button
+                    onClick={() => handleDelete(gen.id)}
+                    className="p-2 bg-white/20 hover:bg-red-500/60 rounded-lg backdrop-blur-sm transition-colors"
+                    title="Delete"
+                  >
+                    <TrashIcon className="w-5 h-5 text-white" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         ))}
-      </div>
+      </Masonry>
 
-      {}
       {totalPages > 1 && (
         <div className="mt-8 flex justify-center items-center gap-3">
           <button

@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import Masonry from 'react-masonry-css';
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { generationApi } from '../services/api';
 import type { StyleReference } from '../types';
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+const MASONRY_BREAKPOINTS = { default: 3, 1024: 2, 640: 1 };
 
 function resizeImage(file: File, maxDim = 2048): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -103,14 +105,15 @@ function InlineTitle({
         onBlur={save}
         onKeyDown={handleKeyDown}
         disabled={isSaving}
-        className="flex-1 min-w-0 font-medium text-text bg-surface-alt border border-accent rounded px-1.5 py-0.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+        onClick={(e) => e.stopPropagation()}
+        className="w-full font-medium text-white bg-white/20 border border-white/40 rounded px-1.5 py-0.5 text-sm focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-white/50 backdrop-blur-sm"
         placeholder="Give this style a name..."
       />
     );
   }
 
   return (
-    <h3 className="flex-1 min-w-0 font-medium text-text truncate">
+    <h3 className="flex-1 min-w-0 font-medium text-white truncate">
       {title || 'Untitled Reference'}
     </h3>
   );
@@ -328,53 +331,56 @@ export default function StyleReferencesPage() {
       )}
 
       {refs.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <Masonry
+          breakpointCols={MASONRY_BREAKPOINTS}
+          className="masonry-grid"
+          columnClassName="masonry-grid-column"
+        >
           {refs.map((ref) => (
             <div
               key={ref.id}
-              className="bg-surface border border-border rounded-xl overflow-hidden hover:border-accent/30 transition-colors"
+              className="relative group rounded-xl overflow-hidden cursor-pointer"
             >
-              <div className="h-48 bg-surface-alt">
-                <img
-                  src={ref.image_url}
-                  alt={ref.title || 'Style reference'}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-
-              <div className="p-4">
-                <div className="flex items-center gap-2">
-                  <InlineTitle
-                    refId={ref.id}
-                    title={ref.title || 'Untitled Reference'}
-                    isEditing={renamingId === ref.id}
-                    onSaved={handleTitleSaved}
-                    onStopEdit={() => setRenamingId(null)}
-                  />
-                  {renamingId !== ref.id && (
+              <img
+                src={ref.image_url}
+                alt={ref.title || 'Style reference'}
+                className="w-full h-auto block"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <div className="absolute bottom-0 left-0 right-0 p-4">
+                  <div className="flex items-center gap-2">
+                    <InlineTitle
+                      refId={ref.id}
+                      title={ref.title || 'Untitled Reference'}
+                      isEditing={renamingId === ref.id}
+                      onSaved={handleTitleSaved}
+                      onStopEdit={() => setRenamingId(null)}
+                    />
+                    {renamingId !== ref.id && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setRenamingId(ref.id); }}
+                        className="flex-shrink-0 p-1.5 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors"
+                        title="Rename"
+                      >
+                        <PencilIcon className="w-4 h-4 text-white" />
+                      </button>
+                    )}
                     <button
-                      onClick={() => setRenamingId(ref.id)}
-                      className="flex-shrink-0 p-1 text-text-muted hover:text-accent transition-colors"
-                      title="Rename"
+                      onClick={(e) => { e.stopPropagation(); handleDelete(ref.id); }}
+                      className="flex-shrink-0 p-1.5 bg-white/20 hover:bg-red-500/60 rounded-lg backdrop-blur-sm transition-colors"
+                      title="Delete"
                     >
-                      <PencilIcon className="w-4 h-4" />
+                      <TrashIcon className="w-4 h-4 text-white" />
                     </button>
-                  )}
-                  <button
-                    onClick={() => handleDelete(ref.id)}
-                    className="flex-shrink-0 p-1 text-text-muted hover:text-error transition-colors"
-                    title="Delete"
-                  >
-                    <TrashIcon className="w-4 h-4" />
-                  </button>
+                  </div>
+                  <p className="text-xs text-white/50 mt-2">
+                    {new Date(ref.created_at).toLocaleDateString()}
+                  </p>
                 </div>
-                <p className="text-xs text-text-muted mt-2">
-                  {new Date(ref.created_at).toLocaleDateString()}
-                </p>
               </div>
             </div>
           ))}
-        </div>
+        </Masonry>
       )}
     </div>
   );
