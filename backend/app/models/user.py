@@ -2,10 +2,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional
 
-
 @dataclass
 class User:
-    """User model for storing user account information."""
     google_id: str
     email: str
     name: str
@@ -17,7 +15,6 @@ class User:
 
     @classmethod
     def from_row(cls, row: dict) -> 'User':
-        """Create a User from a Supabase row dict."""
         return cls(
             id=row.get('id'),
             google_id=row.get('google_id', ''),
@@ -30,7 +27,6 @@ class User:
         )
 
     def to_dict(self) -> dict:
-        """Convert user to dictionary (public-facing)."""
         return {
             'id': self.id,
             'email': self.email,

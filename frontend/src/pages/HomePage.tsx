@@ -6,7 +6,7 @@ export default function HomePage() {
 
   return (
     <div className="py-12 sm:py-20">
-      {/* Hero */}
+      {}
       <div className="text-center max-w-3xl mx-auto">
         <p className="text-accent font-medium tracking-wide uppercase text-sm mb-4">
           For Authors & Publishers
@@ -44,7 +44,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Divider */}
+      {}
       <div className="max-w-xs mx-auto my-16 flex items-center gap-4">
         <div className="flex-1 h-px bg-border"></div>
         <svg className="w-5 h-5 text-text-muted" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -53,7 +53,7 @@ export default function HomePage() {
         <div className="flex-1 h-px bg-border"></div>
       </div>
 
-      {/* Features */}
+      {}
       <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
         <div className="bg-surface border border-border rounded-xl p-6 hover:border-accent/30 transition-colors">
           <div className="w-10 h-10 bg-accent-soft rounded-lg flex items-center justify-center mb-4">
@@ -92,7 +92,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* How It Works */}
+      {}
       <div className="mt-20 max-w-2xl mx-auto">
         <h2 className="text-2xl sm:text-3xl font-heading font-bold text-text text-center mb-12">
           Three steps to your cover

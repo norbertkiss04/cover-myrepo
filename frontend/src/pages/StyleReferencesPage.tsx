@@ -2,9 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { generationApi } from '../services/api';
 import type { StyleReference } from '../types';
 
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
 
-// Resize image on a canvas if it exceeds max dimensions
 function resizeImage(file: File, maxDim = 2048): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -34,7 +33,6 @@ function resizeImage(file: File, maxDim = 2048): Promise<string> {
   });
 }
 
-// ── Accordion Section Component ──
 function AccordionSection({
   title,
   value,
@@ -86,7 +84,6 @@ function AccordionSection({
   );
 }
 
-// ── Edit form state for a single reference ──
 interface EditState {
   title: string;
   feeling: string;
@@ -100,23 +97,20 @@ export default function StyleReferencesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Editing
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editState, setEditState] = useState<EditState | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Upload / analyze
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [newRefId, setNewRefId] = useState<number | null>(null); // auto-open edit for newly created ref
+  const [newRefId, setNewRefId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadRefs();
   }, []);
 
-  // When a new ref is created, auto-open its edit mode
   useEffect(() => {
     if (newRefId !== null) {
       const ref = refs.find((r) => r.id === newRefId);
@@ -125,7 +119,7 @@ export default function StyleReferencesPage() {
         setNewRefId(null);
       }
     }
-  }, [newRefId, refs]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [newRefId, refs]);
 
   const loadRefs = async () => {
     setIsLoading(true);
@@ -139,8 +133,6 @@ export default function StyleReferencesPage() {
     }
   };
 
-  // ── Upload + Analyze ──
-
   const handleImageFile = useCallback(async (file: File) => {
     if (!file.type.startsWith('image/')) {
       setAnalyzeError('Please select an image file.');
@@ -152,7 +144,7 @@ export default function StyleReferencesPage() {
     try {
       const dataUrl = await resizeImage(file);
       const ref = await generationApi.analyzeStyle(dataUrl);
-      // Prepend to list and auto-open edit for title
+
       setRefs((prev) => [ref, ...prev]);
       setNewRefId(ref.id);
     } catch (err: any) {
@@ -162,11 +154,9 @@ export default function StyleReferencesPage() {
     }
   }, []);
 
-  // Stable ref so the paste listener always calls the latest handleImageFile
   const handleImageFileRef = useRef(handleImageFile);
   handleImageFileRef.current = handleImageFile;
 
-  // ── Paste support (Ctrl+V / Cmd+V) ──
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
       const items = e.clipboardData?.items;
@@ -207,11 +197,9 @@ export default function StyleReferencesPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) handleImageFile(file);
-    // Reset input so the same file can be selected again
+
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
-
-  // ── Edit ──
 
   const startEdit = (ref: StyleReference) => {
     setEditingId(ref.id);
@@ -244,8 +232,6 @@ export default function StyleReferencesPage() {
     }
   };
 
-  // ── Delete ──
-
   const handleDelete = async (id: number) => {
     if (!confirm('Delete this style reference? This cannot be undone.')) return;
     try {
@@ -256,8 +242,6 @@ export default function StyleReferencesPage() {
       alert(err.response?.data?.error || 'Failed to delete');
     }
   };
-
-  // ── Render ──
 
   if (isLoading) {
     return (
@@ -288,7 +272,7 @@ export default function StyleReferencesPage() {
       onDragLeave={handleDragLeave}
       className="min-h-[60vh] relative"
     >
-      {/* Drag overlay */}
+      {}
       {isDragOver && (
         <div className="fixed inset-0 z-50 bg-accent/10 border-4 border-dashed border-accent rounded-xl flex items-center justify-center pointer-events-none">
           <div className="bg-surface rounded-xl px-8 py-6 shadow-lg text-center">
@@ -300,7 +284,7 @@ export default function StyleReferencesPage() {
         </div>
       )}
 
-      {/* Header */}
+      {}
       <div className="mb-8 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-heading font-bold text-text">Style References</h1>
@@ -327,7 +311,7 @@ export default function StyleReferencesPage() {
         />
       </div>
 
-      {/* Analyzing banner */}
+      {}
       {isAnalyzing && (
         <div className="mb-6 bg-info-bg border border-info-border text-info px-4 py-3 rounded-lg">
           <div className="flex items-center text-sm">
@@ -337,7 +321,7 @@ export default function StyleReferencesPage() {
         </div>
       )}
 
-      {/* Analyze error */}
+      {}
       {analyzeError && (
         <div className="mb-6 bg-error-bg border border-error-border text-error px-4 py-3 rounded-lg text-sm">
           {analyzeError}
@@ -350,7 +334,7 @@ export default function StyleReferencesPage() {
         </div>
       )}
 
-      {/* Empty state */}
+      {}
       {refs.length === 0 && !isAnalyzing && (
         <div
           onClick={() => fileInputRef.current?.click()}
@@ -367,7 +351,7 @@ export default function StyleReferencesPage() {
         </div>
       )}
 
-      {/* Reference grid */}
+      {}
       {refs.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {refs.map((ref) => {
@@ -380,7 +364,7 @@ export default function StyleReferencesPage() {
                   isEditing ? 'border-accent ring-1 ring-accent/20' : 'border-border hover:border-accent/30'
                 }`}
               >
-                {/* Image */}
+                {}
                 <div className="aspect-[4/3] bg-surface-alt">
                   <img
                     src={ref.image_url}
@@ -389,12 +373,12 @@ export default function StyleReferencesPage() {
                   />
                 </div>
 
-                {/* Content */}
+                {}
                 <div className="p-4">
                   {isEditing && editState ? (
-                    // ── Edit mode ──
+
                     <div className="space-y-3">
-                      {/* Title input */}
+                      {}
                       <div>
                         <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
                           Title
@@ -409,7 +393,7 @@ export default function StyleReferencesPage() {
                         />
                       </div>
 
-                      {/* Analysis fields */}
+                      {}
                       <AccordionSection
                         title="Feeling & Atmosphere"
                         value={editState.feeling}
@@ -432,7 +416,7 @@ export default function StyleReferencesPage() {
                         onChange={(v) => setEditState({ ...editState, typography: v })}
                       />
 
-                      {/* Save / Cancel */}
+                      {}
                       <div className="flex gap-2 pt-1">
                         <button
                           onClick={saveEdit}
@@ -451,7 +435,7 @@ export default function StyleReferencesPage() {
                       </div>
                     </div>
                   ) : (
-                    // ── View mode ──
+
                     <>
                       <h3 className="font-medium text-text truncate">{ref.title || 'Untitled Reference'}</h3>
                       {ref.feeling && (
@@ -461,7 +445,7 @@ export default function StyleReferencesPage() {
                         {new Date(ref.created_at).toLocaleDateString()}
                       </p>
 
-                      {/* Actions */}
+                      {}
                       <div className="mt-3 flex gap-2">
                         <button
                           onClick={() => startEdit(ref)}

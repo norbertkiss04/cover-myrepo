@@ -26,11 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Use onAuthStateChange as the single source of truth.
-    // Supabase JS v2 fires an INITIAL_SESSION event on mount which
-    // restores the session from localStorage — this eliminates the
-    // race condition between getSession() and onAuthStateChange that
-    // could cause a missed login on page refresh.
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setSession(session);
@@ -53,7 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userData = await authApi.getCurrentUser();
       setUser(userData);
     } catch {
-      // User doesn't exist in our DB yet, create via sync
+
       try {
         const meta = session.user.user_metadata;
         const userData = await authApi.syncUser({
@@ -69,7 +65,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Email + password login
   const signInWithEmail = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -78,7 +73,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
-  // Email + password registration
   const signUp = async (email: string, password: string, name: string) => {
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -89,12 +83,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     if (error) throw error;
 
-    // If email confirmation is required, user won't have a session yet
     const needsConfirmation = !data.session;
     return { needsConfirmation };
   };
 
-  // Google OAuth login (ready to enable later)
   const signInWithGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',

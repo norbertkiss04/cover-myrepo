@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-"""Entry point for the Flask application."""
 
 import logging
 import os

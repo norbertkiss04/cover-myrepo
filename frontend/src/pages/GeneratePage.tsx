@@ -3,8 +3,6 @@ import { generationApi } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import type { GenerationInput, Generation, AspectRatioInfo, StyleReference } from '../types';
 
-// Optional field definitions (removed reference_image_description — now handled by the
-// always-visible style reference selector instead of the optional-field system)
 const OPTIONAL_FIELD_DEFS = [
   { key: 'summary', label: 'Book Summary' },
   { key: 'genres', label: 'Genres' },
@@ -16,7 +14,6 @@ const OPTIONAL_FIELD_DEFS = [
 
 type OptionalFieldKey = typeof OPTIONAL_FIELD_DEFS[number]['key'];
 
-// Fields that are auto-hidden when a style reference is selected
 const FIELDS_HIDDEN_BY_STYLE_REF: readonly string[] = ['mood', 'color_preference'];
 
 export default function GeneratePage() {
@@ -25,21 +22,17 @@ export default function GeneratePage() {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Generation | null>(null);
 
-  // Form options
   const [genres, setGenres] = useState<string[]>([]);
   const [moods, setMoods] = useState<string[]>([]);
   const [aspectRatios, setAspectRatios] = useState<Record<string, AspectRatioInfo>>({});
 
-  // Style references for the selector
   const [styleReferences, setStyleReferences] = useState<StyleReference[]>([]);
   const [selectedRefId, setSelectedRefId] = useState<number | null>(null);
 
-  // Temp fields added for this session only (not saved to preferences)
   const [tempFields, setTempFields] = useState<Set<string>>(new Set());
   const [addFieldOpen, setAddFieldOpen] = useState(false);
   const addFieldRef = useRef<HTMLDivElement>(null);
 
-  // Form state
   const [formData, setFormData] = useState<GenerationInput>({
     book_title: '',
     author_name: '',
@@ -54,11 +47,9 @@ export default function GeneratePage() {
 
   const [keywordInput, setKeywordInput] = useState('');
 
-  // Compute which optional fields are visible
   const prefsFields = user?.preferences?.visible_fields || [];
   const visibleOptionalKeys = new Set<string>([...prefsFields, ...tempFields]);
 
-  // When a style reference is selected, hide mood and color_preference
   const hasStyleRef = selectedRefId !== null;
   const effectiveVisibleKeys = new Set(
     [...visibleOptionalKeys].filter(
@@ -72,11 +63,10 @@ export default function GeneratePage() {
   const hiddenOptionalFields = OPTIONAL_FIELD_DEFS.filter(
     (f) =>
       !effectiveVisibleKeys.has(f.key) &&
-      // Don't show hidden-by-ref fields in the "add field" dropdown either
+
       !(hasStyleRef && FIELDS_HIDDEN_BY_STYLE_REF.includes(f.key))
   );
 
-  // Load form options + style references
   useEffect(() => {
     const loadOptions = async () => {
       try {
@@ -97,7 +87,6 @@ export default function GeneratePage() {
     loadOptions();
   }, []);
 
-  // Close add-field dropdown on outside click
   useEffect(() => {
     if (!addFieldOpen) return;
     const handler = (e: MouseEvent) => {
@@ -116,7 +105,7 @@ export default function GeneratePage() {
     setResult(null);
 
     try {
-      // Only send fields that are visible and have values
+
       const payload: GenerationInput = {
         book_title: formData.book_title,
         author_name: formData.author_name,
@@ -142,7 +131,6 @@ export default function GeneratePage() {
         payload.keywords = formData.keywords;
       }
 
-      // Style reference: send style_analysis from the selected reference
       if (selectedRefId !== null) {
         const ref = styleReferences.find((r) => r.id === selectedRefId);
         if (ref) {
@@ -232,10 +220,8 @@ export default function GeneratePage() {
     }
   };
 
-  // Helper: is this field a temp-added field (not in preferences)?
   const isTempField = (key: string) => tempFields.has(key) && !prefsFields.includes(key);
 
-  // ── Render a single optional field ──
   const renderOptionalField = (key: OptionalFieldKey) => {
     const showRemove = isTempField(key);
     const removeBtn = showRemove ? (
@@ -400,7 +386,6 @@ export default function GeneratePage() {
     }
   };
 
-  // ── Result View ──
   if (result && result.status === 'completed') {
     return (
       <div className="max-w-4xl mx-auto">
@@ -490,7 +475,6 @@ export default function GeneratePage() {
     );
   }
 
-  // ── Form View ──
   const inputClass =
     'w-full px-3.5 py-2.5 bg-surface-alt border border-border rounded-lg text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent';
 
@@ -515,7 +499,7 @@ export default function GeneratePage() {
       )}
 
       <form onSubmit={handleSubmit} className="bg-surface border border-border rounded-xl p-6 sm:p-8 space-y-5">
-        {/* Required: Book Title */}
+        {}
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1.5">
             Book Title
@@ -530,7 +514,7 @@ export default function GeneratePage() {
           />
         </div>
 
-        {/* Required: Author Name */}
+        {}
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1.5">
             Author Name
@@ -545,7 +529,7 @@ export default function GeneratePage() {
           />
         </div>
 
-        {/* Required: Aspect Ratio */}
+        {}
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1.5">
             Aspect Ratio
@@ -563,7 +547,7 @@ export default function GeneratePage() {
           </select>
         </div>
 
-        {/* Always visible: Style Reference selector */}
+        {}
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1.5">
             Style Reference
@@ -598,14 +582,14 @@ export default function GeneratePage() {
           )}
         </div>
 
-        {/* Visible optional fields */}
+        {}
         {visibleOptionalFields.length > 0 && (
           <div className="border-t border-border pt-5 space-y-5">
             {visibleOptionalFields.map((f) => renderOptionalField(f.key))}
           </div>
         )}
 
-        {/* Add field button */}
+        {}
         {hiddenOptionalFields.length > 0 && (
           <div className="relative" ref={addFieldRef}>
             <button

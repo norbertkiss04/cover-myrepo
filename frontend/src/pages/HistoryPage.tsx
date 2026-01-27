@@ -29,7 +29,7 @@ export default function HistoryPage() {
 
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this generation?')) return;
-    
+
     try {
       await generationApi.delete(id);
       setGenerations((prev) => prev.filter((g) => g.id !== id));
@@ -121,7 +121,7 @@ export default function HistoryPage() {
         ))}
       </div>
 
-      {/* Pagination */}
+      {}
       {totalPages > 1 && (
         <div className="mt-8 flex justify-center items-center gap-3">
           <button

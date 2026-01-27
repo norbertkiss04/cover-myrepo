@@ -39,7 +39,6 @@ export default function Navbar() {
 
   const isActive = (path: string) => location.pathname === path;
 
-  // Close dropdown on click outside
   useEffect(() => {
     if (!menuOpen) return;
     const handler = (e: MouseEvent) => {
@@ -51,7 +50,6 @@ export default function Navbar() {
     return () => document.removeEventListener('mousedown', handler);
   }, [menuOpen]);
 
-  // Close dropdown on Escape
   useEffect(() => {
     if (!menuOpen) return;
     const handler = (e: KeyboardEvent) => {
@@ -61,7 +59,6 @@ export default function Navbar() {
     return () => document.removeEventListener('keydown', handler);
   }, [menuOpen]);
 
-  // Close dropdown on route change
   useEffect(() => {
     setMenuOpen(false);
   }, [location.pathname]);
@@ -71,7 +68,7 @@ export default function Navbar() {
       <nav className="bg-surface border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16">
-            {/* Left side: brand + nav links */}
+            {}
             <div className="flex items-center">
               <Link to="/" className="flex items-center gap-2">
                 <BookIcon className="w-6 h-6 text-accent" />
@@ -115,12 +112,12 @@ export default function Navbar() {
               )}
             </div>
 
-            {/* Right side */}
+            {}
             <div className="flex items-center gap-3">
               {isLoading ? (
                 <div className="w-8 h-8 rounded-full bg-surface-alt animate-pulse" />
               ) : isAuthenticated ? (
-                /* User avatar with dropdown */
+
                 <div className="relative" ref={menuRef}>
                   <button
                     onClick={() => setMenuOpen(!menuOpen)}
@@ -141,10 +138,10 @@ export default function Navbar() {
                     )}
                   </button>
 
-                  {/* Dropdown menu */}
+                  {}
                   {menuOpen && (
                     <div className="absolute right-0 mt-2 w-56 bg-surface border border-border rounded-xl shadow-lg py-1 z-40">
-                      {/* User info */}
+                      {}
                       <div className="px-4 py-3 border-b border-border">
                         <p className="text-sm font-medium text-text truncate">
                           {user?.name || supabaseUser?.email?.split('@')[0]}
@@ -154,7 +151,7 @@ export default function Navbar() {
                         </p>
                       </div>
 
-                      {/* Menu items */}
+                      {}
                       <div className="py-1">
                         <button
                           onClick={() => {
@@ -186,7 +183,7 @@ export default function Navbar() {
                   )}
                 </div>
               ) : (
-                /* Logged out: theme toggle + login */
+
                 <>
                   <button
                     onClick={toggle}
@@ -212,7 +209,7 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* Settings modal */}
+      {}
       <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </>
   );

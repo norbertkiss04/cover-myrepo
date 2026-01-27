@@ -1,10 +1,7 @@
-"""Test dataclass models."""
 from app.models.user import User
 from app.models.generation import Generation, ASPECT_RATIOS
 
-
 def test_user_creation():
-    """Test user model creation from row data."""
     row = {
         'id': 1,
         'google_id': 'google-123',
@@ -22,9 +19,7 @@ def test_user_creation():
     assert user.picture == 'https://example.com/pic.jpg'
     assert user.created_at is not None
 
-
 def test_user_to_dict():
-    """Test user to_dict method."""
     user = User(
         id=2,
         google_id='google-456',
@@ -36,11 +31,9 @@ def test_user_to_dict():
     assert user_dict['id'] == 2
     assert user_dict['email'] == 'dict@example.com'
     assert user_dict['name'] == 'Dict User'
-    assert 'google_id' not in user_dict  # Should not expose google_id
-
+    assert 'google_id' not in user_dict
 
 def test_generation_creation():
-    """Test generation model creation from row data."""
     row = {
         'id': 10,
         'user_id': 1,
@@ -60,9 +53,7 @@ def test_generation_creation():
     assert generation.genres == ['Fantasy', 'Romance']
     assert generation.keywords == ['magic', 'love']
 
-
 def test_generation_aspect_ratio_info():
-    """Test generation aspect ratio info in to_dict."""
     generation = Generation(
         id=20,
         user_id=1,
@@ -80,9 +71,7 @@ def test_generation_aspect_ratio_info():
     assert gen_dict['aspect_ratio_info']['width'] == 1600
     assert gen_dict['aspect_ratio_info']['height'] == 2400
 
-
 def test_aspect_ratios_constant():
-    """Test ASPECT_RATIOS module-level constant."""
     assert '2:3' in ASPECT_RATIOS
     assert '1:1' in ASPECT_RATIOS
     assert '16:9' in ASPECT_RATIOS

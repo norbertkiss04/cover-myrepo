@@ -8,7 +8,7 @@ export default function AuthCallbackPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check URL for error params (Supabase redirects with error in hash)
+
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
     const errorDescription = hashParams.get('error_description');
     if (errorDescription) {
@@ -16,12 +16,11 @@ export default function AuthCallbackPage() {
       return;
     }
 
-    // Wait for auth state to settle
     if (!isLoading) {
       if (isAuthenticated) {
         navigate('/generate');
       } else {
-        // Give it a moment - Supabase might still be processing
+
         const timeout = setTimeout(() => {
           if (!isAuthenticated) {
             navigate('/login');

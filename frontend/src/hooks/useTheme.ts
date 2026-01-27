@@ -39,12 +39,10 @@ export function useTheme() {
     setTheme(next);
   }, [effective, setTheme]);
 
-  // Apply on mount and when theme changes
   useEffect(() => {
     applyTheme(effective);
   }, [effective]);
 
-  // Listen for system preference changes when in "system" mode
   useEffect(() => {
     if (theme !== 'system') return;
 

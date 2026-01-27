@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 
-// Set to true when Google OAuth is configured in Supabase
 const GOOGLE_AUTH_ENABLED = false;
 
 export default function LoginPage() {
@@ -10,7 +9,6 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Redirect if already authenticated
   const from = (location.state as any)?.from?.pathname || '/generate';
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
@@ -39,10 +37,10 @@ export default function LoginPage() {
         if (needsConfirmation) {
           setSuccess('Check your email for a confirmation link!');
         }
-        // Navigation handled by useEffect when isAuthenticated changes
+
       } else {
         await signInWithEmail(email, password);
-        // Navigation handled by useEffect when isAuthenticated changes
+
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Something went wrong';
@@ -150,7 +148,7 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Google OAuth - ready to enable */}
+          {}
           {GOOGLE_AUTH_ENABLED && (
             <>
               <div className="my-6 flex items-center">

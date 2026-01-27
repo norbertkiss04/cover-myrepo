@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-"""Egyszerű helyi validátor a Sprint 1 leadandóihoz."""
 
 from __future__ import annotations
 
@@ -10,8 +8,8 @@ import sys
 from pathlib import Path
 
 try:
-    import yaml  # type: ignore
-except ImportError as exc:  # pragma: no cover
+    import yaml
+except ImportError as exc:
     print("[HIBA] A PyYAML csomag nem érhető el. Telepítés: pip install pyyaml", file=sys.stderr)
     raise
 
@@ -22,7 +20,6 @@ INTERVIEWS_DIR = SPRINT_ONE_DIR / "interviews"
 MARKET_DIR = SPRINT_ONE_DIR / "market"
 ADR_DIR = SPRINT_ONE_DIR / "architecture" / "adr"
 
-
 def load_yaml(path: Path) -> dict:
     try:
         with path.open("r", encoding="utf-8") as handle:
@@ -31,7 +28,6 @@ def load_yaml(path: Path) -> dict:
         raise ValueError(f"Hiányzó fájl: {path}") from exc
     except yaml.YAMLError as exc:
         raise ValueError(f"Hibás YAML formátum: {path}\n{exc}") from exc
-
 
 def validate_course() -> int:
     course_path = REPO_ROOT / "course.yaml"
@@ -71,7 +67,6 @@ def validate_course() -> int:
 
     return int(log_min)
 
-
 def validate_prd() -> None:
     prd_path = SPRINT_ONE_DIR / "prd.yaml"
     data = load_yaml(prd_path)
@@ -98,7 +93,6 @@ def validate_prd() -> None:
     if not isinstance(ref_value, str) or not ref_value.strip():
         raise ValueError("first_tech_decision_ref mezőnek nem üres sztringnek kell lennie.")
 
-    # Támogassuk a repo-root és a sprint-mappához viszonyított hivatkozást is.
     candidates = [REPO_ROOT / ref_value, SPRINT_ONE_DIR / ref_value]
     if not any(candidate.exists() for candidate in candidates):
         raise ValueError(
@@ -106,10 +100,8 @@ def validate_prd() -> None:
             "Elvárt útvonal például: sprints/01/architecture/adr/0001-first-tech-choice.md"
         )
 
-
 def validate_ai_usage() -> None:
     load_yaml(AI_DIR / "usage_plan.yaml")
-
 
 def validate_ai_log(min_entries: int) -> None:
     log_path = AI_DIR / "ai_log.jsonl"
@@ -135,7 +127,6 @@ def validate_ai_log(min_entries: int) -> None:
         raise ValueError(
             f"Az AI naplóban csak {len(entries)} bejegyzés található, a minimum elvárás {min_entries}."
         )
-
 
 def validate_interviews() -> None:
     if not INTERVIEWS_DIR.exists():
@@ -164,7 +155,6 @@ def validate_interviews() -> None:
             if not isinstance(value, list) or not value:
                 raise ValueError(f"{key} mező üres vagy nem lista: {path.name}")
 
-
 def validate_competitors() -> None:
     csv_path = MARKET_DIR / "competitors.csv"
     if not csv_path.exists():
@@ -181,14 +171,12 @@ def validate_competitors() -> None:
     if len(reader) - 1 < 3:
         raise ValueError("A versenytárs CSV-ben legalább három versenytárs legyen.")
 
-
 def validate_adr() -> None:
     if not ADR_DIR.exists():
         raise ValueError("Hiányzó ADR mappa: sprints/01/architecture/adr")
     files = list(ADR_DIR.glob("*.md"))
     if not files:
         raise ValueError("Legalább egy ADR markdown fájlnak lennie kell a sprints/01/architecture/adr könyvtárban.")
-
 
 def validate_sprint_one() -> None:
     if not SPRINT_ONE_DIR.exists():
@@ -201,7 +189,6 @@ def validate_sprint_one() -> None:
     validate_interviews()
     validate_competitors()
     validate_adr()
-
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Sprint leadási ellenőrző eszköz")
@@ -219,7 +206,6 @@ def main() -> None:
         sys.exit(1)
 
     print("[PASS] A Sprint 1 kötelező artefaktumai rendben vannak.")
-
 
 if __name__ == "__main__":
     main()

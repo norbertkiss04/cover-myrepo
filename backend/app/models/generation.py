@@ -2,8 +2,6 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, List
 
-
-# Available aspect ratios (class-level constant, accessible without instances)
 ASPECT_RATIOS = {
     '2:3': {'width': 1600, 'height': 2400, 'name': 'Kindle Standard'},
     '1:1.5': {'width': 1800, 'height': 2700, 'name': 'Paperback'},
@@ -12,10 +10,8 @@ ASPECT_RATIOS = {
     '9:16': {'width': 1440, 'height': 2560, 'name': 'Tall/Mobile'},
 }
 
-
 @dataclass
 class Generation:
-    """Model for storing book cover generation data."""
     user_id: int
     book_title: str
     author_name: str
@@ -38,12 +34,10 @@ class Generation:
     created_at: Optional[str] = None
     completed_at: Optional[str] = None
 
-    # Keep as class attribute for backward compat
     ASPECT_RATIOS = ASPECT_RATIOS
 
     @classmethod
     def from_row(cls, row: dict) -> 'Generation':
-        """Create a Generation from a Supabase row dict."""
         return cls(
             id=row.get('id'),
             user_id=row.get('user_id'),
@@ -69,7 +63,6 @@ class Generation:
         )
 
     def to_dict(self) -> dict:
-        """Convert generation to dictionary."""
         return {
             'id': self.id,
             'book_title': self.book_title,

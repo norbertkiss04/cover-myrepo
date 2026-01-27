@@ -22,7 +22,6 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { user, updatePreferences } = useAuth();
   const [saving, setSaving] = useState(false);
 
-  // Close on Escape
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
@@ -36,15 +35,15 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
+      {}
       <div
         className="absolute inset-0 bg-black/40"
         onClick={onClose}
       />
 
-      {/* Modal */}
+      {}
       <div className="relative bg-surface border border-border rounded-xl shadow-lg w-full max-w-sm mx-4 p-6">
-        {/* Header */}
+        {}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-heading font-semibold text-text">Settings</h2>
           <button
@@ -58,7 +57,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           </button>
         </div>
 
-        {/* Theme toggle */}
+        {}
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-text">Theme</span>
           <div className="flex bg-surface-alt border border-border rounded-lg p-0.5">
@@ -91,7 +90,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           </div>
         </div>
 
-        {/* Default form fields */}
+        {}
         <div className="mt-6 pt-6 border-t border-border">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-medium text-text">Default Form Fields</span>
@@ -123,7 +122,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       try {
                         await updatePreferences({ visible_fields: newFields });
                       } catch {
-                        // error already logged in context
+
                       } finally {
                         setSaving(false);
                       }
