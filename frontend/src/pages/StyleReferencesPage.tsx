@@ -257,7 +257,7 @@ export default function StyleReferencesPage() {
       className="min-h-[60vh] relative"
     >
       {isDragOver && (
-        <div className="fixed inset-0 z-50 bg-accent/10 border-4 border-dashed border-accent rounded-xl flex items-center justify-center pointer-events-none">
+        <div className="absolute inset-0 z-50 bg-accent/10 border-4 border-dashed border-accent rounded-xl flex items-center justify-center pointer-events-none">
           <div className="bg-surface rounded-xl px-8 py-6 shadow-lg text-center">
             <svg className="w-12 h-12 text-accent mx-auto mb-3" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
