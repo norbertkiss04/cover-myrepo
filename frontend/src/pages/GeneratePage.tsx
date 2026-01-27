@@ -476,13 +476,6 @@ export default function GeneratePage() {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <div className="mb-5">
-        <h1 className="text-2xl font-heading font-bold text-text tracking-tight">
-          Generate Book Cover
-        </h1>
-        <p className="text-text-secondary mt-0.5 text-sm">Describe your book and let AI craft the cover.</p>
-      </div>
-
       {isFailed && (
         <div className="mb-4 flex items-center gap-3 bg-error-bg border border-error-border text-error px-3 py-2.5 rounded-lg text-sm">
           <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -508,7 +501,14 @@ export default function GeneratePage() {
       )}
 
       <div className="grid lg:grid-cols-2 gap-5 lg:gap-6 items-start">
-        <div className="bg-surface border border-border rounded-2xl p-4 sm:p-5">
+        <div>
+          <div className="mb-4">
+            <h1 className="text-2xl font-heading font-bold text-text tracking-tight">
+              Generate Book Cover
+            </h1>
+            <p className="text-text-secondary mt-0.5 text-sm">Describe your book and let AI craft the cover.</p>
+          </div>
+          <div className="bg-surface border border-border rounded-2xl p-4 sm:p-5">
           <form onSubmit={handleSubmit} className="space-y-3.5">
             <div className="flex items-center justify-between">
               <span className="text-sm text-text-secondary">
@@ -697,6 +697,7 @@ export default function GeneratePage() {
               <p className="text-center text-xs text-error">Not enough credits.</p>
             )}
           </form>
+          </div>
         </div>
 
         <div className="lg:sticky lg:top-4">
