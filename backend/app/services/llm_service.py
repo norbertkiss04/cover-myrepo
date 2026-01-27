@@ -180,8 +180,21 @@ class LLMService:
 
         return result
 
-    def generate_base_image_prompt(self, book_data, style_analysis=None):
-        system_prompt = """You are an expert book cover designer. Your task is to create a detailed 
+    def generate_base_image_prompt(self, book_data, style_analysis=None, base_image_only=False):
+        if base_image_only:
+            system_prompt = """You are an expert book cover designer. Your task is to create a detailed 
+image generation prompt for a book cover illustration. 
+
+IMPORTANT RULES:
+1. DO NOT include any text, titles, author names, words, letters, or typography in the image — the image must be purely visual with zero text
+2. DO NOT mention any title or author name in the prompt — not even as descriptive context
+3. Focus on visual elements: composition, colors, mood, key imagery
+4. Be specific about style, lighting, and atmosphere
+5. Consider the genre conventions for book covers
+6. Keep the prompt under 500 characters for best results
+7. Return your response as JSON with a single "prompt" field containing the image prompt"""
+        else:
+            system_prompt = """You are an expert book cover designer. Your task is to create a detailed 
 image generation prompt for a book cover illustration. 
 
 IMPORTANT RULES:
@@ -193,7 +206,10 @@ IMPORTANT RULES:
 6. Return your response as JSON with a single "prompt" field containing the image prompt"""
 
         user_content = f"""Create an image generation prompt for a book cover with these details:
+"""
 
+        if not base_image_only:
+            user_content += f"""
 Title: {book_data.get('book_title')}
 """
 

@@ -217,8 +217,10 @@ def run_standard_pipeline(gen_id, generation, book_data, style_analysis, aspect_
 
     progress(1, total_steps, "Generating image prompt...")
     base_prompt = llm_service.generate_base_image_prompt(
-        book_data, style_analysis=style_analysis
+        book_data, style_analysis=style_analysis, base_image_only=base_image_only
     )
+    if base_image_only:
+        base_prompt += " Do not include any text, words, letters, titles, or typography anywhere in the image."
     logger.info("Gen #%s Step 1/%d done. Prompt length: %d chars", gen_id, total_steps, len(base_prompt))
     _sb().table('generations').update(
         {'base_prompt': base_prompt}
