@@ -356,18 +356,18 @@ export default function StyleReferencesPage() {
                     {renamingId !== ref.id && (
                       <button
                         onClick={(e) => { e.stopPropagation(); setRenamingId(ref.id); }}
-                        className="flex-shrink-0 p-1.5 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors"
+                        className="flex-shrink-0 p-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors cursor-pointer"
                         title="Rename"
                       >
-                        <PencilIcon className="w-4 h-4 text-white" />
+                        <PencilIcon className="w-5 h-5 text-white" />
                       </button>
                     )}
                     <button
                       onClick={(e) => { e.stopPropagation(); handleDelete(ref.id); }}
-                      className="flex-shrink-0 p-1.5 bg-white/20 hover:bg-red-500/60 rounded-lg backdrop-blur-sm transition-colors"
+                      className="flex-shrink-0 p-2 bg-white/20 hover:bg-red-500/60 rounded-lg backdrop-blur-sm transition-colors cursor-pointer"
                       title="Delete"
                     >
-                      <TrashIcon className="w-4 h-4 text-white" />
+                      <TrashIcon className="w-5 h-5 text-white" />
                     </button>
                   </div>
 

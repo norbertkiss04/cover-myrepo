@@ -109,14 +109,14 @@ export default function HistoryPage() {
                     href={gen.final_image_url!}
                     download
                     onClick={(e) => e.stopPropagation()}
-                    className="p-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors"
+                    className="p-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors cursor-pointer"
                     title="Download"
                   >
                     <ArrowDownTrayIcon className="w-5 h-5 text-white" />
                   </a>
                   <button
                     onClick={() => handleDelete(gen.id)}
-                    className="p-2 bg-white/20 hover:bg-red-500/60 rounded-lg backdrop-blur-sm transition-colors"
+                    className="p-2 bg-white/20 hover:bg-red-500/60 rounded-lg backdrop-blur-sm transition-colors cursor-pointer"
                     title="Delete"
                   >
                     <TrashIcon className="w-5 h-5 text-white" />
