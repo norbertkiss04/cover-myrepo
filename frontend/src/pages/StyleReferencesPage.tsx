@@ -341,6 +341,7 @@ export default function StyleReferencesPage() {
               <img
                 src={ref.image_url}
                 alt={ref.title || 'Style reference'}
+                loading="lazy"
                 className="w-full h-auto block"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">

@@ -30,6 +30,7 @@ export default function GeneratePage() {
   const [tempFields, setTempFields] = useState<Set<string>>(new Set());
   const [addFieldOpen, setAddFieldOpen] = useState(false);
   const addFieldRef = useRef<HTMLDivElement>(null);
+  const pendingGenRef = useRef<Generation | null>(null);
 
   const [formData, setFormData] = useState<GenerationInput>({
     book_title: '',
@@ -74,6 +75,7 @@ export default function GeneratePage() {
     if (!state?.fromGeneration) return;
 
     const gen = state.fromGeneration;
+    pendingGenRef.current = gen;
 
     setFormData({
       book_title: gen.book_title || '',
@@ -91,10 +93,15 @@ export default function GeneratePage() {
     if (gen.character_description) fieldsToShow.add('character_description');
     if (fieldsToShow.size > 0) setTempFields(fieldsToShow);
 
-    if (gen.style_analysis && styleReferences.length > 0) {
-      const matchingRef = gen.style_reference_id
-        ? styleReferences.find((r) => r.id === gen.style_reference_id)
-        : null;
+    navigate(location.pathname, { replace: true, state: {} });
+  }, []);
+
+  useEffect(() => {
+    const gen = pendingGenRef.current;
+    if (!gen || styleReferences.length === 0) return;
+
+    if (gen.style_reference_id) {
+      const matchingRef = styleReferences.find((r) => r.id === gen.style_reference_id);
       if (matchingRef) {
         setSelectedRefId(matchingRef.id);
         setUseStyleImage(Boolean(gen.use_style_image));
@@ -102,7 +109,7 @@ export default function GeneratePage() {
       }
     }
 
-    navigate(location.pathname, { replace: true, state: {} });
+    pendingGenRef.current = null;
   }, [styleReferences]);
 
   useEffect(() => {
