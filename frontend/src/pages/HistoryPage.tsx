@@ -111,23 +111,25 @@ export default function HistoryPage() {
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
               <div className="absolute bottom-0 left-0 right-0 p-4">
-                <h3 className="font-heading font-semibold text-white truncate">
-                  {gen.book_title && gen.book_title !== 'Untitled'
-                    ? gen.book_title
-                    : gen.cover_ideas
-                      ? gen.cover_ideas.slice(0, 40) + (gen.cover_ideas.length > 40 ? '...' : '')
-                      : 'Untitled'}
-                </h3>
-                {gen.book_title && gen.book_title !== 'Untitled' && (
-                  <p className="text-sm text-white/70 truncate">by {gen.author_name}</p>
-                )}
-                {gen.base_image_only && (
-                  <p className="text-xs text-white/50 mt-0.5">Image only</p>
-                )}
-                <div className="mt-3 flex items-center gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-heading font-semibold text-white truncate">
+                      {gen.book_title && gen.book_title !== 'Untitled'
+                        ? gen.book_title
+                        : gen.cover_ideas
+                          ? gen.cover_ideas.slice(0, 40) + (gen.cover_ideas.length > 40 ? '...' : '')
+                          : 'Untitled'}
+                    </h3>
+                    {gen.book_title && gen.book_title !== 'Untitled' && (
+                      <p className="text-sm text-white/70 truncate">by {gen.author_name}</p>
+                    )}
+                    {gen.base_image_only && (
+                      <p className="text-xs text-white/50 mt-0.5">Image only</p>
+                    )}
+                  </div>
                   <button
                     onClick={(e) => { e.stopPropagation(); setSettingsGen(gen); }}
-                    className="p-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors cursor-pointer"
+                    className="flex-shrink-0 p-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors cursor-pointer"
                     title="View Settings"
                   >
                     <Cog6ToothIcon className="w-5 h-5 text-white" />
@@ -136,14 +138,14 @@ export default function HistoryPage() {
                     href={gen.final_image_url!}
                     download
                     onClick={(e) => e.stopPropagation()}
-                    className="p-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors cursor-pointer"
+                    className="flex-shrink-0 p-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors cursor-pointer"
                     title="Download"
                   >
                     <ArrowDownTrayIcon className="w-5 h-5 text-white" />
                   </a>
                   <button
                     onClick={() => handleDelete(gen.id)}
-                    className="p-2 bg-white/20 hover:bg-red-500/60 rounded-lg backdrop-blur-sm transition-colors cursor-pointer"
+                    className="flex-shrink-0 p-2 bg-white/20 hover:bg-red-500/60 rounded-lg backdrop-blur-sm transition-colors cursor-pointer"
                     title="Delete"
                   >
                     <TrashIcon className="w-5 h-5 text-white" />
