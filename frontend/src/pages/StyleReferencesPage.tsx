@@ -270,9 +270,6 @@ export default function StyleReferencesPage() {
       <div className="mb-8 flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-heading font-bold text-text">Style References</h1>
-          <p className="text-text-secondary mt-1">
-            Upload, drag-and-drop, or paste images to extract reusable design styles for your covers.
-          </p>
         </div>
         <button
           onClick={() => fileInputRef.current?.click()}

@@ -86,7 +86,6 @@ export default function HistoryPage() {
     <div>
       <div className="mb-8">
         <h1 className="text-2xl sm:text-3xl font-heading font-bold text-text">Your Covers</h1>
-        <p className="text-text-secondary mt-1">All your generated book covers in one place.</p>
       </div>
 
       <Masonry
