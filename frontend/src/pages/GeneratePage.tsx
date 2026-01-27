@@ -26,13 +26,13 @@ function Toggle({ checked, onChange, disabled }: {
       aria-checked={checked}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex items-center h-5 w-9 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed ${
+      className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:ring-offset-2 disabled:opacity-40 disabled:cursor-not-allowed ${
         checked ? 'bg-accent' : 'bg-border-strong'
       }`}
     >
       <span
-        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-          checked ? 'translate-x-4' : 'translate-x-0.5'
+        className={`pointer-events-none absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ease-in-out ${
+          checked ? 'translate-x-4' : 'translate-x-0'
         }`}
       />
     </button>
@@ -53,13 +53,94 @@ function PlaceholderPanel() {
   );
 }
 
+const FAKE_STEPS = [
+  { at: 0, message: 'Analyzing your description...' },
+  { at: 5, message: 'Crafting the visual concept...' },
+  { at: 12, message: 'Composing the layout...' },
+  { at: 22, message: 'Rendering the artwork...' },
+  { at: 38, message: 'Refining details...' },
+  { at: 50, message: 'Finalizing your cover...' },
+];
+
+const TOTAL_FAKE_DURATION = 60;
+const MAX_FAKE_PERCENT = 95;
+
+function useFakeProgress(isGenerating: boolean, isCompleted: boolean) {
+  const [percent, setPercent] = useState(0);
+  const [message, setMessage] = useState(FAKE_STEPS[0].message);
+  const [finishing, setFinishing] = useState(false);
+  const startTimeRef = useRef<number>(0);
+  const rafRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (!isGenerating && !isCompleted) {
+      setPercent(0);
+      setMessage(FAKE_STEPS[0].message);
+      setFinishing(false);
+      return;
+    }
+
+    if (isGenerating && !finishing) {
+      startTimeRef.current = Date.now();
+
+      const tick = () => {
+        const elapsed = (Date.now() - startTimeRef.current) / 1000;
+        const t = Math.min(elapsed / TOTAL_FAKE_DURATION, 1);
+        const eased = 1 - Math.pow(1 - t, 4);
+        setPercent(Math.round(eased * MAX_FAKE_PERCENT));
+
+        for (let i = FAKE_STEPS.length - 1; i >= 0; i--) {
+          if (elapsed >= FAKE_STEPS[i].at) {
+            setMessage(FAKE_STEPS[i].message);
+            break;
+          }
+        }
+
+        if (t < 1) {
+          rafRef.current = requestAnimationFrame(tick);
+        }
+      };
+
+      rafRef.current = requestAnimationFrame(tick);
+      return () => cancelAnimationFrame(rafRef.current);
+    }
+  }, [isGenerating, finishing]);
+
+  useEffect(() => {
+    if (isCompleted && !finishing) {
+      setFinishing(true);
+      cancelAnimationFrame(rafRef.current);
+      setMessage('Complete!');
+
+      const start = percent;
+      const startTime = Date.now();
+      const duration = 500;
+
+      const animate = () => {
+        const elapsed = Date.now() - startTime;
+        const t = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - t, 3);
+        setPercent(Math.round(start + (100 - start) * eased));
+        if (t < 1) {
+          rafRef.current = requestAnimationFrame(animate);
+        }
+      };
+
+      rafRef.current = requestAnimationFrame(animate);
+      return () => cancelAnimationFrame(rafRef.current);
+    }
+  }, [isCompleted]);
+
+  return { percent, message, finishing };
+}
+
 function ProgressPanel({ generation }: { generation: ReturnType<typeof useGeneration> }) {
-  const progressPercent = generation.totalSteps > 0
-    ? Math.round((generation.step / generation.totalSteps) * 100)
-    : 0;
+  const isGenerating = generation.status === 'generating';
+  const isCompleted = generation.status === 'completed';
+  const { percent, message } = useFakeProgress(isGenerating, isCompleted);
 
   const circumference = 2 * Math.PI * 52;
-  const strokeOffset = circumference - (progressPercent / 100) * circumference;
+  const strokeOffset = circumference - (percent / 100) * circumference;
 
   return (
     <div className="rounded-2xl border border-border bg-surface flex flex-col items-center justify-center p-6 min-h-[320px]">
@@ -72,60 +153,19 @@ function ProgressPanel({ generation }: { generation: ReturnType<typeof useGenera
             strokeLinecap="round"
             strokeDasharray={circumference}
             strokeDashoffset={strokeOffset}
-            className="transition-all duration-700 ease-out"
+            className="transition-all duration-300 ease-out"
           />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-xl font-heading font-bold text-text">{progressPercent}%</span>
+          <span className="text-xl font-heading font-bold text-text">{percent}%</span>
         </div>
       </div>
 
-      <p className="text-sm font-medium text-text mb-0.5">
-        {generation.stepMessage || 'Preparing...'}
+      <p className="text-sm font-medium text-text mb-1">
+        {message}
       </p>
-      {generation.totalSteps > 0 && (
-        <p className="text-xs text-text-muted">
-          Step {generation.step} of {generation.totalSteps}
-        </p>
-      )}
 
-      <div className="w-full max-w-xs mt-6 space-y-1.5">
-        {Array.from({ length: generation.totalSteps || 4 }, (_, i) => {
-          const stepNum = i + 1;
-          const isActive = stepNum === generation.step;
-          const isDone = stepNum < generation.step;
-
-          return (
-            <div key={stepNum} className="flex items-center gap-2.5">
-              <div className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium transition-colors ${
-                isDone
-                  ? 'bg-accent text-white'
-                  : isActive
-                    ? 'bg-accent/15 text-accent ring-1.5 ring-accent/30'
-                    : 'bg-surface-alt text-text-muted'
-              }`}>
-                {isDone ? (
-                  <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                  </svg>
-                ) : (
-                  stepNum
-                )}
-              </div>
-              <span className={`text-xs ${
-                isActive ? 'text-text font-medium' : isDone ? 'text-text-secondary' : 'text-text-muted'
-              }`}>
-                {isActive ? generation.stepMessage : isDone ? 'Done' : 'Waiting...'}
-              </span>
-              {isActive && (
-                <div className="animate-spin rounded-full h-2.5 w-2.5 border-[1.5px] border-accent border-t-transparent ml-auto" />
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      <p className="text-xs text-text-muted mt-5">
+      <p className="text-xs text-text-muted mt-4">
         You can navigate away while generating.
       </p>
     </div>
@@ -134,25 +174,37 @@ function ProgressPanel({ generation }: { generation: ReturnType<typeof useGenera
 
 function ResultPanel({ result }: { result: Generation }) {
   return (
-    <div className="flex flex-col items-center space-y-3">
-      <div className="w-[85%] rounded-2xl overflow-hidden border border-border bg-surface">
+    <div className="flex justify-center">
+      <div className="w-[85%] relative group rounded-2xl overflow-hidden border border-border bg-surface cursor-pointer">
         <img
           src={result.final_image_url || result.base_image_url || ''}
           alt={result.book_title}
           className="w-full h-auto block"
         />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          <div className="absolute bottom-0 left-0 right-0 p-4 flex items-end justify-between">
+            <div className="min-w-0">
+              <h3 className="font-heading font-semibold text-white truncate">
+                {result.book_title || 'Untitled'}
+              </h3>
+              {result.author_name && (
+                <p className="text-sm text-white/70 truncate">by {result.author_name}</p>
+              )}
+            </div>
+            <a
+              href={result.final_image_url || result.base_image_url || ''}
+              download={`${result.book_title.replace(/\s+/g, '_')}_cover.png`}
+              onClick={(e) => e.stopPropagation()}
+              className="flex-shrink-0 p-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors"
+              title="Download"
+            >
+              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+            </a>
+          </div>
+        </div>
       </div>
-
-      <a
-        href={result.final_image_url || result.base_image_url || ''}
-        download={`${result.book_title.replace(/\s+/g, '_')}_cover.png`}
-        className="inline-flex items-center gap-1.5 bg-accent text-white py-1.5 px-4 rounded-lg text-sm font-medium hover:bg-accent-hover transition-colors"
-      >
-        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-        </svg>
-        Download
-      </a>
     </div>
   );
 }
