@@ -24,6 +24,8 @@ class Config:
 
     FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
 
+    SENTRY_DSN = os.getenv('SENTRY_DSN', '')
+
     OWNER_EMAIL = os.getenv('OWNER_EMAIL', '')
 
 class DevelopmentConfig(Config):

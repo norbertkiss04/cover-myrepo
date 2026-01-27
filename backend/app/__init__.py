@@ -1,33 +1,74 @@
 import logging
 import os
+import sys
 import time
 
-from flask import Flask, request, g
+from flask import Flask, request, g, jsonify
 from flask_cors import CORS
 from flask_socketio import SocketIO
 from supabase import create_client, Client
 
 from app.config import config
 
+try:
+    from pythonjsonlogger import jsonlogger
+except ImportError:
+    jsonlogger = None
+
 logger = logging.getLogger(__name__)
 
 socketio = SocketIO()
+
+_app_start_time = time.time()
+_metrics = {
+    'requests_total': 0,
+    'errors_total': 0,
+    'requests_by_method': {},
+    'requests_by_status': {},
+}
+
 
 def create_app(config_name=None):
     if config_name is None:
         config_name = os.getenv('FLASK_ENV', 'development')
 
-    logging.basicConfig(
-        level=logging.INFO,
-        format='[%(asctime)s] %(levelname)s %(name)s: %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S',
-    )
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+
+    handler = logging.StreamHandler()
+    if jsonlogger:
+        formatter = jsonlogger.JsonFormatter(
+            '%(asctime)s %(levelname)s %(name)s %(message)s',
+            datefmt='%Y-%m-%dT%H:%M:%S',
+        )
+    else:
+        formatter = logging.Formatter(
+            '[%(asctime)s] %(levelname)s %(name)s: %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S',
+        )
+    handler.setFormatter(formatter)
+    root_logger.addHandler(handler)
 
     logger.info("Creating app with config '%s'", config_name)
 
     app = Flask(__name__)
     app.config.from_object(config[config_name])
     logger.info("Config loaded")
+
+    sentry_dsn = app.config.get('SENTRY_DSN')
+    if sentry_dsn:
+        try:
+            import sentry_sdk
+            sentry_sdk.init(
+                dsn=sentry_dsn,
+                traces_sample_rate=0.1,
+                send_default_pii=False,
+            )
+            logger.info("Sentry initialized")
+        except ImportError:
+            logger.warning("sentry-sdk not installed, skipping Sentry init")
+    else:
+        logger.info("No SENTRY_DSN configured, skipping Sentry init")
 
     frontend_url = app.config['FRONTEND_URL']
     CORS(app, origins=[frontend_url], supports_credentials=True)
@@ -66,11 +107,38 @@ def create_app(config_name=None):
             "<-- %s %s %s (%.0fms)",
             request.method, request.path, response.status_code, duration_ms,
         )
+
+        _metrics['requests_total'] += 1
+        method = request.method
+        _metrics['requests_by_method'][method] = _metrics['requests_by_method'].get(method, 0) + 1
+        status_group = f"{response.status_code // 100}xx"
+        _metrics['requests_by_status'][status_group] = _metrics['requests_by_status'].get(status_group, 0) + 1
+        if response.status_code >= 500:
+            _metrics['errors_total'] += 1
+
         return response
 
     @app.route('/health')
     def health():
         return {'status': 'healthy', 'service': 'instacover-api'}
+
+    @app.route('/metrics')
+    def metrics():
+        try:
+            import resource
+            mem_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
+        except Exception:
+            mem_mb = None
+
+        return jsonify({
+            'uptime_seconds': round(time.time() - _app_start_time, 1),
+            'requests_total': _metrics['requests_total'],
+            'errors_total': _metrics['errors_total'],
+            'requests_by_method': _metrics['requests_by_method'],
+            'requests_by_status': _metrics['requests_by_status'],
+            'python_version': sys.version,
+            'memory_mb': mem_mb,
+        })
 
     logger.info("App ready (%s)", config_name)
     return app
