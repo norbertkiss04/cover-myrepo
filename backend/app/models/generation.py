@@ -33,6 +33,9 @@ class Generation:
     text_prompt: Optional[str] = None
     base_image_url: Optional[str] = None
     final_image_url: Optional[str] = None
+    current_step: Optional[int] = None
+    total_steps: Optional[int] = None
+    step_message: Optional[str] = None
     status: str = 'pending'
     error_message: Optional[str] = None
     created_at: Optional[str] = None
@@ -64,6 +67,9 @@ class Generation:
             text_prompt=row.get('text_prompt'),
             base_image_url=row.get('base_image_url'),
             final_image_url=row.get('final_image_url'),
+            current_step=row.get('current_step'),
+            total_steps=row.get('total_steps'),
+            step_message=row.get('step_message'),
             status=row.get('status', 'pending'),
             error_message=row.get('error_message'),
             created_at=row.get('created_at'),
@@ -93,6 +99,9 @@ class Generation:
             'text_prompt': self.text_prompt,
             'base_image_url': self.base_image_url,
             'final_image_url': self.final_image_url,
+            'current_step': self.current_step,
+            'total_steps': self.total_steps,
+            'step_message': self.step_message,
             'status': self.status,
             'error_message': self.error_message,
             'created_at': self.created_at,

@@ -105,6 +105,9 @@ def handle_connect(auth=None):
             'generation_id': active.id,
             'book_title': active.book_title,
             'author_name': active.author_name,
+            'step': active.current_step or 0,
+            'total_steps': active.total_steps or 0,
+            'step_message': active.step_message or 'Resuming generation...',
         })
 
 
@@ -277,6 +280,11 @@ def _run_generation_task(app, generation, user_id, style_analysis, style_referen
         room = _room_for(user_id)
 
         def on_progress(step, total, message):
+            _sb().table('generations').update({
+                'current_step': step,
+                'total_steps': total,
+                'step_message': message,
+            }).eq('id', gen_id).execute()
             socketio.emit('generation_progress', {
                 'generation_id': gen_id,
                 'step': step,

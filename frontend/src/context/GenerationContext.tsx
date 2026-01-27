@@ -66,15 +66,15 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
       setSocketConnected(false);
     });
 
-    socket.on('active_generation', (data: { generation_id: number; book_title: string; author_name: string }) => {
+    socket.on('active_generation', (data: { generation_id: number; book_title: string; author_name: string; step?: number; total_steps?: number; step_message?: string }) => {
       setStatus((prev) => {
         if (prev === 'generating') return prev;
         setGenerationId(data.generation_id);
         setBookTitle(data.book_title);
         setAuthorName(data.author_name);
-        setStep(0);
-        setTotalSteps(0);
-        setStepMessage('Resuming generation...');
+        setStep(data.step ?? 0);
+        setTotalSteps(data.total_steps ?? 0);
+        setStepMessage(data.step_message || 'Resuming generation...');
         setResult(null);
         setError(null);
         return 'generating';
