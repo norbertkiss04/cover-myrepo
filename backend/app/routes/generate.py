@@ -294,6 +294,7 @@ def _generate_with_style_reference(
     unified_prompt = llm_service.generate_style_referenced_prompt(
         book_data, style_analysis
     )
+    unified_prompt += " The image must fill the entire canvas edge-to-edge with absolutely no white borders, margins, or empty space."
     logger.info("Gen #%s Step 1/2 done. Prompt length: %d chars", gen_id, len(unified_prompt))
     _sb().table('generations').update(
         {'base_prompt': unified_prompt}
