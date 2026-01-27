@@ -8,6 +8,8 @@ export interface User {
   name: string;
   picture: string | null;
   preferences: UserPreferences | null;
+  credits: number;
+  unlimited_credits: boolean;
   created_at: string;
 }
 

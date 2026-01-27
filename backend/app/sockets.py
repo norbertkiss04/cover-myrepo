@@ -6,6 +6,8 @@ from flask_socketio import emit, join_room, disconnect
 from app import socketio
 from app.models.generation import Generation, ASPECT_RATIOS
 from app.routes.auth import get_user_from_token
+from app.config import GENERATION_COST
+from app.services.credit_service import deduct_credits, refund_credits
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +63,14 @@ def _check_active_generation(user_id):
         elif active is None:
             active = gen
     return active
+
+
+def _refresh_user(user):
+    from app.models.user import User
+    result = _sb().table('users').select('*').eq('id', user.id).execute()
+    if result.data:
+        return User.from_row(result.data[0])
+    return user
 
 
 @socketio.on('connect')
@@ -150,6 +160,16 @@ def handle_start_generation(data):
         })
         return
 
+    user = _refresh_user(user)
+    credit_result = deduct_credits(user, GENERATION_COST)
+    if not credit_result['success']:
+        emit('generation_error', {
+            'error': f'Insufficient credits. You need {GENERATION_COST} credits to generate a cover.',
+        })
+        return
+
+    connected_users[request.sid] = _refresh_user(user)
+
     style_analysis = data.get('style_analysis')
     style_reference_id = data.get('style_reference_id')
     use_style_image = bool(data.get('use_style_image', False))
@@ -183,6 +203,7 @@ def handle_start_generation(data):
         'generation_id': generation.id,
         'book_title': generation.book_title,
         'author_name': generation.author_name,
+        'remaining_credits': credit_result['remaining'],
     }, room=_room_for(user.id))
 
     socketio.start_background_task(
@@ -226,6 +247,16 @@ def handle_start_regeneration(data):
         emit('generation_error', {'error': 'Generation not found'})
         return
 
+    user = _refresh_user(user)
+    credit_result = deduct_credits(user, GENERATION_COST)
+    if not credit_result['success']:
+        emit('generation_error', {
+            'error': f'Insufficient credits. You need {GENERATION_COST} credits to regenerate a cover.',
+        })
+        return
+
+    connected_users[request.sid] = _refresh_user(user)
+
     original = Generation.from_row(result.data[0])
 
     new_gen_data = {
@@ -259,6 +290,7 @@ def handle_start_regeneration(data):
         'generation_id': new_generation.id,
         'book_title': new_generation.book_title,
         'author_name': new_generation.author_name,
+        'remaining_credits': credit_result['remaining'],
     }, room=_room_for(user.id))
 
     socketio.start_background_task(
@@ -335,7 +367,16 @@ def _run_generation_task(app, generation, user_id, style_analysis, style_referen
                 'error_message': str(e),
             }).eq('id', gen_id).execute()
 
+            from app.models.user import User
+            user_result = _sb().table('users').select('*').eq('id', user_id).execute()
+            if user_result.data:
+                failed_user = User.from_row(user_result.data[0])
+                remaining = refund_credits(failed_user, GENERATION_COST)
+            else:
+                remaining = None
+
             socketio.emit('generation_failed', {
                 'generation_id': gen_id,
                 'error': str(e),
+                'remaining_credits': remaining,
             }, room=room)

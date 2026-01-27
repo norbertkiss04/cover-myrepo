@@ -3,6 +3,7 @@ from functools import wraps
 from flask import Blueprint, request, jsonify, current_app
 
 from app.models.user import User
+from app.config import INITIAL_CREDITS
 
 logger = logging.getLogger(__name__)
 
@@ -70,11 +71,12 @@ def token_required(f):
                     metadata.get('avatar_url')
                     or metadata.get('picture')
                 ),
+                'credits': INITIAL_CREDITS,
             }
             try:
                 insert_result = sb.table('users').insert(new_user_data).execute()
                 user = User.from_row(insert_result.data[0])
-                logger.info("User created (id=%s, email=%s)", user.id, email)
+                logger.info("User created (id=%s, email=%s, credits=%d)", user.id, email, user.credits)
             except Exception as e:
                 logger.warning(
                     "User insert failed (likely race condition), retrying lookup: %s", e

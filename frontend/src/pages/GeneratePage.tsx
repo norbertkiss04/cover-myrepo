@@ -407,10 +407,10 @@ export default function GeneratePage() {
               <div className="mt-8 space-y-3">
                 <button
                   onClick={handleRegenerate}
-                  disabled={generation.status !== 'completed'}
+                  disabled={generation.status !== 'completed' || (!user?.unlimited_credits && (user?.credits ?? 0) < 3)}
                   className="w-full bg-accent text-white py-2.5 px-4 rounded-lg font-medium hover:bg-accent-hover disabled:opacity-50 transition-colors"
                 >
-                  Regenerate Cover
+                  Regenerate Cover (3 credits)
                 </button>
 
                 <a
@@ -644,11 +644,14 @@ export default function GeneratePage() {
 
         <button
           type="submit"
-          disabled={generation.status !== 'idle' || !generation.socketConnected}
+          disabled={generation.status !== 'idle' || !generation.socketConnected || (!user?.unlimited_credits && (user?.credits ?? 0) < 3)}
           className="w-full bg-accent text-white py-3 px-4 rounded-lg font-medium hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          Generate Cover
+          Generate Cover (3 credits)
         </button>
+        {!user?.unlimited_credits && (user?.credits ?? 0) < 3 && (
+          <p className="text-center text-sm text-error mt-2">Not enough credits to generate a cover.</p>
+        )}
       </form>
     </div>
   );

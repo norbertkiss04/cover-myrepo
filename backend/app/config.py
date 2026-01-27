@@ -3,6 +3,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+INITIAL_CREDITS = 30
+GENERATION_COST = 3
+ANALYSIS_COST = 1
+
 class Config:
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key')
 
@@ -19,6 +23,8 @@ class Config:
     WAVESPEED_BASE_URL = 'https://api.wavespeed.ai/api/v3'
 
     FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
+
+    OWNER_EMAIL = os.getenv('OWNER_EMAIL', '')
 
 class DevelopmentConfig(Config):
     DEBUG = True

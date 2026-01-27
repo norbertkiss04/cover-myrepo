@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { supabase, setCurrentSession } from '../lib/supabase';
 import type { User, UserPreferences } from '../types';
@@ -15,6 +15,7 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   updatePreferences: (preferences: UserPreferences) => Promise<void>;
+  updateCredits: (newCredits: number) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -108,6 +109,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateCredits = useCallback((newCredits: number) => {
+    setUser((prev) => prev ? { ...prev, credits: newCredits } : prev);
+  }, []);
+
   const logout = async () => {
     try {
       await supabase.auth.signOut();
@@ -132,6 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signInWithGoogle,
         logout,
         updatePreferences,
+        updateCredits,
       }}
     >
       {children}

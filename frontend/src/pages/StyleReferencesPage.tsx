@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Masonry from 'react-masonry-css';
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { generationApi } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import type { StyleReference } from '../types';
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
@@ -127,6 +128,7 @@ export default function StyleReferencesPage() {
   const [renamingId, setRenamingId] = useState<number | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+  const { user, updateCredits } = useAuth();
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -151,6 +153,10 @@ export default function StyleReferencesPage() {
       setAnalyzeError('Please select an image file.');
       return;
     }
+    if (!user?.unlimited_credits && (user?.credits ?? 0) < 1) {
+      setAnalyzeError('Not enough credits to analyze a style reference.');
+      return;
+    }
     setAnalyzeError(null);
     setIsAnalyzing(true);
 
@@ -158,13 +164,16 @@ export default function StyleReferencesPage() {
       const dataUrl = await resizeImage(file);
       const ref = await generationApi.analyzeStyle(dataUrl);
 
+      if ((ref as any).remaining_credits !== undefined) {
+        updateCredits((ref as any).remaining_credits);
+      }
       setRefs((prev) => [ref, ...prev]);
     } catch (err: any) {
       setAnalyzeError(err.response?.data?.error || 'Failed to analyze image.');
     } finally {
       setIsAnalyzing(false);
     }
-  }, []);
+  }, [user, updateCredits]);
 
   const handleImageFileRef = useRef(handleImageFile);
   handleImageFileRef.current = handleImageFile;
@@ -273,13 +282,13 @@ export default function StyleReferencesPage() {
         </div>
         <button
           onClick={() => fileInputRef.current?.click()}
-          disabled={isAnalyzing}
+          disabled={isAnalyzing || (!user?.unlimited_credits && (user?.credits ?? 0) < 1)}
           className="flex-shrink-0 flex items-center gap-2 bg-accent text-white px-4 py-2.5 rounded-lg font-medium hover:bg-accent-hover disabled:opacity-50 transition-colors"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
-          Upload Image
+          Upload Image (1 credit)
         </button>
         <input
           ref={fileInputRef}

@@ -11,6 +11,8 @@ from app.routes.auth import token_required
 from app.services.llm_service import llm_service
 from app.services.image_service import image_service
 from app.services.storage_service import storage_service
+from app.services.credit_service import deduct_credits
+from app.config import ANALYSIS_COST
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +64,12 @@ def analyze_style(current_user):
     if len(image_data_url) > MAX_IMAGE_BASE64_SIZE:
         return jsonify({'error': 'Image too large. Maximum size is 5MB.'}), 400
 
+    credit_result = deduct_credits(current_user, ANALYSIS_COST)
+    if not credit_result['success']:
+        return jsonify({
+            'error': f'Insufficient credits. You need {ANALYSIS_COST} credit to analyze a style reference.',
+        }), 403
+
     logger.info("Style analysis request from user id=%s", current_user.id)
 
     try:
@@ -106,10 +114,14 @@ def analyze_style(current_user):
         style_ref = StyleReference.from_row(result.data[0])
         logger.info("Style reference #%s saved", style_ref.id)
 
-        return jsonify(style_ref.to_dict()), 201
+        response_data = style_ref.to_dict()
+        response_data['remaining_credits'] = credit_result['remaining']
+        return jsonify(response_data), 201
 
     except Exception as e:
         logger.error("Style analysis failed: %s", e, exc_info=True)
+        from app.services.credit_service import refund_credits
+        refund_credits(current_user, ANALYSIS_COST)
         return jsonify({'error': 'Style analysis failed', 'details': str(e)}), 500
 
 @generate_bp.route('/style-references', methods=['GET'])

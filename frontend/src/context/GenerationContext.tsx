@@ -22,7 +22,7 @@ interface GenerationContextType {
 const GenerationContext = createContext<GenerationContextType | undefined>(undefined);
 
 export function GenerationProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated, session } = useAuth();
+  const { isAuthenticated, session, updateCredits } = useAuth();
 
   const [status, setStatus] = useState<GenerationStatus>('idle');
   const [generationId, setGenerationId] = useState<number | null>(null);
@@ -36,6 +36,8 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
   const [socketConnected, setSocketConnected] = useState(false);
 
   const socketSetup = useRef(false);
+  const updateCreditsRef = useRef(updateCredits);
+  updateCreditsRef.current = updateCredits;
 
   useEffect(() => {
     if (!isAuthenticated || !session) {
@@ -81,7 +83,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
       });
     });
 
-    socket.on('generation_started', (data: { generation_id: number; book_title: string; author_name: string }) => {
+    socket.on('generation_started', (data: { generation_id: number; book_title: string; author_name: string; remaining_credits?: number }) => {
       setStatus('generating');
       setGenerationId(data.generation_id);
       setBookTitle(data.book_title);
@@ -91,6 +93,9 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
       setStepMessage('Starting...');
       setResult(null);
       setError(null);
+      if (data.remaining_credits !== undefined) {
+        updateCreditsRef.current(data.remaining_credits);
+      }
     });
 
     socket.on('generation_progress', (data: { generation_id: number; step: number; total_steps: number; message: string }) => {
@@ -107,12 +112,15 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
       setStepMessage('');
     });
 
-    socket.on('generation_failed', (data: { generation_id: number; error: string }) => {
+    socket.on('generation_failed', (data: { generation_id: number; error: string; remaining_credits?: number }) => {
       setStatus('failed');
       setError(data.error);
       setStep(0);
       setTotalSteps(0);
       setStepMessage('');
+      if (data.remaining_credits !== undefined) {
+        updateCreditsRef.current(data.remaining_credits);
+      }
     });
 
     socket.on('generation_error', (data: { error: string; generation_id?: number }) => {
