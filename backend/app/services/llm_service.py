@@ -195,22 +195,19 @@ IMPORTANT RULES:
         user_content = f"""Create an image generation prompt for a book cover with these details:
 
 Title: {book_data.get('book_title')}
-Genre(s): {', '.join(book_data.get('genres', []))}
-Mood/Atmosphere: {book_data.get('mood')}
-Summary: {book_data.get('summary')}
 """
 
-        if book_data.get('color_preference'):
-            user_content += f"Color Preference: {book_data.get('color_preference')}\n"
+        if book_data.get('cover_ideas'):
+            user_content += f"Cover Ideas (author's vision): {book_data.get('cover_ideas')}\n"
+
+        if book_data.get('summary'):
+            user_content += f"Summary: {book_data.get('summary')}\n"
+
+        if book_data.get('genres'):
+            user_content += f"Genre(s): {', '.join(book_data.get('genres', []))}\n"
 
         if book_data.get('character_description'):
             user_content += f"Main Character: {book_data.get('character_description')}\n"
-
-        if book_data.get('keywords'):
-            user_content += f"Key Elements: {', '.join(book_data.get('keywords', []))}\n"
-
-        if book_data.get('reference_image_description'):
-            user_content += f"Style Reference: {book_data.get('reference_image_description')}\n"
 
         if style_analysis:
             user_content += "\n--- Visual Style Reference (apply these artistic rules to the cover) ---\n"
@@ -246,15 +243,20 @@ IMPORTANT RULES:
         title = book_data.get('book_title', '')
         author = book_data.get('author_name', '')
         genres = ', '.join(book_data.get('genres', []))
-        mood = book_data.get('mood', '')
 
         user_content = f"""Add text to a book cover with these specifications:
 
 Book Title: "{title}"
 Author Name: "{author}"
-Genre: {genres}
-Cover Mood: {mood}
+"""
 
+        if genres:
+            user_content += f"Genre: {genres}\n"
+
+        if book_data.get('cover_ideas'):
+            user_content += f"Cover Ideas: {book_data.get('cover_ideas')}\n"
+
+        user_content += """
 The text should be:
 - Title prominently displayed
 - Author name in a complementary but smaller style
@@ -303,21 +305,19 @@ they are NOT part of the style. The actual style reference is the image content 
 Book Details:
 - Title: "{book_data.get('book_title')}"
 - Author: "{book_data.get('author_name')}"
-- Genre(s): {', '.join(book_data.get('genres', []))}
-- Summary: {book_data.get('summary', '')}
 """
 
-        if book_data.get('mood'):
-            user_content += f"- Mood/Atmosphere: {book_data.get('mood')}\n"
+        if book_data.get('cover_ideas'):
+            user_content += f"- Cover Ideas: {book_data.get('cover_ideas')}\n"
 
-        if book_data.get('color_preference'):
-            user_content += f"- Color Preference: {book_data.get('color_preference')}\n"
+        if book_data.get('summary'):
+            user_content += f"- Summary: {book_data.get('summary')}\n"
+
+        if book_data.get('genres'):
+            user_content += f"- Genre(s): {', '.join(book_data.get('genres', []))}\n"
 
         if book_data.get('character_description'):
             user_content += f"- Main Character: {book_data.get('character_description')}\n"
-
-        if book_data.get('keywords'):
-            user_content += f"- Key Elements: {', '.join(book_data.get('keywords', []))}\n"
 
         user_content += f"""
 Style Analysis of Reference Image:

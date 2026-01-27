@@ -112,11 +112,6 @@ export const generationApi = {
     return response.data.genres;
   },
 
-  getMoods: async (): Promise<string[]> => {
-    const response = await api.get('/api/moods');
-    return response.data.moods;
-  },
-
   getAspectRatios: async (): Promise<Record<string, AspectRatioInfo>> => {
     const response = await api.get('/api/aspect-ratios');
     return response.data.aspect_ratios;

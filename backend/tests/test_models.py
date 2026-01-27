@@ -39,34 +39,31 @@ def test_generation_creation():
         'user_id': 1,
         'book_title': 'My Book',
         'author_name': 'Author Name',
+        'cover_ideas': 'A magical forest with glowing elements',
         'summary': 'A great story',
         'genres': ['Fantasy', 'Romance'],
-        'mood': 'Epic & Grand',
         'aspect_ratio': '2:3',
-        'keywords': ['magic', 'love'],
         'status': 'pending',
     }
     generation = Generation.from_row(row)
 
     assert generation.id == 10
     assert generation.status == 'pending'
+    assert generation.cover_ideas == 'A magical forest with glowing elements'
     assert generation.genres == ['Fantasy', 'Romance']
-    assert generation.keywords == ['magic', 'love']
 
 def test_generation_aspect_ratio_info():
     generation = Generation(
-        id=20,
         user_id=1,
         book_title='Aspect Book',
         author_name='Aspect Author',
-        summary='Testing aspect ratios',
-        genres=['Thriller'],
-        mood='Tense & Suspenseful',
+        cover_ideas='Dark and moody cityscape',
         aspect_ratio='2:3',
     )
     gen_dict = generation.to_dict()
 
     assert gen_dict['aspect_ratio'] == '2:3'
+    assert gen_dict['cover_ideas'] == 'Dark and moody cityscape'
     assert gen_dict['aspect_ratio_info']['name'] == 'Kindle Standard'
     assert gen_dict['aspect_ratio_info']['width'] == 1600
     assert gen_dict['aspect_ratio_info']['height'] == 2400

@@ -15,10 +15,11 @@ class Generation:
     user_id: int
     book_title: str
     author_name: str
-    summary: str
-    genres: list
-    mood: str
     id: Optional[int] = None
+    cover_ideas: Optional[str] = None
+    summary: str = ''
+    genres: Optional[list] = field(default_factory=list)
+    mood: str = ''
     color_preference: Optional[str] = None
     character_description: Optional[str] = None
     keywords: Optional[list] = None
@@ -43,6 +44,7 @@ class Generation:
             user_id=row.get('user_id'),
             book_title=row.get('book_title', ''),
             author_name=row.get('author_name', ''),
+            cover_ideas=row.get('cover_ideas'),
             summary=row.get('summary', ''),
             genres=row.get('genres', []),
             mood=row.get('mood', ''),
@@ -67,6 +69,7 @@ class Generation:
             'id': self.id,
             'book_title': self.book_title,
             'author_name': self.author_name,
+            'cover_ideas': self.cover_ideas,
             'summary': self.summary,
             'genres': self.genres,
             'mood': self.mood,

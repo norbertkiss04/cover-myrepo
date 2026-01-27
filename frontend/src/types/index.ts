@@ -39,6 +39,7 @@ export interface Generation {
   id: number;
   book_title: string;
   author_name: string;
+  cover_ideas: string | null;
   summary: string;
   genres: string[];
   mood: string;
@@ -62,13 +63,11 @@ export interface Generation {
 export interface GenerationInput {
   book_title: string;
   author_name: string;
+  cover_ideas?: string;
   summary?: string;
   genres?: string[];
-  mood?: string;
   aspect_ratio?: string;
-  color_preference?: string;
   character_description?: string;
-  keywords?: string[];
   style_analysis?: StyleAnalysis;
   style_reference_id?: number;
 }

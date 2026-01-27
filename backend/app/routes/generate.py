@@ -36,29 +36,12 @@ AVAILABLE_GENRES = [
     'Poetry'
 ]
 
-AVAILABLE_MOODS = [
-    'Dark & Mysterious',
-    'Light & Cheerful',
-    'Epic & Grand',
-    'Romantic & Soft',
-    'Tense & Suspenseful',
-    'Whimsical & Playful',
-    'Elegant & Sophisticated',
-    'Bold & Dynamic',
-    'Serene & Peaceful',
-    'Gritty & Raw'
-]
-
 def _sb():
     return current_app.supabase
 
 @generate_bp.route('/genres', methods=['GET'])
 def get_genres():
     return jsonify({'genres': AVAILABLE_GENRES})
-
-@generate_bp.route('/moods', methods=['GET'])
-def get_moods():
-    return jsonify({'moods': AVAILABLE_MOODS})
 
 @generate_bp.route('/aspect-ratios', methods=['GET'])
 def get_aspect_ratios():
@@ -375,6 +358,7 @@ def create_generation(current_user):
         'user_id': current_user.id,
         'book_title': data['book_title'],
         'author_name': data['author_name'],
+        'cover_ideas': data.get('cover_ideas', ''),
         'summary': data.get('summary', ''),
         'genres': data.get('genres', []),
         'mood': data.get('mood', ''),
@@ -396,6 +380,7 @@ def create_generation(current_user):
         book_data = {
             'book_title': generation.book_title,
             'author_name': generation.author_name,
+            'cover_ideas': generation.cover_ideas,
             'summary': generation.summary,
             'genres': generation.genres,
             'mood': generation.mood,
@@ -517,6 +502,7 @@ def regenerate(current_user, generation_id):
         'user_id': current_user.id,
         'book_title': original.book_title,
         'author_name': original.author_name,
+        'cover_ideas': original.cover_ideas,
         'summary': original.summary,
         'genres': original.genres,
         'mood': original.mood,
@@ -539,6 +525,7 @@ def regenerate(current_user, generation_id):
         book_data = {
             'book_title': new_generation.book_title,
             'author_name': new_generation.author_name,
+            'cover_ideas': new_generation.cover_ideas,
             'summary': new_generation.summary,
             'genres': new_generation.genres,
             'mood': new_generation.mood,

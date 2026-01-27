@@ -6,15 +6,10 @@ import type { GenerationInput, Generation, AspectRatioInfo, StyleReference } fro
 const OPTIONAL_FIELD_DEFS = [
   { key: 'summary', label: 'Book Summary' },
   { key: 'genres', label: 'Genres' },
-  { key: 'mood', label: 'Mood / Atmosphere' },
-  { key: 'color_preference', label: 'Color Preference' },
   { key: 'character_description', label: 'Character Description' },
-  { key: 'keywords', label: 'Keywords' },
 ] as const;
 
 type OptionalFieldKey = typeof OPTIONAL_FIELD_DEFS[number]['key'];
-
-const FIELDS_HIDDEN_BY_STYLE_REF: readonly string[] = ['mood', 'color_preference'];
 
 export default function GeneratePage() {
   const { user } = useAuth();
@@ -23,7 +18,6 @@ export default function GeneratePage() {
   const [result, setResult] = useState<Generation | null>(null);
 
   const [genres, setGenres] = useState<string[]>([]);
-  const [moods, setMoods] = useState<string[]>([]);
   const [aspectRatios, setAspectRatios] = useState<Record<string, AspectRatioInfo>>({});
 
   const [styleReferences, setStyleReferences] = useState<StyleReference[]>([]);
@@ -36,48 +30,32 @@ export default function GeneratePage() {
   const [formData, setFormData] = useState<GenerationInput>({
     book_title: '',
     author_name: '',
+    cover_ideas: '',
     summary: '',
     genres: [],
-    mood: '',
     aspect_ratio: '2:3',
-    color_preference: '',
     character_description: '',
-    keywords: [],
   });
-
-  const [keywordInput, setKeywordInput] = useState('');
 
   const prefsFields = user?.preferences?.visible_fields || [];
   const visibleOptionalKeys = new Set<string>([...prefsFields, ...tempFields]);
 
-  const hasStyleRef = selectedRefId !== null;
-  const effectiveVisibleKeys = new Set(
-    [...visibleOptionalKeys].filter(
-      (k) => !(hasStyleRef && FIELDS_HIDDEN_BY_STYLE_REF.includes(k))
-    )
-  );
-
   const visibleOptionalFields = OPTIONAL_FIELD_DEFS.filter((f) =>
-    effectiveVisibleKeys.has(f.key)
+    visibleOptionalKeys.has(f.key)
   );
   const hiddenOptionalFields = OPTIONAL_FIELD_DEFS.filter(
-    (f) =>
-      !effectiveVisibleKeys.has(f.key) &&
-
-      !(hasStyleRef && FIELDS_HIDDEN_BY_STYLE_REF.includes(f.key))
+    (f) => !visibleOptionalKeys.has(f.key)
   );
 
   useEffect(() => {
     const loadOptions = async () => {
       try {
-        const [genresData, moodsData, ratiosData, refsData] = await Promise.all([
+        const [genresData, ratiosData, refsData] = await Promise.all([
           generationApi.getGenres(),
-          generationApi.getMoods(),
           generationApi.getAspectRatios(),
           generationApi.getStyleReferences(),
         ]);
         setGenres(genresData);
-        setMoods(moodsData);
         setAspectRatios(ratiosData);
         setStyleReferences(refsData);
       } catch (err) {
@@ -105,30 +83,23 @@ export default function GeneratePage() {
     setResult(null);
 
     try {
-
       const payload: GenerationInput = {
         book_title: formData.book_title,
         author_name: formData.author_name,
         aspect_ratio: formData.aspect_ratio,
       };
 
-      if (effectiveVisibleKeys.has('summary') && formData.summary) {
+      if (formData.cover_ideas) {
+        payload.cover_ideas = formData.cover_ideas;
+      }
+      if (visibleOptionalKeys.has('summary') && formData.summary) {
         payload.summary = formData.summary;
       }
-      if (effectiveVisibleKeys.has('genres') && formData.genres && formData.genres.length > 0) {
+      if (visibleOptionalKeys.has('genres') && formData.genres && formData.genres.length > 0) {
         payload.genres = formData.genres;
       }
-      if (effectiveVisibleKeys.has('mood') && formData.mood) {
-        payload.mood = formData.mood;
-      }
-      if (effectiveVisibleKeys.has('color_preference') && formData.color_preference) {
-        payload.color_preference = formData.color_preference;
-      }
-      if (effectiveVisibleKeys.has('character_description') && formData.character_description) {
+      if (visibleOptionalKeys.has('character_description') && formData.character_description) {
         payload.character_description = formData.character_description;
-      }
-      if (effectiveVisibleKeys.has('keywords') && formData.keywords && formData.keywords.length > 0) {
-        payload.keywords = formData.keywords;
       }
 
       if (selectedRefId !== null) {
@@ -162,23 +133,6 @@ export default function GeneratePage() {
     }));
   };
 
-  const handleAddKeyword = () => {
-    if (keywordInput.trim() && !formData.keywords?.includes(keywordInput.trim())) {
-      setFormData((prev) => ({
-        ...prev,
-        keywords: [...(prev.keywords || []), keywordInput.trim()],
-      }));
-      setKeywordInput('');
-    }
-  };
-
-  const handleRemoveKeyword = (keyword: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      keywords: prev.keywords?.filter((k) => k !== keyword) || [],
-    }));
-  };
-
   const handleAddTempField = (key: string) => {
     setTempFields((prev) => new Set([...prev, key]));
     setAddFieldOpen(false);
@@ -197,10 +151,7 @@ export default function GeneratePage() {
     setFormData((prev) => {
       const updated = { ...prev };
       if (key === 'genres') updated.genres = [];
-      else if (key === 'keywords') updated.keywords = [];
       else if (key === 'summary') updated.summary = '';
-      else if (key === 'mood') updated.mood = '';
-      else if (key === 'color_preference') updated.color_preference = '';
       else if (key === 'character_description') updated.character_description = '';
       return updated;
     });
@@ -282,43 +233,6 @@ export default function GeneratePage() {
           </div>
         );
 
-      case 'mood':
-        return (
-          <div key={key}>
-            <div className="flex items-center mb-1.5">
-              <label className="block text-sm font-medium text-text-secondary">Mood / Atmosphere</label>
-              {removeBtn}
-            </div>
-            <select
-              value={formData.mood || ''}
-              onChange={(e) => setFormData({ ...formData, mood: e.target.value })}
-              className={inputClass}
-            >
-              <option value="">Select a mood...</option>
-              {moods.map((mood) => (
-                <option key={mood} value={mood}>{mood}</option>
-              ))}
-            </select>
-          </div>
-        );
-
-      case 'color_preference':
-        return (
-          <div key={key}>
-            <div className="flex items-center mb-1.5">
-              <label className="block text-sm font-medium text-text-secondary">Color Preference</label>
-              {removeBtn}
-            </div>
-            <input
-              type="text"
-              value={formData.color_preference || ''}
-              onChange={(e) => setFormData({ ...formData, color_preference: e.target.value })}
-              className={inputClass}
-              placeholder="e.g., Dark blues and golds, Warm autumn colors"
-            />
-          </div>
-        );
-
       case 'character_description':
         return (
           <div key={key}>
@@ -333,52 +247,6 @@ export default function GeneratePage() {
               className={inputClass}
               placeholder="Describe main character appearance if they should be on the cover..."
             />
-          </div>
-        );
-
-      case 'keywords':
-        return (
-          <div key={key}>
-            <div className="flex items-center mb-1.5">
-              <label className="block text-sm font-medium text-text-secondary">Key Elements / Keywords</label>
-              {removeBtn}
-            </div>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={keywordInput}
-                onChange={(e) => setKeywordInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddKeyword())}
-                className={`flex-1 ${inputClass}`}
-                placeholder="e.g., sword, castle, dragon"
-              />
-              <button
-                type="button"
-                onClick={handleAddKeyword}
-                className="px-4 py-2.5 bg-surface-alt text-text-secondary border border-border rounded-lg hover:bg-surface-hover hover:text-text transition-colors"
-              >
-                Add
-              </button>
-            </div>
-            {formData.keywords && formData.keywords.length > 0 && (
-              <div className="flex flex-wrap gap-2 mt-2">
-                {formData.keywords.map((keyword) => (
-                  <span
-                    key={keyword}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-accent-soft text-accent-text border border-accent/20"
-                  >
-                    {keyword}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveKeyword(keyword)}
-                      className="ml-2 hover:text-error transition-colors"
-                    >
-                      &times;
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
         );
 
@@ -406,16 +274,16 @@ export default function GeneratePage() {
               <p className="text-text-secondary mt-1">by {result.author_name}</p>
 
               <div className="mt-6 space-y-3 text-sm">
+                {result.cover_ideas && (
+                  <div className="flex gap-2">
+                    <span className="font-medium text-text-secondary w-24 flex-shrink-0">Ideas</span>
+                    <span className="text-text">{result.cover_ideas}</span>
+                  </div>
+                )}
                 {result.genres && result.genres.length > 0 && (
                   <div className="flex gap-2">
                     <span className="font-medium text-text-secondary w-24 flex-shrink-0">Genres</span>
                     <span className="text-text">{result.genres.join(', ')}</span>
-                  </div>
-                )}
-                {result.mood && (
-                  <div className="flex gap-2">
-                    <span className="font-medium text-text-secondary w-24 flex-shrink-0">Mood</span>
-                    <span className="text-text">{result.mood}</span>
                   </div>
                 )}
                 <div className="flex gap-2">
@@ -453,13 +321,11 @@ export default function GeneratePage() {
                     setFormData({
                       book_title: '',
                       author_name: '',
+                      cover_ideas: '',
                       summary: '',
                       genres: [],
-                      mood: '',
                       aspect_ratio: '2:3',
-                      color_preference: '',
                       character_description: '',
-                      keywords: [],
                     });
                     setTempFields(new Set());
                     setSelectedRefId(null);
@@ -500,7 +366,6 @@ export default function GeneratePage() {
       )}
 
       <form onSubmit={handleSubmit} className="bg-surface border border-border rounded-xl p-6 sm:p-8 space-y-5">
-        {}
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1.5">
             Book Title
@@ -515,7 +380,6 @@ export default function GeneratePage() {
           />
         </div>
 
-        {}
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1.5">
             Author Name
@@ -530,7 +394,22 @@ export default function GeneratePage() {
           />
         </div>
 
-        {}
+        <div>
+          <label className="block text-sm font-medium text-text-secondary mb-1.5">
+            Cover Ideas
+          </label>
+          <textarea
+            rows={3}
+            value={formData.cover_ideas || ''}
+            onChange={(e) => setFormData({ ...formData, cover_ideas: e.target.value })}
+            className={inputClass}
+            placeholder="Describe how you want the cover to look — colors, imagery, mood, composition, style... anything goes."
+          />
+          <p className="mt-1.5 text-xs text-text-muted">
+            Leave blank to let the AI decide based on your book details.
+          </p>
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1.5">
             Aspect Ratio
@@ -548,7 +427,6 @@ export default function GeneratePage() {
           </select>
         </div>
 
-        {}
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1.5">
             Style Reference
@@ -568,11 +446,6 @@ export default function GeneratePage() {
               </option>
             ))}
           </select>
-          {hasStyleRef && (
-            <p className="mt-1.5 text-xs text-text-muted">
-              Mood and color preference are provided by the style reference.
-            </p>
-          )}
           {styleReferences.length === 0 && (
             <p className="mt-1.5 text-xs text-text-muted">
               No references yet.{' '}
@@ -583,14 +456,12 @@ export default function GeneratePage() {
           )}
         </div>
 
-        {}
         {visibleOptionalFields.length > 0 && (
           <div className="border-t border-border pt-5 space-y-5">
             {visibleOptionalFields.map((f) => renderOptionalField(f.key))}
           </div>
         )}
 
-        {}
         {hiddenOptionalFields.length > 0 && (
           <div className="relative" ref={addFieldRef}>
             <button
