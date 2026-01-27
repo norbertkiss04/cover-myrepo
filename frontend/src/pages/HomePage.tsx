@@ -5,8 +5,8 @@ function HeroBlobs() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
       <div className="absolute -top-20 -right-20 w-72 h-72 bg-accent/10 rounded-full blur-3xl animate-gradient-blob" />
-      <div className="absolute top-1/2 -right-10 w-56 h-56 bg-orange-300/10 dark:bg-orange-500/5 rounded-full blur-3xl animate-gradient-blob-delay" />
-      <div className="absolute -bottom-10 right-1/4 w-48 h-48 bg-amber-200/15 dark:bg-amber-500/5 rounded-full blur-3xl animate-gradient-blob-delay-2" />
+      <div className="absolute top-1/2 -right-10 w-56 h-56 bg-indigo-300/10 dark:bg-indigo-500/5 rounded-full blur-3xl animate-gradient-blob-delay" />
+      <div className="absolute -bottom-10 right-1/4 w-48 h-48 bg-violet-200/15 dark:bg-violet-500/5 rounded-full blur-3xl animate-gradient-blob-delay-2" />
     </div>
   );
 }
@@ -44,14 +44,14 @@ export default function HomePage() {
             ) : isAuthenticated ? (
               <Link
                 to="/generate"
-                className="bg-accent text-white px-7 py-3 rounded-xl text-base font-semibold hover:bg-accent-hover transition-colors shadow-sm"
+                className="bg-accent text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-accent-hover transition-colors"
               >
                 Generate a Cover
               </Link>
             ) : (
               <Link
                 to="/login"
-                className="bg-accent text-white px-7 py-3 rounded-xl text-base font-semibold hover:bg-accent-hover transition-colors shadow-sm"
+                className="bg-accent text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-accent-hover transition-colors"
               >
                 Start Creating
               </Link>

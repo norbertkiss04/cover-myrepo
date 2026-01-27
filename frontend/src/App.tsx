@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './context/AuthContext';
 import { GenerationProvider } from './context/GenerationContext';
+import { GenerationFormProvider } from './context/GenerationFormContext';
 import Layout from './components/Layout/Layout';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 import HomePage from './pages/HomePage';
@@ -18,6 +19,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <GenerationProvider>
+        <GenerationFormProvider>
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Layout />}>
@@ -51,6 +53,7 @@ function App() {
             </Route>
           </Routes>
         </BrowserRouter>
+        </GenerationFormProvider>
         </GenerationProvider>
       </AuthProvider>
     </QueryClientProvider>

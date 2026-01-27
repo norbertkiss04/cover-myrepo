@@ -218,7 +218,7 @@ export default function Navbar() {
                   </button>
                   <Link
                     to="/login"
-                    className="bg-accent text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-accent-hover transition-colors"
+                    className="bg-accent text-white px-3.5 py-1.5 rounded-lg text-sm font-medium hover:bg-accent-hover transition-colors"
                   >
                     Login
                   </Link>

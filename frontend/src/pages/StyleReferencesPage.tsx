@@ -283,7 +283,7 @@ export default function StyleReferencesPage() {
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={isAnalyzing || (!user?.unlimited_credits && (user?.credits ?? 0) < 1)}
-          className="flex-shrink-0 flex items-center gap-2 bg-accent text-white px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-accent-hover disabled:opacity-40 transition-colors"
+          className="flex-shrink-0 flex items-center gap-2 bg-accent text-white px-3.5 py-1.5 rounded-lg font-medium text-sm hover:bg-accent-hover disabled:opacity-40 transition-colors"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />

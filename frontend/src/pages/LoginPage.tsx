@@ -138,7 +138,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-accent text-white py-2.5 px-4 rounded-xl font-semibold hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors mt-2 text-sm"
+              className="w-full bg-accent text-white py-2 px-4 rounded-lg font-medium hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors mt-2 text-sm"
             >
               {isLoading
                 ? 'Loading...'
@@ -160,7 +160,7 @@ export default function LoginPage() {
               <button
                 onClick={handleGoogleLogin}
                 disabled={isLoading}
-                className="w-full flex items-center justify-center gap-3 bg-surface border border-border rounded-xl px-4 py-2.5 text-text hover:bg-surface-alt transition-colors disabled:opacity-40 text-sm"
+                className="w-full flex items-center justify-center gap-3 bg-surface border border-border rounded-lg px-4 py-2 text-text hover:bg-surface-alt transition-colors disabled:opacity-40 text-sm"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />

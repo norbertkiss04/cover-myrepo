@@ -82,7 +82,7 @@ export default function HistoryPage() {
         <p className="mt-2 text-text-secondary">Your generated book covers will appear here.</p>
         <Link
           to="/generate"
-          className="mt-6 inline-block bg-accent text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-accent-hover transition-colors text-sm"
+          className="mt-6 inline-block bg-accent text-white px-5 py-2 rounded-lg font-medium hover:bg-accent-hover transition-colors text-sm"
         >
           Generate Your First Cover
         </Link>
