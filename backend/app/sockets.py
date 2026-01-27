@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 from flask import request, current_app
 from flask_socketio import emit, join_room, disconnect
 
@@ -21,6 +22,26 @@ def _get_user_from_sid(sid):
 
 def _room_for(user_id):
     return f'user_{user_id}'
+
+
+STALE_TIMEOUT_MINUTES = 5
+
+
+def _is_stale(generation):
+    created = generation.created_at
+    if isinstance(created, str):
+        created = datetime.fromisoformat(created.replace('Z', '+00:00'))
+    if created.tzinfo is None:
+        created = created.replace(tzinfo=timezone.utc)
+    age_minutes = (datetime.now(timezone.utc) - created).total_seconds() / 60
+    return age_minutes > STALE_TIMEOUT_MINUTES
+
+
+def _fail_stale_generation(gen_id):
+    _sb().table('generations').update({
+        'status': 'failed',
+        'error_message': 'Generation timed out',
+    }).eq('id', gen_id).execute()
 
 
 def _check_active_generation(user_id):
@@ -70,12 +91,16 @@ def handle_connect(auth=None):
 
     active = _check_active_generation(user.id)
     if active:
-        logger.info("User id=%s has active generation #%s, notifying", user.id, active.id)
-        emit('active_generation', {
-            'generation_id': active.id,
-            'book_title': active.book_title,
-            'author_name': active.author_name,
-        })
+        if _is_stale(active):
+            logger.warning("Gen #%s is stale, marking as failed", active.id)
+            _fail_stale_generation(active.id)
+        else:
+            logger.info("User id=%s has active generation #%s, notifying", user.id, active.id)
+            emit('active_generation', {
+                'generation_id': active.id,
+                'book_title': active.book_title,
+                'author_name': active.author_name,
+            })
 
 
 @socketio.on('disconnect')
