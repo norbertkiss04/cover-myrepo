@@ -254,7 +254,7 @@ export default function StyleReferencesPage() {
       onDrop={handleDrop}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
-      className="min-h-[60vh] relative"
+      className="min-h-full relative"
     >
       {isDragOver && (
         <div className="absolute inset-0 z-50 bg-accent/10 border-4 border-dashed border-accent rounded-xl flex items-center justify-center pointer-events-none">
