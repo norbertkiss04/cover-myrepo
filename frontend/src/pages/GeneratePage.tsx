@@ -26,6 +26,7 @@ export default function GeneratePage() {
   const [selectedRefId, setSelectedRefId] = useState<number | null>(null);
   const [useStyleImage, setUseStyleImage] = useState(false);
   const [coverStyleImage, setCoverStyleImage] = useState(false);
+  const [baseImageOnly, setBaseImageOnly] = useState(false);
 
   const [tempFields, setTempFields] = useState<Set<string>>(new Set());
   const [addFieldOpen, setAddFieldOpen] = useState(false);
@@ -93,6 +94,8 @@ export default function GeneratePage() {
     if (gen.character_description) fieldsToShow.add('character_description');
     if (fieldsToShow.size > 0) setTempFields(fieldsToShow);
 
+    setBaseImageOnly(Boolean(gen.base_image_only));
+
     navigate(location.pathname, { replace: true, state: {} });
   }, []);
 
@@ -127,10 +130,14 @@ export default function GeneratePage() {
     e.preventDefault();
 
     const payload: GenerationInput = {
-      book_title: formData.book_title,
-      author_name: formData.author_name,
+      book_title: baseImageOnly ? '' : formData.book_title,
+      author_name: baseImageOnly ? '' : formData.author_name,
       aspect_ratio: formData.aspect_ratio,
     };
+
+    if (baseImageOnly) {
+      payload.base_image_only = true;
+    }
 
     if (formData.cover_ideas) {
       payload.cover_ideas = formData.cover_ideas;
@@ -435,6 +442,7 @@ export default function GeneratePage() {
                     });
                     setTempFields(new Set());
                     setSelectedRefId(null);
+                    setBaseImageOnly(false);
                   }}
                   className="w-full text-text-muted py-2.5 px-4 rounded-lg hover:text-text transition-colors"
                 >
@@ -485,33 +493,49 @@ export default function GeneratePage() {
       )}
 
       <form onSubmit={handleSubmit} className="bg-surface border border-border rounded-xl p-6 sm:p-8 space-y-5">
-        <div>
-          <label className="block text-sm font-medium text-text-secondary mb-1.5">
-            Book Title
-          </label>
+        <label className="flex items-center gap-2 cursor-pointer">
           <input
-            type="text"
-            required
-            value={formData.book_title}
-            onChange={(e) => setFormData({ ...formData, book_title: e.target.value })}
-            className={inputClass}
-            placeholder="Enter your book title"
+            type="checkbox"
+            checked={baseImageOnly}
+            onChange={(e) => setBaseImageOnly(e.target.checked)}
+            className="w-4 h-4 rounded border-border text-accent focus:ring-accent/40 cursor-pointer"
           />
-        </div>
+          <span className="text-sm font-medium text-text-secondary">
+            Image only (no title or author text)
+          </span>
+        </label>
 
-        <div>
-          <label className="block text-sm font-medium text-text-secondary mb-1.5">
-            Author Name
-          </label>
-          <input
-            type="text"
-            required
-            value={formData.author_name}
-            onChange={(e) => setFormData({ ...formData, author_name: e.target.value })}
-            className={inputClass}
-            placeholder="Author name as it should appear on cover"
-          />
-        </div>
+        {!baseImageOnly && (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-1.5">
+                Book Title
+              </label>
+              <input
+                type="text"
+                required
+                value={formData.book_title}
+                onChange={(e) => setFormData({ ...formData, book_title: e.target.value })}
+                className={inputClass}
+                placeholder="Enter your book title"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-1.5">
+                Author Name
+              </label>
+              <input
+                type="text"
+                required
+                value={formData.author_name}
+                onChange={(e) => setFormData({ ...formData, author_name: e.target.value })}
+                className={inputClass}
+                placeholder="Author name as it should appear on cover"
+              />
+            </div>
+          </>
+        )}
 
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1.5">

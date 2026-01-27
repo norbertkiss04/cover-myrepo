@@ -53,6 +53,7 @@ export interface Generation {
   style_reference_id: number | null;
   use_style_image: boolean;
   cover_style_image: boolean;
+  base_image_only: boolean;
   aspect_ratio: string;
   aspect_ratio_info: AspectRatioInfo | null;
   base_prompt: string | null;
@@ -77,6 +78,7 @@ export interface GenerationInput {
   style_reference_id?: number;
   use_style_image?: boolean;
   cover_style_image?: boolean;
+  base_image_only?: boolean;
 }
 
 export interface PaginatedResponse<T> {

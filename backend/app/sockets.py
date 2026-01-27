@@ -145,7 +145,9 @@ def handle_start_generation(data):
         })
         return
 
-    if not data.get('book_title') or not data.get('author_name'):
+    base_image_only = bool(data.get('base_image_only', False))
+
+    if not base_image_only and (not data.get('book_title') or not data.get('author_name')):
         emit('generation_error', {'error': 'Missing required fields: book_title, author_name'})
         return
 
@@ -170,6 +172,9 @@ def handle_start_generation(data):
 
     connected_users[request.sid] = _refresh_user(user)
 
+    book_title = data.get('book_title', '') or ('Untitled' if base_image_only else '')
+    author_name = data.get('author_name', '')
+
     style_analysis = data.get('style_analysis')
     style_reference_id = data.get('style_reference_id')
     use_style_image = bool(data.get('use_style_image', False))
@@ -177,8 +182,8 @@ def handle_start_generation(data):
 
     gen_data = {
         'user_id': user.id,
-        'book_title': data['book_title'],
-        'author_name': data['author_name'],
+        'book_title': book_title,
+        'author_name': author_name,
         'cover_ideas': data.get('cover_ideas', ''),
         'description': data.get('description', ''),
         'genres': data.get('genres', []),
@@ -191,6 +196,7 @@ def handle_start_generation(data):
         'style_reference_id': style_reference_id,
         'use_style_image': use_style_image,
         'cover_style_image': cover_style_image,
+        'base_image_only': base_image_only,
         'status': 'generating',
     }
 
@@ -216,6 +222,7 @@ def handle_start_generation(data):
         use_style_image,
         cover_style_image,
         aspect_ratio,
+        base_image_only,
     )
 
 
@@ -275,6 +282,7 @@ def handle_start_regeneration(data):
         'style_reference_id': original.style_reference_id,
         'use_style_image': original.use_style_image,
         'cover_style_image': original.cover_style_image,
+        'base_image_only': original.base_image_only,
         'status': 'generating',
     }
 
@@ -303,10 +311,11 @@ def handle_start_regeneration(data):
         new_generation.use_style_image,
         new_generation.cover_style_image,
         new_generation.aspect_ratio,
+        new_generation.base_image_only,
     )
 
 
-def _run_generation_task(app, generation, user_id, style_analysis, style_reference_id, use_style_image, cover_style_image, aspect_ratio):
+def _run_generation_task(app, generation, user_id, style_analysis, style_reference_id, use_style_image, cover_style_image, aspect_ratio, base_image_only=False):
     with app.app_context():
         gen_id = generation.id
         room = _room_for(user_id)
@@ -345,11 +354,13 @@ def _run_generation_task(app, generation, user_id, style_analysis, style_referen
                     style_reference_id, aspect_ratio, user_id,
                     on_progress=on_progress,
                     cover_style_image=cover_style_image,
+                    base_image_only=base_image_only,
                 )
             else:
                 final_gen = run_standard_pipeline(
                     gen_id, generation, book_data, style_analysis, aspect_ratio,
                     on_progress=on_progress,
+                    base_image_only=base_image_only,
                 )
 
             socketio.emit('generation_completed', {

@@ -270,11 +270,11 @@ def run_standard_pipeline(gen_id, generation, book_data, style_analysis, aspect_
 def run_style_ref_pipeline(
     gen_id, generation, book_data, style_analysis,
     style_reference_id, aspect_ratio, user_id, on_progress=None,
-    cover_style_image=False,
+    cover_style_image=False, base_image_only=False,
 ):
-    def progress(step, total, message):
+    def progress(step, total_steps, message):
         if on_progress:
-            on_progress(step, total, message)
+            on_progress(step, total_steps, message)
 
     ref_result = _sb().table('style_references').select('*').eq(
         'id', style_reference_id
@@ -286,9 +286,14 @@ def run_style_ref_pipeline(
     style_ref = StyleReference.from_row(ref_result.data[0])
 
     progress(1, 3, "Generating image prompt...")
-    unified_prompt = llm_service.generate_style_referenced_prompt(
-        book_data, style_analysis
-    )
+    if base_image_only:
+        unified_prompt = llm_service.generate_style_referenced_prompt_no_text(
+            book_data, style_analysis
+        )
+    else:
+        unified_prompt = llm_service.generate_style_referenced_prompt(
+            book_data, style_analysis
+        )
     unified_prompt += " The image must fill the entire canvas edge-to-edge with absolutely no white borders, margins, or empty space."
     logger.info("Gen #%s Step 1/3 done. Prompt length: %d chars", gen_id, len(unified_prompt))
     _sb().table('generations').update(

@@ -42,8 +42,15 @@ export default function GenerationSettingsModal({ generation, styleReferenceName
         </div>
 
         <div className="px-6 py-5 space-y-4">
-          <SettingRow label="Book Title" value={generation.book_title} />
-          <SettingRow label="Author Name" value={generation.author_name} />
+          {generation.base_image_only && (
+            <SettingRow label="Mode" value="Image only (no title or author text)" />
+          )}
+          {!generation.base_image_only && (
+            <>
+              <SettingRow label="Book Title" value={generation.book_title} />
+              <SettingRow label="Author Name" value={generation.author_name} />
+            </>
+          )}
           <SettingRow label="Cover Ideas" value={generation.cover_ideas} />
           <SettingRow label="Book Description" value={generation.description} />
           {generation.genres && generation.genres.length > 0 && (
