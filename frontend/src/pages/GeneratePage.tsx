@@ -140,7 +140,7 @@ function ResultPanel({ result, generation, user, onRegenerate }: {
 }) {
   return (
     <div className="flex flex-col items-center space-y-4">
-      <div className="w-[70%] rounded-2xl overflow-hidden border border-border bg-surface">
+      <div className="w-[80%] rounded-2xl overflow-hidden border border-border bg-surface">
         <img
           src={result.final_image_url || result.base_image_url || ''}
           alt={result.book_title}
@@ -148,7 +148,7 @@ function ResultPanel({ result, generation, user, onRegenerate }: {
         />
       </div>
 
-      <div className="w-[70%] flex gap-2">
+      <div className="w-[80%] flex gap-2">
         <a
           href={result.final_image_url || result.base_image_url || ''}
           download={`${result.book_title.replace(/\s+/g, '_')}_cover.png`}
