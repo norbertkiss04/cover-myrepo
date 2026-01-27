@@ -4,7 +4,7 @@ import Masonry from 'react-masonry-css';
 import { ArrowDownTrayIcon, TrashIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
 import { generationApi } from '../services/api';
 import GenerationSettingsModal from '../components/GenerationSettingsModal';
-import type { Generation } from '../types';
+import type { Generation, StyleReference } from '../types';
 
 const MASONRY_BREAKPOINTS = { default: 3, 1024: 2, 640: 1 };
 
@@ -16,10 +16,15 @@ export default function HistoryPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [settingsGen, setSettingsGen] = useState<Generation | null>(null);
+  const [styleReferences, setStyleReferences] = useState<StyleReference[]>([]);
 
   useEffect(() => {
     loadGenerations();
   }, [page]);
+
+  useEffect(() => {
+    generationApi.getStyleReferences().then(setStyleReferences).catch(() => {});
+  }, []);
 
   const loadGenerations = async () => {
     setIsLoading(true);
@@ -162,6 +167,11 @@ export default function HistoryPage() {
       {settingsGen && (
         <GenerationSettingsModal
           generation={settingsGen}
+          styleReferenceName={
+            settingsGen.style_reference_id
+              ? styleReferences.find((r) => r.id === settingsGen.style_reference_id)?.title || 'Deleted Reference'
+              : null
+          }
           onClose={() => setSettingsGen(null)}
           onUseSettings={(gen) => {
             setSettingsGen(null);

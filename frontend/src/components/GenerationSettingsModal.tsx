@@ -4,11 +4,12 @@ import type { Generation } from '../types';
 
 interface Props {
   generation: Generation;
+  styleReferenceName?: string | null;
   onClose: () => void;
   onUseSettings: (generation: Generation) => void;
 }
 
-export default function GenerationSettingsModal({ generation, onClose, onUseSettings }: Props) {
+export default function GenerationSettingsModal({ generation, styleReferenceName, onClose, onUseSettings }: Props) {
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -16,10 +17,6 @@ export default function GenerationSettingsModal({ generation, onClose, onUseSett
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
   }, [onClose]);
-
-  const hasStyleAnalysis = generation.style_analysis &&
-    (generation.style_analysis.feeling || generation.style_analysis.layout ||
-     generation.style_analysis.illustration_rules || generation.style_analysis.typography);
 
   const aspectLabel = generation.aspect_ratio_info
     ? `${generation.aspect_ratio} (${generation.aspect_ratio_info.name})`
@@ -54,26 +51,7 @@ export default function GenerationSettingsModal({ generation, onClose, onUseSett
           )}
           <SettingRow label="Character Description" value={generation.character_description} />
           <SettingRow label="Aspect Ratio" value={aspectLabel} />
-
-          {hasStyleAnalysis && (
-            <div>
-              <p className="text-xs font-medium text-text-muted uppercase tracking-wide mb-2">Style Reference</p>
-              <div className="bg-surface-alt rounded-lg p-3 space-y-2 text-sm">
-                {generation.style_analysis!.feeling && (
-                  <StyleRow label="Feeling" value={generation.style_analysis!.feeling} />
-                )}
-                {generation.style_analysis!.layout && (
-                  <StyleRow label="Layout" value={generation.style_analysis!.layout} />
-                )}
-                {generation.style_analysis!.illustration_rules && (
-                  <StyleRow label="Illustration" value={generation.style_analysis!.illustration_rules} />
-                )}
-                {generation.style_analysis!.typography && (
-                  <StyleRow label="Typography" value={generation.style_analysis!.typography} />
-                )}
-              </div>
-            </div>
-          )}
+          <SettingRow label="Style Reference" value={styleReferenceName} />
         </div>
 
         <div className="sticky bottom-0 px-6 py-4 bg-surface border-t border-border rounded-b-2xl">
@@ -99,11 +77,4 @@ function SettingRow({ label, value }: { label: string; value: string | null | un
   );
 }
 
-function StyleRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <span className="text-text-secondary font-medium">{label}:</span>{' '}
-      <span className="text-text">{value}</span>
-    </div>
-  );
-}
+
