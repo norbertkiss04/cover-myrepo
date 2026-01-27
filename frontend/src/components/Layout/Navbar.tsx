@@ -67,7 +67,7 @@ export default function Navbar() {
     <>
       <nav className="bg-surface border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
+          <div className="flex justify-between items-center h-16 relative">
             {}
             <div className="flex items-center">
               <Link to="/" className="flex items-center gap-2">
@@ -76,41 +76,42 @@ export default function Navbar() {
                   Insta<span className="text-accent">Cover</span>
                 </span>
               </Link>
-              {!isLoading && isAuthenticated && (
-                <div className="ml-8 flex items-center gap-1">
-                  <Link
-                    to="/generate"
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      isActive('/generate')
-                        ? 'text-accent bg-accent-soft'
-                        : 'text-text-secondary hover:text-text hover:bg-surface-alt'
-                    }`}
-                  >
-                    Generate
-                  </Link>
-                  <Link
-                    to="/references"
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      isActive('/references')
-                        ? 'text-accent bg-accent-soft'
-                        : 'text-text-secondary hover:text-text hover:bg-surface-alt'
-                    }`}
-                  >
-                    References
-                  </Link>
-                  <Link
-                    to="/history"
-                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                      isActive('/history')
-                        ? 'text-accent bg-accent-soft'
-                        : 'text-text-secondary hover:text-text hover:bg-surface-alt'
-                    }`}
-                  >
-                    History
-                  </Link>
-                </div>
-              )}
             </div>
+
+            {!isLoading && isAuthenticated && (
+              <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1">
+                <Link
+                  to="/generate"
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/generate')
+                      ? 'text-accent bg-accent-soft'
+                      : 'text-text-secondary hover:text-text hover:bg-surface-alt'
+                  }`}
+                >
+                  Generate
+                </Link>
+                <Link
+                  to="/references"
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/references')
+                      ? 'text-accent bg-accent-soft'
+                      : 'text-text-secondary hover:text-text hover:bg-surface-alt'
+                  }`}
+                >
+                  References
+                </Link>
+                <Link
+                  to="/history"
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/history')
+                      ? 'text-accent bg-accent-soft'
+                      : 'text-text-secondary hover:text-text hover:bg-surface-alt'
+                  }`}
+                >
+                  History
+                </Link>
+              </div>
+            )}
 
             {}
             <div className="flex items-center gap-3">
