@@ -71,6 +71,7 @@ export interface GenerationInput {
   style_analysis?: StyleAnalysis;
   style_reference_id?: number;
   use_style_image?: boolean;
+  cover_style_image?: boolean;
 }
 
 export interface PaginatedResponse<T> {

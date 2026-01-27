@@ -258,6 +258,7 @@ def run_standard_pipeline(gen_id, generation, book_data, style_analysis, aspect_
 def run_style_ref_pipeline(
     gen_id, generation, book_data, style_analysis,
     style_reference_id, aspect_ratio, user_id, on_progress=None,
+    cover_style_image=False,
 ):
     def progress(step, total, message):
         if on_progress:
@@ -288,7 +289,7 @@ def run_style_ref_pipeline(
     ref_response.raise_for_status()
 
     composite_bytes = image_service.compose_reference_on_canvas(
-        ref_response.content, aspect_ratio
+        ref_response.content, aspect_ratio, cover=cover_style_image
     )
     composite_upload = storage_service.upload_file(
         file_data=composite_bytes,

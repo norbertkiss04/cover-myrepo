@@ -150,6 +150,7 @@ def handle_start_generation(data):
     style_analysis = data.get('style_analysis')
     style_reference_id = data.get('style_reference_id')
     use_style_image = bool(data.get('use_style_image', False))
+    cover_style_image = bool(data.get('cover_style_image', False))
 
     gen_data = {
         'user_id': user.id,
@@ -166,13 +167,14 @@ def handle_start_generation(data):
         'style_analysis': style_analysis,
         'style_reference_id': style_reference_id,
         'use_style_image': use_style_image,
+        'cover_style_image': cover_style_image,
         'status': 'generating',
     }
 
     result = _sb().table('generations').insert(gen_data).execute()
     generation = Generation.from_row(result.data[0])
 
-    logger.info("Gen #%s created via socket (user id=%s, use_style_image=%s)", generation.id, user.id, use_style_image)
+    logger.info("Gen #%s created via socket (user id=%s, use_style_image=%s, cover=%s)", generation.id, user.id, use_style_image, cover_style_image)
 
     emit('generation_started', {
         'generation_id': generation.id,
@@ -188,6 +190,7 @@ def handle_start_generation(data):
         style_analysis,
         style_reference_id,
         use_style_image,
+        cover_style_image,
         aspect_ratio,
     )
 
@@ -237,6 +240,7 @@ def handle_start_regeneration(data):
         'style_analysis': original.style_analysis,
         'style_reference_id': original.style_reference_id,
         'use_style_image': original.use_style_image,
+        'cover_style_image': original.cover_style_image,
         'status': 'generating',
     }
 
@@ -262,11 +266,12 @@ def handle_start_regeneration(data):
         new_generation.style_analysis,
         new_generation.style_reference_id,
         new_generation.use_style_image,
+        new_generation.cover_style_image,
         new_generation.aspect_ratio,
     )
 
 
-def _run_generation_task(app, generation, user_id, style_analysis, style_reference_id, use_style_image, aspect_ratio):
+def _run_generation_task(app, generation, user_id, style_analysis, style_reference_id, use_style_image, cover_style_image, aspect_ratio):
     with app.app_context():
         gen_id = generation.id
         room = _room_for(user_id)
@@ -299,6 +304,7 @@ def _run_generation_task(app, generation, user_id, style_analysis, style_referen
                     gen_id, generation, book_data, style_analysis,
                     style_reference_id, aspect_ratio, user_id,
                     on_progress=on_progress,
+                    cover_style_image=cover_style_image,
                 )
             else:
                 final_gen = run_standard_pipeline(
