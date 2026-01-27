@@ -1,5 +1,6 @@
 import axios from 'axios';
-import { supabase } from '../lib/supabase';
+import type { AxiosRequestConfig } from 'axios';
+import { supabase, getAccessToken, setCurrentSession } from '../lib/supabase';
 import type { User, UserPreferences, Generation, GenerationInput, PaginatedResponse, AspectRatioInfo, StyleReference } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
@@ -12,27 +13,75 @@ const api = axios.create({
   },
 });
 
-api.interceptors.request.use(async (config) => {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session?.access_token) {
-    config.headers.Authorization = `Bearer ${session.access_token}`;
+api.interceptors.request.use((config) => {
+  const token = getAccessToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
 
+let isRefreshing = false;
+let refreshSubscribers: Array<(token: string) => void> = [];
+
+function onRefreshed(token: string) {
+  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers = [];
+}
+
+function subscribeToRefresh(cb: (token: string) => void) {
+  refreshSubscribers.push(cb);
+}
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) {
+    const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
 
-      const { error: refreshError } = await supabase.auth.refreshSession();
-      if (refreshError) {
-
-        await supabase.auth.signOut();
-        window.location.href = '/login';
-      }
+    if (error.response?.status !== 401 || originalRequest._retry) {
+      return Promise.reject(error);
     }
-    return Promise.reject(error);
+
+    originalRequest._retry = true;
+
+    if (isRefreshing) {
+      return new Promise((resolve) => {
+        subscribeToRefresh((token: string) => {
+          originalRequest.headers = originalRequest.headers || {};
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          resolve(api(originalRequest));
+        });
+      });
+    }
+
+    isRefreshing = true;
+
+    try {
+      const { data, error: refreshError } = await supabase.auth.refreshSession();
+
+      if (refreshError || !data.session) {
+        await supabase.auth.signOut();
+        setCurrentSession(null);
+        window.location.href = '/login';
+        return Promise.reject(error);
+      }
+
+      setCurrentSession(data.session);
+      const newToken = data.session.access_token;
+
+      onRefreshed(newToken);
+
+      originalRequest.headers = originalRequest.headers || {};
+      originalRequest.headers.Authorization = `Bearer ${newToken}`;
+      return api(originalRequest);
+    } catch {
+      await supabase.auth.signOut();
+      setCurrentSession(null);
+      window.location.href = '/login';
+      return Promise.reject(error);
+    } finally {
+      isRefreshing = false;
+    }
   }
 );
 

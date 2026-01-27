@@ -140,6 +140,7 @@ export default function GeneratePage() {
             illustration_rules: ref.illustration_rules || '',
             typography: ref.typography || '',
           };
+          payload.style_reference_id = ref.id;
         }
       }
 

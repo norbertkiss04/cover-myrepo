@@ -277,4 +277,61 @@ The text should be:
         result = self._make_request(messages, schema=TEXT_OVERLAY_SCHEMA)
         return result['prompt']
 
+    def generate_style_referenced_prompt(self, book_data, style_analysis):
+        system_prompt = """You are an expert book cover designer. You will be given details about a new book 
+and a style analysis from a reference image. The reference image will be provided alongside your prompt 
+to the image generation model.
+
+Your task is to create a SINGLE, comprehensive image generation prompt that:
+1. Describes the new book cover's visual content (imagery, composition, colors, mood)
+2. INCLUDES the book title and author name as text elements on the cover
+3. Specifies typography style, placement, and hierarchy for the title and author name
+4. Instructs the model to use the reference image ONLY for visual style — NOT its subject matter
+5. Keep the prompt under 800 characters for best results
+6. Return your response as JSON with a single "prompt" field
+
+CRITICAL: The prompt must explicitly state that the reference image is for STYLE REFERENCE ONLY. 
+The new cover must depict entirely new imagery appropriate for the book described, 
+while matching the artistic style, color palette, composition approach, and typography feel of the reference."""
+
+        user_content = f"""Create a book cover image prompt using the reference image's style.
+
+Book Details:
+- Title: "{book_data.get('book_title')}"
+- Author: "{book_data.get('author_name')}"
+- Genre(s): {', '.join(book_data.get('genres', []))}
+- Summary: {book_data.get('summary', '')}
+"""
+
+        if book_data.get('mood'):
+            user_content += f"- Mood/Atmosphere: {book_data.get('mood')}\n"
+
+        if book_data.get('color_preference'):
+            user_content += f"- Color Preference: {book_data.get('color_preference')}\n"
+
+        if book_data.get('character_description'):
+            user_content += f"- Main Character: {book_data.get('character_description')}\n"
+
+        if book_data.get('keywords'):
+            user_content += f"- Key Elements: {', '.join(book_data.get('keywords', []))}\n"
+
+        user_content += f"""
+Style Analysis of Reference Image:
+- Feeling & Atmosphere: {style_analysis.get('feeling', '')}
+- Layout & Composition: {style_analysis.get('layout', '')}
+- Illustration Style: {style_analysis.get('illustration_rules', '')}
+- Typography: {style_analysis.get('typography', '')}
+
+Generate a single prompt that creates this book cover in the style of the reference image. 
+The title "{book_data.get('book_title')}" and author "{book_data.get('author_name')}" must appear as text on the cover.
+Use the reference image for style only — do NOT copy its subject matter."""
+
+        messages = [
+            {'role': 'system', 'content': system_prompt},
+            {'role': 'user', 'content': user_content}
+        ]
+
+        result = self._make_request(messages, schema=BASE_PROMPT_SCHEMA)
+        return result['prompt']
+
 llm_service = LLMService()

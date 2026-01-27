@@ -70,6 +70,7 @@ export interface GenerationInput {
   character_description?: string;
   keywords?: string[];
   style_analysis?: StyleAnalysis;
+  style_reference_id?: number;
 }
 
 export interface PaginatedResponse<T> {

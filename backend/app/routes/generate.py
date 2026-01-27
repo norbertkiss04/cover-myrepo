@@ -211,6 +211,120 @@ def update_style_reference(current_user, ref_id):
 
     return jsonify(style_ref.to_dict())
 
+def _generate_standard(gen_id, generation, book_data, style_analysis, aspect_ratio):
+    logger.info("Gen #%s Step 1/4: Generating base image prompt via LLM...", gen_id)
+    base_prompt = llm_service.generate_base_image_prompt(
+        book_data, style_analysis=style_analysis
+    )
+    logger.info("Gen #%s Step 1/4 done. Prompt length: %d chars", gen_id, len(base_prompt))
+    _sb().table('generations').update(
+        {'base_prompt': base_prompt}
+    ).eq('id', generation.id).execute()
+
+    logger.info("Gen #%s Step 2/4: Generating base image via WaveSpeed...", gen_id)
+    base_result = image_service.generate_base_image(base_prompt, aspect_ratio)
+    base_image_url = base_result['image_url']
+    logger.info("Gen #%s Step 2/4 done. Base image URL received", gen_id)
+
+    logger.info("Gen #%s Uploading base image to storage...", gen_id)
+    base_upload = storage_service.upload_from_url(base_image_url, folder='base')
+    storage_base_url = base_upload['public_url']
+    base_storage_path = base_upload['path']
+    _sb().table('generations').update(
+        {'base_image_url': storage_base_url}
+    ).eq('id', generation.id).execute()
+    logger.info("Gen #%s Base image stored", gen_id)
+
+    logger.info("Gen #%s Step 3/4: Generating text overlay prompt via LLM...", gen_id)
+    text_prompt = llm_service.generate_text_overlay_prompt(
+        book_data, style_analysis=style_analysis
+    )
+    logger.info("Gen #%s Step 3/4 done. Prompt length: %d chars", gen_id, len(text_prompt))
+    _sb().table('generations').update(
+        {'text_prompt': text_prompt}
+    ).eq('id', generation.id).execute()
+
+    logger.info("Gen #%s Step 4/4: Generating final image with text via WaveSpeed...", gen_id)
+    signed_base_url = storage_service.get_signed_url(base_storage_path, expires_in=600)
+    logger.info("Gen #%s Using signed URL for base image", gen_id)
+    final_prompt = f"{base_prompt}\n\nText overlay: {text_prompt}"
+    final_result = image_service.generate_image_with_text(
+        signed_base_url,
+        final_prompt,
+        aspect_ratio
+    )
+    final_image_url = final_result['image_url']
+    logger.info("Gen #%s Step 4/4 done. Final image URL received", gen_id)
+
+    logger.info("Gen #%s Uploading final image to storage...", gen_id)
+    final_upload = storage_service.upload_from_url(final_image_url, folder='covers')
+    storage_final_url = final_upload['public_url']
+    now = datetime.now(timezone.utc).isoformat()
+    update_result = _sb().table('generations').update({
+        'final_image_url': storage_final_url,
+        'status': 'completed',
+        'completed_at': now,
+    }).eq('id', generation.id).execute()
+
+    final_gen = Generation.from_row(update_result.data[0])
+    logger.info("Gen #%s COMPLETED successfully", gen_id)
+    return final_gen
+
+
+def _generate_with_style_reference(
+    gen_id, generation, book_data, style_analysis,
+    style_reference_id, aspect_ratio, current_user,
+):
+    logger.info(
+        "Gen #%s using style reference #%s — single-step generation",
+        gen_id, style_reference_id,
+    )
+
+    ref_result = _sb().table('style_references').select('*').eq(
+        'id', style_reference_id
+    ).eq('user_id', current_user.id).execute()
+
+    if not ref_result.data:
+        raise ValueError(f"Style reference #{style_reference_id} not found")
+
+    style_ref = StyleReference.from_row(ref_result.data[0])
+
+    logger.info("Gen #%s Step 1/2: Generating unified prompt via LLM...", gen_id)
+    unified_prompt = llm_service.generate_style_referenced_prompt(
+        book_data, style_analysis
+    )
+    logger.info("Gen #%s Step 1/2 done. Prompt length: %d chars", gen_id, len(unified_prompt))
+    _sb().table('generations').update(
+        {'base_prompt': unified_prompt}
+    ).eq('id', generation.id).execute()
+
+    logger.info("Gen #%s Step 2/2: Generating image with style reference via WaveSpeed...", gen_id)
+    signed_ref_url = storage_service.get_signed_url(style_ref.image_path, expires_in=600)
+    logger.info("Gen #%s Using signed URL for reference image", gen_id)
+
+    final_result = image_service.generate_image_with_text(
+        signed_ref_url,
+        unified_prompt,
+        aspect_ratio,
+    )
+    final_image_url = final_result['image_url']
+    logger.info("Gen #%s Step 2/2 done. Final image URL received", gen_id)
+
+    logger.info("Gen #%s Uploading final image to storage...", gen_id)
+    final_upload = storage_service.upload_from_url(final_image_url, folder='covers')
+    storage_final_url = final_upload['public_url']
+    now = datetime.now(timezone.utc).isoformat()
+    update_result = _sb().table('generations').update({
+        'final_image_url': storage_final_url,
+        'status': 'completed',
+        'completed_at': now,
+    }).eq('id', generation.id).execute()
+
+    final_gen = Generation.from_row(update_result.data[0])
+    logger.info("Gen #%s COMPLETED successfully (style-referenced)", gen_id)
+    return final_gen
+
+
 @generate_bp.route('/generate', methods=['POST'])
 @token_required
 def create_generation(current_user):
@@ -238,6 +352,7 @@ def create_generation(current_user):
         }), 400
 
     style_analysis = data.get('style_analysis')
+    style_reference_id = data.get('style_reference_id')
 
     gen_data = {
         'user_id': current_user.id,
@@ -261,7 +376,6 @@ def create_generation(current_user):
     logger.info("Gen #%s created (status=generating)", gen_id)
 
     try:
-        logger.info("Gen #%s Step 1/4: Generating base image prompt via LLM...", gen_id)
         book_data = {
             'book_title': generation.book_title,
             'author_name': generation.author_name,
@@ -274,61 +388,16 @@ def create_generation(current_user):
             'reference_image_description': generation.reference_image_description
         }
 
-        base_prompt = llm_service.generate_base_image_prompt(
-            book_data, style_analysis=style_analysis
-        )
-        logger.info("Gen #%s Step 1/4 done. Prompt length: %d chars", gen_id, len(base_prompt))
-        _sb().table('generations').update(
-            {'base_prompt': base_prompt}
-        ).eq('id', generation.id).execute()
+        if style_reference_id and style_analysis:
+            final_gen = _generate_with_style_reference(
+                gen_id, generation, book_data, style_analysis,
+                style_reference_id, aspect_ratio, current_user,
+            )
+        else:
+            final_gen = _generate_standard(
+                gen_id, generation, book_data, style_analysis, aspect_ratio,
+            )
 
-        logger.info("Gen #%s Step 2/4: Generating base image via WaveSpeed...", gen_id)
-        base_result = image_service.generate_base_image(base_prompt, aspect_ratio)
-        base_image_url = base_result['image_url']
-        logger.info("Gen #%s Step 2/4 done. Base image URL received", gen_id)
-
-        logger.info("Gen #%s Uploading base image to storage...", gen_id)
-        base_upload = storage_service.upload_from_url(base_image_url, folder='base')
-        storage_base_url = base_upload['public_url']
-        base_storage_path = base_upload['path']
-        _sb().table('generations').update(
-            {'base_image_url': storage_base_url}
-        ).eq('id', generation.id).execute()
-        logger.info("Gen #%s Base image stored", gen_id)
-
-        logger.info("Gen #%s Step 3/4: Generating text overlay prompt via LLM...", gen_id)
-        text_prompt = llm_service.generate_text_overlay_prompt(
-            book_data, style_analysis=style_analysis
-        )
-        logger.info("Gen #%s Step 3/4 done. Prompt length: %d chars", gen_id, len(text_prompt))
-        _sb().table('generations').update(
-            {'text_prompt': text_prompt}
-        ).eq('id', generation.id).execute()
-
-        logger.info("Gen #%s Step 4/4: Generating final image with text via WaveSpeed...", gen_id)
-        signed_base_url = storage_service.get_signed_url(base_storage_path, expires_in=600)
-        logger.info("Gen #%s Using signed URL for base image", gen_id)
-        final_prompt = f"{base_prompt}\n\nText overlay: {text_prompt}"
-        final_result = image_service.generate_image_with_text(
-            signed_base_url,
-            final_prompt,
-            aspect_ratio
-        )
-        final_image_url = final_result['image_url']
-        logger.info("Gen #%s Step 4/4 done. Final image URL received", gen_id)
-
-        logger.info("Gen #%s Uploading final image to storage...", gen_id)
-        final_upload = storage_service.upload_from_url(final_image_url, folder='covers')
-        storage_final_url = final_upload['public_url']
-        now = datetime.now(timezone.utc).isoformat()
-        update_result = _sb().table('generations').update({
-            'final_image_url': storage_final_url,
-            'status': 'completed',
-            'completed_at': now,
-        }).eq('id', generation.id).execute()
-
-        final_gen = Generation.from_row(update_result.data[0])
-        logger.info("Gen #%s COMPLETED successfully", gen_id)
         return jsonify(final_gen.to_dict()), 201
 
     except Exception as e:
@@ -462,64 +531,11 @@ def regenerate(current_user, generation_id):
             'reference_image_description': new_generation.reference_image_description
         }
 
-        logger.info("Gen #%s Step 1/4: Generating base image prompt via LLM...", gen_id)
-        base_prompt = llm_service.generate_base_image_prompt(
-            book_data, style_analysis=style_analysis
+        final_gen = _generate_standard(
+            gen_id, new_generation, book_data, style_analysis,
+            new_generation.aspect_ratio,
         )
-        logger.info("Gen #%s Step 1/4 done. Prompt length: %d chars", gen_id, len(base_prompt))
-        _sb().table('generations').update(
-            {'base_prompt': base_prompt}
-        ).eq('id', new_generation.id).execute()
 
-        logger.info("Gen #%s Step 2/4: Generating base image via WaveSpeed...", gen_id)
-        base_result = image_service.generate_base_image(
-            base_prompt, new_generation.aspect_ratio
-        )
-        logger.info("Gen #%s Step 2/4 done. Base image URL received", gen_id)
-
-        logger.info("Gen #%s Uploading base image to storage...", gen_id)
-        base_upload = storage_service.upload_from_url(
-            base_result['image_url'], folder='base'
-        )
-        storage_base_url = base_upload['public_url']
-        base_storage_path = base_upload['path']
-        _sb().table('generations').update(
-            {'base_image_url': storage_base_url}
-        ).eq('id', new_generation.id).execute()
-        logger.info("Gen #%s Base image stored", gen_id)
-
-        logger.info("Gen #%s Step 3/4: Generating text overlay prompt via LLM...", gen_id)
-        text_prompt = llm_service.generate_text_overlay_prompt(
-            book_data, style_analysis=style_analysis
-        )
-        logger.info("Gen #%s Step 3/4 done. Prompt length: %d chars", gen_id, len(text_prompt))
-
-        logger.info("Gen #%s Step 4/4: Generating final image with text via WaveSpeed...", gen_id)
-        signed_base_url = storage_service.get_signed_url(base_storage_path, expires_in=600)
-        logger.info("Gen #%s Using signed URL for base image", gen_id)
-        final_prompt = f"{base_prompt}\n\nText overlay: {text_prompt}"
-        final_result = image_service.generate_image_with_text(
-            signed_base_url,
-            final_prompt,
-            new_generation.aspect_ratio
-        )
-        logger.info("Gen #%s Step 4/4 done. Final image URL received", gen_id)
-
-        logger.info("Gen #%s Uploading final image to storage...", gen_id)
-        final_upload = storage_service.upload_from_url(
-            final_result['image_url'], folder='covers'
-        )
-        storage_final_url = final_upload['public_url']
-
-        now = datetime.now(timezone.utc).isoformat()
-        update_result = _sb().table('generations').update({
-            'text_prompt': text_prompt,
-            'final_image_url': storage_final_url,
-            'status': 'completed',
-            'completed_at': now,
-        }).eq('id', new_generation.id).execute()
-
-        final_gen = Generation.from_row(update_result.data[0])
         logger.info("Gen #%s COMPLETED successfully (regenerated from #%d)", gen_id, generation_id)
         return jsonify(final_gen.to_dict()), 201
 
