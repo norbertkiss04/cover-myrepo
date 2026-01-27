@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { generationApi } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useGeneration } from '../context/GenerationContext';
-import type { GenerationInput, AspectRatioInfo, StyleReference } from '../types';
+import type { Generation, GenerationInput, AspectRatioInfo, StyleReference } from '../types';
 
 const OPTIONAL_FIELD_DEFS = [
   { key: 'description', label: 'Book Description' },
@@ -15,6 +16,8 @@ type OptionalFieldKey = typeof OPTIONAL_FIELD_DEFS[number]['key'];
 export default function GeneratePage() {
   const { user } = useAuth();
   const generation = useGeneration();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const [genres, setGenres] = useState<string[]>([]);
   const [aspectRatios, setAspectRatios] = useState<Record<string, AspectRatioInfo>>({});
@@ -65,6 +68,42 @@ export default function GeneratePage() {
     };
     loadOptions();
   }, []);
+
+  useEffect(() => {
+    const state = location.state as { fromGeneration?: Generation } | null;
+    if (!state?.fromGeneration) return;
+
+    const gen = state.fromGeneration;
+
+    setFormData({
+      book_title: gen.book_title || '',
+      author_name: gen.author_name || '',
+      cover_ideas: gen.cover_ideas || '',
+      description: gen.description || '',
+      genres: gen.genres || [],
+      aspect_ratio: gen.aspect_ratio || '2:3',
+      character_description: gen.character_description || '',
+    });
+
+    const fieldsToShow = new Set<string>();
+    if (gen.description) fieldsToShow.add('description');
+    if (gen.genres && gen.genres.length > 0) fieldsToShow.add('genres');
+    if (gen.character_description) fieldsToShow.add('character_description');
+    if (fieldsToShow.size > 0) setTempFields(fieldsToShow);
+
+    if (gen.style_analysis && styleReferences.length > 0) {
+      const matchingRef = gen.style_reference_id
+        ? styleReferences.find((r) => r.id === gen.style_reference_id)
+        : null;
+      if (matchingRef) {
+        setSelectedRefId(matchingRef.id);
+        setUseStyleImage(Boolean(gen.use_style_image));
+        setCoverStyleImage(Boolean(gen.cover_style_image));
+      }
+    }
+
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [styleReferences]);
 
   useEffect(() => {
     if (!addFieldOpen) return;

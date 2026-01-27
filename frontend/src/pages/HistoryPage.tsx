@@ -1,18 +1,21 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Masonry from 'react-masonry-css';
-import { ArrowDownTrayIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { ArrowDownTrayIcon, TrashIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
 import { generationApi } from '../services/api';
+import GenerationSettingsModal from '../components/GenerationSettingsModal';
 import type { Generation } from '../types';
 
 const MASONRY_BREAKPOINTS = { default: 3, 1024: 2, 640: 1 };
 
 export default function HistoryPage() {
+  const navigate = useNavigate();
   const [generations, setGenerations] = useState<Generation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [settingsGen, setSettingsGen] = useState<Generation | null>(null);
 
   useEffect(() => {
     loadGenerations();
@@ -105,6 +108,13 @@ export default function HistoryPage() {
                 <h3 className="font-heading font-semibold text-white truncate">{gen.book_title}</h3>
                 <p className="text-sm text-white/70 truncate">by {gen.author_name}</p>
                 <div className="mt-3 flex items-center gap-2">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setSettingsGen(gen); }}
+                    className="p-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors cursor-pointer"
+                    title="View Settings"
+                  >
+                    <Cog6ToothIcon className="w-5 h-5 text-white" />
+                  </button>
                   <a
                     href={gen.final_image_url!}
                     download
@@ -148,6 +158,16 @@ export default function HistoryPage() {
             Next
           </button>
         </div>
+      )}
+      {settingsGen && (
+        <GenerationSettingsModal
+          generation={settingsGen}
+          onClose={() => setSettingsGen(null)}
+          onUseSettings={(gen) => {
+            setSettingsGen(null);
+            navigate('/generate', { state: { fromGeneration: gen } });
+          }}
+        />
       )}
     </div>
   );

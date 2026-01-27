@@ -48,6 +48,9 @@ export interface Generation {
   keywords: string[] | null;
   reference_image_description: string | null;
   style_analysis: StyleAnalysis | null;
+  style_reference_id: number | null;
+  use_style_image: boolean;
+  cover_style_image: boolean;
   aspect_ratio: string;
   aspect_ratio_info: AspectRatioInfo | null;
   base_prompt: string | null;
