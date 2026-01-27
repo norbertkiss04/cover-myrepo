@@ -66,25 +66,25 @@ export default function LoginPage() {
     <div className="min-h-[80vh] flex items-center justify-center">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-heading font-bold text-text">
+          <h1 className="text-3xl font-heading font-bold text-text tracking-tight">
             {isRegister ? 'Create your account' : 'Welcome back'}
           </h1>
-          <p className="mt-2 text-text-secondary">
+          <p className="mt-2 text-text-secondary text-sm">
             {isRegister
               ? 'Join InstaCover and start creating book covers'
               : 'Sign in to continue crafting covers'}
           </p>
         </div>
 
-        <div className="bg-surface border border-border rounded-xl p-8">
+        <div className="bg-surface border border-border rounded-2xl p-8">
           {error && (
-            <div className="mb-4 p-3 bg-error-bg border border-error-border text-error rounded-lg text-sm">
+            <div className="mb-4 p-3 bg-error-bg border border-error-border text-error rounded-xl text-sm">
               {error}
             </div>
           )}
 
           {success && (
-            <div className="mb-4 p-3 bg-success-bg border border-success-border text-success rounded-lg text-sm">
+            <div className="mb-4 p-3 bg-success-bg border border-success-border text-success rounded-xl text-sm">
               {success}
             </div>
           )}
@@ -100,7 +100,7 @@ export default function LoginPage() {
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-surface-alt border border-border rounded-lg text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent"
+                  className="w-full px-3.5 py-2.5 bg-surface-alt border border-border rounded-xl text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 text-sm"
                   placeholder="Your name"
                 />
               </div>
@@ -115,7 +115,7 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-surface-alt border border-border rounded-lg text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent"
+                className="w-full px-3.5 py-2.5 bg-surface-alt border border-border rounded-xl text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 text-sm"
                 placeholder="you@example.com"
               />
             </div>
@@ -130,7 +130,7 @@ export default function LoginPage() {
                 minLength={6}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-surface-alt border border-border rounded-lg text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent"
+                className="w-full px-3.5 py-2.5 bg-surface-alt border border-border rounded-xl text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 text-sm"
                 placeholder={isRegister ? 'Min 6 characters' : 'Your password'}
               />
             </div>
@@ -138,7 +138,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-accent text-white py-2.5 px-4 rounded-lg font-medium hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors mt-2"
+              className="w-full bg-accent text-white py-2.5 px-4 rounded-xl font-semibold hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors mt-2 text-sm"
             >
               {isLoading
                 ? 'Loading...'
@@ -160,7 +160,7 @@ export default function LoginPage() {
               <button
                 onClick={handleGoogleLogin}
                 disabled={isLoading}
-                className="w-full flex items-center justify-center gap-3 bg-surface border border-border rounded-lg px-4 py-2.5 text-text hover:bg-surface-alt transition-colors disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-3 bg-surface border border-border rounded-xl px-4 py-2.5 text-text hover:bg-surface-alt transition-colors disabled:opacity-40 text-sm"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />

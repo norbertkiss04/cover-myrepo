@@ -77,47 +77,47 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="bg-surface border-b border-border">
+      <nav className="bg-surface/80 backdrop-blur-md border-b border-border sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16 relative">
+          <div className="flex justify-between items-center h-14 relative">
             {}
             <div className="flex items-center">
               <Link to="/" className="flex items-center gap-2">
                 <BookIcon className="w-6 h-6 text-accent" />
-                <span className="text-xl font-heading font-bold text-text">
+                <span className="text-lg font-heading font-bold text-text tracking-tight">
                   Insta<span className="text-accent">Cover</span>
                 </span>
               </Link>
             </div>
 
             {!isLoading && isAuthenticated && (
-              <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1">
+              <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-surface-alt/60 rounded-lg p-0.5">
                 <Link
                   to="/generate"
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                     isActive('/generate')
-                      ? 'text-accent bg-accent-soft'
-                      : 'text-text-secondary hover:text-text hover:bg-surface-alt'
+                      ? 'text-text bg-surface shadow-sm'
+                      : 'text-text-muted hover:text-text'
                   }`}
                 >
                   Generate
                 </Link>
                 <Link
                   to="/history"
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                     isActive('/history')
-                      ? 'text-accent bg-accent-soft'
-                      : 'text-text-secondary hover:text-text hover:bg-surface-alt'
+                      ? 'text-text bg-surface shadow-sm'
+                      : 'text-text-muted hover:text-text'
                   }`}
                 >
                   History
                 </Link>
                 <Link
                   to="/references"
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                     isActive('/references')
-                      ? 'text-accent bg-accent-soft'
-                      : 'text-text-secondary hover:text-text hover:bg-surface-alt'
+                      ? 'text-text bg-surface shadow-sm'
+                      : 'text-text-muted hover:text-text'
                   }`}
                 >
                   References
@@ -159,7 +159,7 @@ export default function Navbar() {
 
                     {}
                     {menuOpen && (
-                      <div className="absolute right-0 mt-2 w-56 bg-surface border border-border rounded-xl shadow-lg py-1 z-40">
+                      <div className="absolute right-0 mt-2 w-56 bg-surface border border-border rounded-2xl shadow-lg py-1 z-40">
                         {}
                         <div className="px-4 py-3 border-b border-border">
                           <p className="text-sm font-medium text-text truncate">
@@ -218,7 +218,7 @@ export default function Navbar() {
                   </button>
                   <Link
                     to="/login"
-                    className="bg-accent text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-accent-hover transition-colors"
+                    className="bg-accent text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-accent-hover transition-colors"
                   >
                     Login
                   </Link>

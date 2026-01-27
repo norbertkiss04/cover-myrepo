@@ -13,6 +13,147 @@ const OPTIONAL_FIELD_DEFS = [
 
 type OptionalFieldKey = typeof OPTIONAL_FIELD_DEFS[number]['key'];
 
+function PlaceholderPanel() {
+  return (
+    <div className="rounded-2xl border border-dashed border-border bg-surface-alt/50 flex flex-col items-center justify-center p-8 min-h-[400px] text-center">
+      <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mb-5">
+        <svg className="w-8 h-8 text-accent/50" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
+        </svg>
+      </div>
+      <p className="text-sm font-medium text-text-muted mb-1">Your cover will appear here</p>
+      <p className="text-xs text-text-muted/70">Fill in the form and hit generate</p>
+    </div>
+  );
+}
+
+function ProgressPanel({ generation }: { generation: ReturnType<typeof useGeneration> }) {
+  const progressPercent = generation.totalSteps > 0
+    ? Math.round((generation.step / generation.totalSteps) * 100)
+    : 0;
+
+  const circumference = 2 * Math.PI * 52;
+  const strokeOffset = circumference - (progressPercent / 100) * circumference;
+
+  return (
+    <div className="rounded-2xl border border-border bg-surface flex flex-col items-center justify-center p-8 min-h-[400px]">
+      <div className="relative w-32 h-32 mb-6">
+        <svg className="w-32 h-32 -rotate-90" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="52" fill="none" stroke="var(--color-border)" strokeWidth="8" />
+          <circle
+            cx="60" cy="60" r="52" fill="none"
+            stroke="var(--color-accent)" strokeWidth="8"
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeOffset}
+            className="transition-all duration-700 ease-out"
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-2xl font-heading font-bold text-text">{progressPercent}%</span>
+        </div>
+      </div>
+
+      <p className="text-sm font-medium text-text mb-1">
+        {generation.stepMessage || 'Preparing...'}
+      </p>
+      {generation.totalSteps > 0 && (
+        <p className="text-xs text-text-muted">
+          Step {generation.step} of {generation.totalSteps}
+        </p>
+      )}
+
+      <div className="w-full max-w-xs mt-8 space-y-2">
+        {Array.from({ length: generation.totalSteps || 4 }, (_, i) => {
+          const stepNum = i + 1;
+          const isActive = stepNum === generation.step;
+          const isDone = stepNum < generation.step;
+
+          return (
+            <div key={stepNum} className="flex items-center gap-3">
+              <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium transition-colors ${
+                isDone
+                  ? 'bg-accent text-white'
+                  : isActive
+                    ? 'bg-accent/15 text-accent ring-2 ring-accent/30'
+                    : 'bg-surface-alt text-text-muted'
+              }`}>
+                {isDone ? (
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                ) : (
+                  stepNum
+                )}
+              </div>
+              <span className={`text-xs ${
+                isActive ? 'text-text font-medium' : isDone ? 'text-text-secondary' : 'text-text-muted'
+              }`}>
+                {isActive ? generation.stepMessage : isDone ? 'Done' : 'Waiting...'}
+              </span>
+              {isActive && (
+                <div className="animate-spin rounded-full h-3 w-3 border-[1.5px] border-accent border-t-transparent ml-auto" />
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="text-xs text-text-muted mt-6">
+        You can navigate away while generating.
+      </p>
+    </div>
+  );
+}
+
+function ResultPanel({ result, generation, user, onRegenerate, onReset }: {
+  result: Generation;
+  generation: ReturnType<typeof useGeneration>;
+  user: any;
+  onRegenerate: () => void;
+  onReset: () => void;
+}) {
+  return (
+    <div className="space-y-6">
+      <div className="rounded-2xl overflow-hidden border border-border bg-surface">
+        <img
+          src={result.final_image_url || result.base_image_url || ''}
+          alt={result.book_title}
+          className="w-full h-auto block"
+        />
+      </div>
+
+      <div className="space-y-3">
+        <a
+          href={result.final_image_url || result.base_image_url || ''}
+          download={`${result.book_title.replace(/\s+/g, '_')}_cover.png`}
+          className="flex items-center justify-center gap-2 w-full bg-accent text-white py-3 px-4 rounded-xl font-semibold hover:bg-accent-hover transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+          </svg>
+          Download Cover
+        </a>
+
+        <button
+          onClick={onRegenerate}
+          disabled={generation.status !== 'completed' || (!user?.unlimited_credits && (user?.credits ?? 0) < 3)}
+          className="w-full border border-border text-text py-2.5 px-4 rounded-xl font-medium hover:bg-surface-alt disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        >
+          Regenerate (3 credits)
+        </button>
+
+        <button
+          onClick={onReset}
+          className="w-full text-sm text-text-muted hover:text-text py-2 transition-colors"
+        >
+          Start a new cover
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function GeneratePage() {
   const { user } = useAuth();
   const generation = useGeneration();
@@ -210,7 +351,26 @@ export default function GeneratePage() {
     generation.startRegeneration(generation.result.id);
   };
 
+  const handleReset = () => {
+    generation.reset();
+    setFormData({
+      book_title: '',
+      author_name: '',
+      cover_ideas: '',
+      description: '',
+      genres: [],
+      aspect_ratio: '2:3',
+      character_description: '',
+    });
+    setTempFields(new Set());
+    setSelectedRefId(null);
+    setBaseImageOnly(false);
+  };
+
   const isTempField = (key: string) => tempFields.has(key) && !prefsFields.includes(key);
+
+  const inputClass =
+    'w-full px-3.5 py-2.5 bg-surface-alt border border-border rounded-xl text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 text-sm';
 
   const renderOptionalField = (key: OptionalFieldKey) => {
     const showRemove = isTempField(key);
@@ -221,7 +381,7 @@ export default function GeneratePage() {
         className="ml-2 p-0.5 text-text-muted hover:text-error transition-colors"
         aria-label={`Remove ${key} field`}
       >
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
         </svg>
       </button>
@@ -236,11 +396,11 @@ export default function GeneratePage() {
               {removeBtn}
             </div>
             <textarea
-              rows={4}
+              rows={3}
               value={formData.description || ''}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               className={inputClass}
-              placeholder="Describe your book's plot, themes, and key elements..."
+              placeholder="Plot, themes, key elements..."
             />
           </div>
         );
@@ -252,13 +412,13 @@ export default function GeneratePage() {
               <label className="block text-sm font-medium text-text-secondary">Genre(s)</label>
               {removeBtn}
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-1.5">
               {genres.map((genre) => (
                 <button
                   key={genre}
                   type="button"
                   onClick={() => handleGenreToggle(genre)}
-                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors border ${
                     (formData.genres || []).includes(genre)
                       ? 'bg-accent text-white border-accent'
                       : 'bg-surface-alt text-text-secondary border-border hover:border-accent/40 hover:text-text'
@@ -283,7 +443,7 @@ export default function GeneratePage() {
               value={formData.character_description || ''}
               onChange={(e) => setFormData({ ...formData, character_description: e.target.value })}
               className={inputClass}
-              placeholder="Describe main character appearance if they should be on the cover..."
+              placeholder="Main character appearance for the cover..."
             />
           </div>
         );
@@ -293,266 +453,68 @@ export default function GeneratePage() {
     }
   };
 
-  if (generation.status === 'generating') {
-    const progressPercent = generation.totalSteps > 0
-      ? Math.round((generation.step / generation.totalSteps) * 100)
-      : 0;
+  const renderForm = () => (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={baseImageOnly}
+          onChange={(e) => setBaseImageOnly(e.target.checked)}
+          className="w-4 h-4 rounded border-border text-accent focus:ring-accent/40 cursor-pointer"
+        />
+        <span className="text-sm text-text-secondary">
+          Image only (no title or author text)
+        </span>
+      </label>
 
-    return (
-      <div className="max-w-2xl mx-auto">
-        <h1 className="text-2xl sm:text-3xl font-heading font-bold text-text mb-6">Generating Your Cover</h1>
-
-        <div className="bg-surface border border-border rounded-xl p-6 sm:p-8">
-          <div className="text-center mb-8">
-            <h2 className="text-xl font-heading font-semibold text-text">{generation.bookTitle}</h2>
-            <p className="text-text-secondary mt-1">by {generation.authorName}</p>
+      {!baseImageOnly && (
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-1.5">
+              Book Title
+            </label>
+            <input
+              type="text"
+              required
+              value={formData.book_title}
+              onChange={(e) => setFormData({ ...formData, book_title: e.target.value })}
+              className={inputClass}
+              placeholder="Your book title"
+            />
           </div>
-
-          <div className="mb-6">
-            <div className="flex items-center justify-between text-sm text-text-secondary mb-2">
-              <span>{generation.stepMessage || 'Preparing...'}</span>
-              {generation.totalSteps > 0 && (
-                <span>Step {generation.step} of {generation.totalSteps}</span>
-              )}
-            </div>
-            <div className="w-full bg-surface-alt rounded-full h-3 overflow-hidden">
-              <div
-                className="h-full bg-accent rounded-full transition-all duration-500 ease-out"
-                style={{ width: `${Math.max(progressPercent, 5)}%` }}
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-1.5">
+              Author Name
+            </label>
+            <input
+              type="text"
+              required
+              value={formData.author_name}
+              onChange={(e) => setFormData({ ...formData, author_name: e.target.value })}
+              className={inputClass}
+              placeholder="Author name"
+            />
           </div>
-
-          <div className="space-y-3">
-            {Array.from({ length: generation.totalSteps || 4 }, (_, i) => {
-              const stepNum = i + 1;
-              const isActive = stepNum === generation.step;
-              const isDone = stepNum < generation.step;
-
-              return (
-                <div key={stepNum} className="flex items-center gap-3">
-                  <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium border-2 transition-colors ${
-                    isDone
-                      ? 'bg-accent border-accent text-white'
-                      : isActive
-                        ? 'border-accent text-accent bg-accent-soft'
-                        : 'border-border text-text-muted'
-                  }`}>
-                    {isDone ? (
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                      </svg>
-                    ) : (
-                      stepNum
-                    )}
-                  </div>
-                  <span className={`text-sm ${
-                    isActive ? 'text-text font-medium' : isDone ? 'text-text-secondary' : 'text-text-muted'
-                  }`}>
-                    {isActive ? generation.stepMessage : isDone ? 'Done' : 'Waiting...'}
-                  </span>
-                  {isActive && (
-                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-accent border-t-transparent ml-auto" />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          <p className="text-center text-xs text-text-muted mt-8">
-            You can navigate to other pages while your cover is being generated.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (generation.status === 'completed' && generation.result) {
-    const result = generation.result;
-    return (
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-2xl sm:text-3xl font-heading font-bold text-text mb-6">Your Book Cover</h1>
-
-        <div className="bg-surface border border-border rounded-xl p-6 sm:p-8">
-          <div className="grid md:grid-cols-2 gap-8">
-            <div className="flex justify-center">
-              <img
-                src={result.final_image_url || result.base_image_url || ''}
-                alt={result.book_title}
-                className="max-w-full rounded-lg shadow-lg ring-1 ring-border"
-              />
-            </div>
-            <div>
-              <h2 className="text-xl font-heading font-semibold text-text">{result.book_title}</h2>
-              <p className="text-text-secondary mt-1">by {result.author_name}</p>
-
-              <div className="mt-6 space-y-3 text-sm">
-                {result.cover_ideas && (
-                  <div className="flex gap-2">
-                    <span className="font-medium text-text-secondary w-24 flex-shrink-0">Ideas</span>
-                    <span className="text-text">{result.cover_ideas}</span>
-                  </div>
-                )}
-                {result.genres && result.genres.length > 0 && (
-                  <div className="flex gap-2">
-                    <span className="font-medium text-text-secondary w-24 flex-shrink-0">Genres</span>
-                    <span className="text-text">{result.genres.join(', ')}</span>
-                  </div>
-                )}
-                <div className="flex gap-2">
-                  <span className="font-medium text-text-secondary w-24 flex-shrink-0">Ratio</span>
-                  <span className="text-text">{result.aspect_ratio_info?.name}</span>
-                </div>
-                {result.style_analysis && (
-                  <div className="flex gap-2">
-                    <span className="font-medium text-text-secondary w-24 flex-shrink-0">Style Ref</span>
-                    <span className="text-text">Applied</span>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-8 space-y-3">
-                <button
-                  onClick={handleRegenerate}
-                  disabled={generation.status !== 'completed' || (!user?.unlimited_credits && (user?.credits ?? 0) < 3)}
-                  className="w-full bg-accent text-white py-2.5 px-4 rounded-lg font-medium hover:bg-accent-hover disabled:opacity-50 transition-colors"
-                >
-                  Regenerate Cover (3 credits)
-                </button>
-
-                <a
-                  href={result.final_image_url || result.base_image_url || ''}
-                  download={`${result.book_title.replace(/\s+/g, '_')}_cover.png`}
-                  className="block w-full text-center bg-surface-alt text-text border border-border py-2.5 px-4 rounded-lg hover:bg-surface-hover transition-colors"
-                >
-                  Download Cover
-                </a>
-
-                <button
-                  onClick={() => {
-                    generation.reset();
-                    setFormData({
-                      book_title: '',
-                      author_name: '',
-                      cover_ideas: '',
-                      description: '',
-                      genres: [],
-                      aspect_ratio: '2:3',
-                      character_description: '',
-                    });
-                    setTempFields(new Set());
-                    setSelectedRefId(null);
-                    setBaseImageOnly(false);
-                  }}
-                  className="w-full text-text-muted py-2.5 px-4 rounded-lg hover:text-text transition-colors"
-                >
-                  Create New Cover
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (generation.status === 'failed') {
-    return (
-      <div className="max-w-2xl mx-auto">
-        <h1 className="text-2xl sm:text-3xl font-heading font-bold text-text mb-6">Generation Failed</h1>
-
-        <div className="bg-surface border border-border rounded-xl p-6 sm:p-8 text-center">
-          <svg className="w-16 h-16 text-error mx-auto mb-4" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-          </svg>
-          <p className="text-error text-lg font-medium mb-2">Something went wrong</p>
-          <p className="text-text-secondary text-sm mb-6">{generation.error || 'An unexpected error occurred during generation.'}</p>
-          <button
-            onClick={generation.reset}
-            className="bg-accent text-white py-2.5 px-6 rounded-lg font-medium hover:bg-accent-hover transition-colors"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  const inputClass =
-    'w-full px-3.5 py-2.5 bg-surface-alt border border-border rounded-lg text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent';
-
-  return (
-    <div className="max-w-3xl mx-auto">
-      <h1 className="text-2xl sm:text-3xl font-heading font-bold text-text mb-2">Generate Book Cover</h1>
-      <p className="text-text-secondary mb-8">Describe your book and let the AI craft a cover for it.</p>
-
-      {generation.error && generation.status === 'idle' && (
-        <div className="mb-6 bg-error-bg border border-error-border text-error px-4 py-3 rounded-lg text-sm">
-          {generation.error}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="bg-surface border border-border rounded-xl p-6 sm:p-8 space-y-5">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={baseImageOnly}
-            onChange={(e) => setBaseImageOnly(e.target.checked)}
-            className="w-4 h-4 rounded border-border text-accent focus:ring-accent/40 cursor-pointer"
-          />
-          <span className="text-sm font-medium text-text-secondary">
-            Image only (no title or author text)
-          </span>
+      <div>
+        <label className="block text-sm font-medium text-text-secondary mb-1.5">
+          Cover Ideas
         </label>
+        <textarea
+          rows={3}
+          value={formData.cover_ideas || ''}
+          onChange={(e) => setFormData({ ...formData, cover_ideas: e.target.value })}
+          className={inputClass}
+          placeholder="Colors, imagery, mood, composition, style..."
+        />
+        <p className="mt-1 text-xs text-text-muted">
+          Leave blank to let AI decide based on book details.
+        </p>
+      </div>
 
-        {!baseImageOnly && (
-          <>
-            <div>
-              <label className="block text-sm font-medium text-text-secondary mb-1.5">
-                Book Title
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.book_title}
-                onChange={(e) => setFormData({ ...formData, book_title: e.target.value })}
-                className={inputClass}
-                placeholder="Enter your book title"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-text-secondary mb-1.5">
-                Author Name
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.author_name}
-                onChange={(e) => setFormData({ ...formData, author_name: e.target.value })}
-                className={inputClass}
-                placeholder="Author name as it should appear on cover"
-              />
-            </div>
-          </>
-        )}
-
-        <div>
-          <label className="block text-sm font-medium text-text-secondary mb-1.5">
-            Cover Ideas
-          </label>
-          <textarea
-            rows={3}
-            value={formData.cover_ideas || ''}
-            onChange={(e) => setFormData({ ...formData, cover_ideas: e.target.value })}
-            className={inputClass}
-            placeholder="Describe how you want the cover to look — colors, imagery, mood, composition, style... anything goes."
-          />
-          <p className="mt-1.5 text-xs text-text-muted">
-            Leave blank to let the AI decide based on your book details.
-          </p>
-        </div>
-
+      <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1.5">
             Aspect Ratio
@@ -564,12 +526,11 @@ export default function GeneratePage() {
           >
             {Object.entries(aspectRatios).map(([ratio, info]) => (
               <option key={ratio} value={ratio}>
-                {info.name} ({ratio}) - {info.width}x{info.height}px
+                {info.name} ({ratio})
               </option>
             ))}
           </select>
         </div>
-
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1.5">
             Style Reference
@@ -590,93 +551,222 @@ export default function GeneratePage() {
             ))}
           </select>
           {styleReferences.length === 0 && (
-            <p className="mt-1.5 text-xs text-text-muted">
+            <p className="mt-1 text-xs text-text-muted">
               No references yet.{' '}
               <a href="/references" className="text-accent hover:text-accent-hover transition-colors">
                 Create one
               </a>
             </p>
           )}
-          {selectedRefId !== null && (
-            <div className="mt-2 space-y-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={useStyleImage}
-                  onChange={(e) => {
-                    setUseStyleImage(e.target.checked);
-                    if (!e.target.checked) setCoverStyleImage(false);
-                  }}
-                  className="w-4 h-4 rounded border-border text-accent focus:ring-accent/40 cursor-pointer"
-                />
-                <span className="text-sm text-text-secondary">
-                  Use reference image directly
-                </span>
-              </label>
-              {useStyleImage && (
-                <label className="flex items-center gap-2 cursor-pointer pl-6">
-                  <input
-                    type="checkbox"
-                    checked={coverStyleImage}
-                    onChange={(e) => setCoverStyleImage(e.target.checked)}
-                    className="w-4 h-4 rounded border-border text-accent focus:ring-accent/40 cursor-pointer"
-                  />
-                  <span className="text-sm text-text-secondary">
-                    Fill canvas with reference (crop to fit, no white bars)
-                  </span>
-                </label>
-              )}
+        </div>
+      </div>
+
+      {selectedRefId !== null && (
+        <div className="space-y-2 pl-1">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={useStyleImage}
+              onChange={(e) => {
+                setUseStyleImage(e.target.checked);
+                if (!e.target.checked) setCoverStyleImage(false);
+              }}
+              className="w-4 h-4 rounded border-border text-accent focus:ring-accent/40 cursor-pointer"
+            />
+            <span className="text-sm text-text-secondary">
+              Use reference image directly
+            </span>
+          </label>
+          {useStyleImage && (
+            <label className="flex items-center gap-2 cursor-pointer pl-6">
+              <input
+                type="checkbox"
+                checked={coverStyleImage}
+                onChange={(e) => setCoverStyleImage(e.target.checked)}
+                className="w-4 h-4 rounded border-border text-accent focus:ring-accent/40 cursor-pointer"
+              />
+              <span className="text-sm text-text-secondary">
+                Fill canvas with reference
+              </span>
+            </label>
+          )}
+        </div>
+      )}
+
+      {visibleOptionalFields.length > 0 && (
+        <div className="border-t border-border pt-4 space-y-4">
+          {visibleOptionalFields.map((f) => renderOptionalField(f.key))}
+        </div>
+      )}
+
+      {hiddenOptionalFields.length > 0 && (
+        <div className="relative" ref={addFieldRef}>
+          <button
+            type="button"
+            onClick={() => setAddFieldOpen(!addFieldOpen)}
+            className="flex items-center gap-1.5 text-sm text-accent hover:text-accent-hover transition-colors font-medium"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            Add field
+          </button>
+
+          {addFieldOpen && (
+            <div className="absolute left-0 mt-1 w-52 bg-surface border border-border rounded-xl shadow-lg z-10 py-1">
+              {hiddenOptionalFields.map((f) => (
+                <button
+                  key={f.key}
+                  type="button"
+                  onClick={() => handleAddTempField(f.key)}
+                  className="w-full text-left px-4 py-2 text-sm text-text hover:bg-surface-alt transition-colors"
+                >
+                  {f.label}
+                </button>
+              ))}
             </div>
           )}
         </div>
+      )}
 
-        {visibleOptionalFields.length > 0 && (
-          <div className="border-t border-border pt-5 space-y-5">
-            {visibleOptionalFields.map((f) => renderOptionalField(f.key))}
+      <button
+        type="submit"
+        disabled={generation.status !== 'idle' || !generation.socketConnected || (!user?.unlimited_credits && (user?.credits ?? 0) < 3)}
+        className="w-full bg-accent text-white py-3 px-4 rounded-xl font-semibold hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm"
+      >
+        Generate Cover (3 credits)
+      </button>
+      {!user?.unlimited_credits && (user?.credits ?? 0) < 3 && (
+        <p className="text-center text-xs text-error">Not enough credits.</p>
+      )}
+    </form>
+  );
+
+  const renderFormSummary = () => (
+    <div className="space-y-3 text-sm">
+      {formData.book_title && (
+        <div>
+          <p className="text-xs text-text-muted uppercase tracking-wide mb-0.5">Title</p>
+          <p className="text-text font-medium">{formData.book_title}</p>
+        </div>
+      )}
+      {formData.author_name && (
+        <div>
+          <p className="text-xs text-text-muted uppercase tracking-wide mb-0.5">Author</p>
+          <p className="text-text">{formData.author_name}</p>
+        </div>
+      )}
+      {formData.cover_ideas && (
+        <div>
+          <p className="text-xs text-text-muted uppercase tracking-wide mb-0.5">Ideas</p>
+          <p className="text-text-secondary">{formData.cover_ideas}</p>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderResultInfo = () => {
+    if (!generation.result) return null;
+    const result = generation.result;
+
+    return (
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-xl font-heading font-bold text-text">{result.book_title}</h2>
+          {result.author_name && (
+            <p className="text-text-secondary mt-0.5">by {result.author_name}</p>
+          )}
+        </div>
+
+        <div className="space-y-2 text-sm">
+          {result.cover_ideas && (
+            <div className="flex gap-2">
+              <span className="text-text-muted w-20 flex-shrink-0">Ideas</span>
+              <span className="text-text-secondary">{result.cover_ideas}</span>
+            </div>
+          )}
+          {result.genres && result.genres.length > 0 && (
+            <div className="flex gap-2">
+              <span className="text-text-muted w-20 flex-shrink-0">Genres</span>
+              <span className="text-text-secondary">{result.genres.join(', ')}</span>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <span className="text-text-muted w-20 flex-shrink-0">Ratio</span>
+            <span className="text-text-secondary">{result.aspect_ratio_info?.name}</span>
           </div>
+          {result.style_analysis && (
+            <div className="flex gap-2">
+              <span className="text-text-muted w-20 flex-shrink-0">Style</span>
+              <span className="text-text-secondary">Applied</span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const isGenerating = generation.status === 'generating';
+  const isCompleted = generation.status === 'completed' && generation.result;
+  const isFailed = generation.status === 'failed';
+  const isIdle = !isGenerating && !isCompleted && !isFailed;
+
+  return (
+    <div className="max-w-6xl mx-auto">
+      <div className="mb-6">
+        <h1 className="text-2xl sm:text-3xl font-heading font-bold text-text tracking-tight">
+          {isCompleted ? 'Your Book Cover' : isGenerating ? 'Generating...' : 'Generate Book Cover'}
+        </h1>
+        {isIdle && (
+          <p className="text-text-secondary mt-1 text-sm">Describe your book and let AI craft the cover.</p>
         )}
+      </div>
 
-        {hiddenOptionalFields.length > 0 && (
-          <div className="relative" ref={addFieldRef}>
-            <button
-              type="button"
-              onClick={() => setAddFieldOpen(!addFieldOpen)}
-              className="flex items-center gap-1.5 text-sm text-accent hover:text-accent-hover transition-colors font-medium"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-              Add field
-            </button>
-
-            {addFieldOpen && (
-              <div className="absolute left-0 mt-1 w-56 bg-surface border border-border rounded-lg shadow-lg z-10 py-1">
-                {hiddenOptionalFields.map((f) => (
-                  <button
-                    key={f.key}
-                    type="button"
-                    onClick={() => handleAddTempField(f.key)}
-                    className="w-full text-left px-4 py-2 text-sm text-text hover:bg-surface-alt transition-colors"
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-            )}
+      {isFailed && (
+        <div className="mb-6 flex items-center gap-3 bg-error-bg border border-error-border text-error px-4 py-3 rounded-xl text-sm">
+          <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+          </svg>
+          <div className="flex-1">
+            <p className="font-medium">Generation failed</p>
+            <p className="text-xs mt-0.5 opacity-80">{generation.error || 'An unexpected error occurred.'}</p>
           </div>
-        )}
+          <button
+            onClick={generation.reset}
+            className="text-sm font-medium hover:underline flex-shrink-0"
+          >
+            Try again
+          </button>
+        </div>
+      )}
 
-        <button
-          type="submit"
-          disabled={generation.status !== 'idle' || !generation.socketConnected || (!user?.unlimited_credits && (user?.credits ?? 0) < 3)}
-          className="w-full bg-accent text-white py-3 px-4 rounded-lg font-medium hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          Generate Cover (3 credits)
-        </button>
-        {!user?.unlimited_credits && (user?.credits ?? 0) < 3 && (
-          <p className="text-center text-sm text-error mt-2">Not enough credits to generate a cover.</p>
-        )}
-      </form>
+      {generation.error && isIdle && !isFailed && (
+        <div className="mb-6 bg-error-bg border border-error-border text-error px-4 py-3 rounded-xl text-sm">
+          {generation.error}
+        </div>
+      )}
+
+      <div className="grid lg:grid-cols-2 gap-6 lg:gap-8 items-start">
+        <div className="bg-surface border border-border rounded-2xl p-5 sm:p-6">
+          {isIdle || isFailed ? renderForm() : null}
+          {isGenerating && renderFormSummary()}
+          {isCompleted && renderResultInfo()}
+        </div>
+
+        <div className="lg:sticky lg:top-8">
+          {isIdle || isFailed ? <PlaceholderPanel /> : null}
+          {isGenerating && <ProgressPanel generation={generation} />}
+          {isCompleted && generation.result && (
+            <ResultPanel
+              result={generation.result}
+              generation={generation}
+              user={user}
+              onRegenerate={handleRegenerate}
+              onReset={handleReset}
+            />
+          )}
+        </div>
+      </div>
     </div>
   );
 }

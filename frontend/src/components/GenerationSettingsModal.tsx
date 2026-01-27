@@ -32,7 +32,7 @@ export default function GenerationSettingsModal({ generation, styleReferenceName
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 bg-surface border-b border-border rounded-t-2xl">
-          <h2 className="text-lg font-heading font-semibold text-text">Generation Settings</h2>
+          <h2 className="text-lg font-heading font-semibold text-text tracking-tight">Generation Settings</h2>
           <button
             onClick={onClose}
             className="p-1.5 hover:bg-surface-alt rounded-lg transition-colors cursor-pointer"
@@ -64,7 +64,7 @@ export default function GenerationSettingsModal({ generation, styleReferenceName
         <div className="sticky bottom-0 px-6 py-4 bg-surface border-t border-border rounded-b-2xl">
           <button
             onClick={() => onUseSettings(generation)}
-            className="w-full bg-accent text-white py-2.5 rounded-lg font-medium hover:bg-accent-hover transition-colors cursor-pointer"
+            className="w-full bg-accent text-white py-2.5 rounded-xl font-semibold text-sm hover:bg-accent-hover transition-colors cursor-pointer"
           >
             Use These Settings
           </button>

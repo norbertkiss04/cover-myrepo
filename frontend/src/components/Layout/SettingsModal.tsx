@@ -42,10 +42,10 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       />
 
       {}
-      <div className="relative bg-surface border border-border rounded-xl shadow-lg w-full max-w-sm mx-4 p-6">
+      <div className="relative bg-surface border border-border rounded-2xl shadow-lg w-full max-w-sm mx-4 p-6">
         {}
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-heading font-semibold text-text">Settings</h2>
+          <h2 className="text-lg font-heading font-semibold text-text tracking-tight">Settings</h2>
           <button
             onClick={onClose}
             className="p-1 rounded-md text-text-muted hover:text-text hover:bg-surface-alt transition-colors"

@@ -78,11 +78,11 @@ export default function HistoryPage() {
         <svg className="w-16 h-16 text-text-muted mx-auto mb-4" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
         </svg>
-        <h2 className="text-xl font-heading font-semibold text-text">No covers yet</h2>
+        <h2 className="text-xl font-heading font-semibold text-text tracking-tight">No covers yet</h2>
         <p className="mt-2 text-text-secondary">Your generated book covers will appear here.</p>
         <Link
           to="/generate"
-          className="mt-6 inline-block bg-accent text-white px-6 py-2.5 rounded-lg font-medium hover:bg-accent-hover transition-colors"
+          className="mt-6 inline-block bg-accent text-white px-6 py-2.5 rounded-xl font-semibold hover:bg-accent-hover transition-colors text-sm"
         >
           Generate Your First Cover
         </Link>
@@ -93,7 +93,7 @@ export default function HistoryPage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="text-2xl sm:text-3xl font-heading font-bold text-text">Your Covers</h1>
+        <h1 className="text-2xl sm:text-3xl font-heading font-bold text-text tracking-tight">Your Covers</h1>
       </div>
 
       <Masonry
@@ -102,7 +102,7 @@ export default function HistoryPage() {
         columnClassName="masonry-grid-column"
       >
         {generations.filter((gen) => gen.final_image_url).map((gen) => (
-          <div key={gen.id} className="relative group rounded-xl overflow-hidden cursor-pointer">
+          <div key={gen.id} className="relative group rounded-2xl overflow-hidden cursor-pointer">
             <img
               src={gen.final_image_url!}
               alt={gen.book_title}
@@ -160,17 +160,17 @@ export default function HistoryPage() {
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
-            className="px-4 py-2 border border-border rounded-lg text-text-secondary hover:bg-surface-alt disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2 border border-border rounded-xl text-sm text-text-secondary hover:bg-surface-alt disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             Previous
           </button>
-          <span className="px-4 py-2 text-sm text-text-secondary">
+          <span className="px-4 py-2 text-sm text-text-muted">
             Page {page} of {totalPages}
           </span>
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
-            className="px-4 py-2 border border-border rounded-lg text-text-secondary hover:bg-surface-alt disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2 border border-border rounded-xl text-sm text-text-secondary hover:bg-surface-alt disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             Next
           </button>

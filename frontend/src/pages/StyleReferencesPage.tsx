@@ -266,8 +266,8 @@ export default function StyleReferencesPage() {
       className="min-h-full relative"
     >
       {isDragOver && (
-        <div className="fixed top-16 left-0 right-0 bottom-0 z-50 bg-accent/10 border-4 border-dashed border-accent flex items-center justify-center pointer-events-none">
-          <div className="bg-surface rounded-xl px-8 py-6 shadow-lg text-center">
+        <div className="fixed top-14 left-0 right-0 bottom-0 z-50 bg-accent/10 border-4 border-dashed border-accent flex items-center justify-center pointer-events-none">
+          <div className="bg-surface rounded-2xl px-8 py-6 shadow-lg text-center">
             <svg className="w-12 h-12 text-accent mx-auto mb-3" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
             </svg>
@@ -278,12 +278,12 @@ export default function StyleReferencesPage() {
 
       <div className="mb-8 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-heading font-bold text-text">Style References</h1>
+          <h1 className="text-2xl sm:text-3xl font-heading font-bold text-text tracking-tight">Style References</h1>
         </div>
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={isAnalyzing || (!user?.unlimited_credits && (user?.credits ?? 0) < 1)}
-          className="flex-shrink-0 flex items-center gap-2 bg-accent text-white px-4 py-2.5 rounded-lg font-medium hover:bg-accent-hover disabled:opacity-50 transition-colors"
+          className="flex-shrink-0 flex items-center gap-2 bg-accent text-white px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-accent-hover disabled:opacity-40 transition-colors"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -300,7 +300,7 @@ export default function StyleReferencesPage() {
       </div>
 
       {isAnalyzing && (
-        <div className="mb-6 bg-info-bg border border-info-border text-info px-4 py-3 rounded-lg">
+        <div className="mb-6 bg-info-bg border border-info-border text-info px-4 py-3 rounded-xl">
           <div className="flex items-center text-sm">
             <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-3"></div>
             Analyzing image with Gemini... This may take a few seconds.
@@ -309,7 +309,7 @@ export default function StyleReferencesPage() {
       )}
 
       {analyzeError && (
-        <div className="mb-6 bg-error-bg border border-error-border text-error px-4 py-3 rounded-lg text-sm">
+        <div className="mb-6 bg-error-bg border border-error-border text-error px-4 py-3 rounded-xl text-sm">
           {analyzeError}
           <button
             onClick={() => setAnalyzeError(null)}
@@ -323,12 +323,12 @@ export default function StyleReferencesPage() {
       {refs.length === 0 && !isAnalyzing && (
         <div
           onClick={() => fileInputRef.current?.click()}
-          className="cursor-pointer border-2 border-dashed border-border rounded-xl p-16 text-center hover:border-accent/40 hover:bg-surface-alt/50 transition-colors"
+          className="cursor-pointer border-2 border-dashed border-border rounded-2xl p-16 text-center hover:border-accent/40 hover:bg-surface-alt/50 transition-colors"
         >
           <svg className="w-16 h-16 text-text-muted mx-auto mb-4" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
           </svg>
-          <h2 className="text-xl font-heading font-semibold text-text">No style references yet</h2>
+          <h2 className="text-xl font-heading font-semibold text-text tracking-tight">No style references yet</h2>
           <p className="mt-2 text-text-secondary">
             Drop an image here, click to upload, or paste from clipboard. The AI will analyze its visual style.
           </p>
@@ -345,7 +345,7 @@ export default function StyleReferencesPage() {
           {refs.map((ref) => (
             <div
               key={ref.id}
-              className="relative group rounded-xl overflow-hidden cursor-pointer"
+              className="relative group rounded-2xl overflow-hidden cursor-pointer"
             >
               <img
                 src={ref.image_url}
