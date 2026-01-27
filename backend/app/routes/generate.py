@@ -1,6 +1,7 @@
 import base64
 import logging
 import math
+import requests as http_requests
 from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify, current_app
 
@@ -298,12 +299,27 @@ def _generate_with_style_reference(
         {'base_prompt': unified_prompt}
     ).eq('id', generation.id).execute()
 
-    logger.info("Gen #%s Step 2/2: Generating image with style reference via WaveSpeed...", gen_id)
+    logger.info("Gen #%s Step 2/3: Composing reference image onto %s canvas...", gen_id, aspect_ratio)
     signed_ref_url = storage_service.get_signed_url(style_ref.image_path, expires_in=600)
-    logger.info("Gen #%s Using signed URL for reference image", gen_id)
+    ref_response = http_requests.get(signed_ref_url, timeout=60)
+    ref_response.raise_for_status()
 
+    composite_bytes = image_service.compose_reference_on_canvas(
+        ref_response.content, aspect_ratio
+    )
+    composite_upload = storage_service.upload_file(
+        file_data=composite_bytes,
+        filename='composite.jpg',
+        content_type='image/jpeg',
+        folder='composites',
+    )
+    composite_path = composite_upload.split('/public/')[-1].split('/', 1)[-1]
+    signed_composite_url = storage_service.get_signed_url(composite_path, expires_in=600)
+    logger.info("Gen #%s Composite image uploaded and signed", gen_id)
+
+    logger.info("Gen #%s Step 3/3: Generating image with style reference via WaveSpeed...", gen_id)
     final_result = image_service.generate_image_with_text(
-        signed_ref_url,
+        signed_composite_url,
         unified_prompt,
         aspect_ratio,
     )

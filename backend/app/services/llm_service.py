@@ -292,7 +292,11 @@ Your task is to create a SINGLE, comprehensive image generation prompt that:
 
 CRITICAL: The prompt must explicitly state that the reference image is for STYLE REFERENCE ONLY. 
 The new cover must depict entirely new imagery appropriate for the book described, 
-while matching the artistic style, color palette, composition approach, and typography feel of the reference."""
+while matching the artistic style, color palette, composition approach, and typography feel of the reference.
+
+NOTE: The reference image may be placed on a white canvas with white padding/letterboxing to enforce 
+the desired output resolution and aspect ratio. Ignore any white borders or strips around the reference — 
+they are NOT part of the style. The actual style reference is the image content within."""
 
         user_content = f"""Create a book cover image prompt using the reference image's style.
 

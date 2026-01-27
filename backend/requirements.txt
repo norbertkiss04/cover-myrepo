@@ -8,6 +8,9 @@ supabase==2.27.2
 # HTTP requests
 requests==2.31.0
 
+# Image processing
+Pillow==12.1.0
+
 # Environment
 python-dotenv==1.0.0
 
