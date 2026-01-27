@@ -40,7 +40,7 @@ def test_generation_creation():
         'book_title': 'My Book',
         'author_name': 'Author Name',
         'cover_ideas': 'A magical forest with glowing elements',
-        'summary': 'A great story',
+        'description': 'A great story',
         'genres': ['Fantasy', 'Romance'],
         'aspect_ratio': '2:3',
         'status': 'pending',

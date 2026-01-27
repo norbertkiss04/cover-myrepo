@@ -3,7 +3,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { useAuth } from '../../context/AuthContext';
 
 const OPTIONAL_FIELDS = [
-  { key: 'summary', label: 'Book Summary' },
+  { key: 'description', label: 'Book Description' },
   { key: 'genres', label: 'Genres' },
   { key: 'mood', label: 'Mood / Atmosphere' },
   { key: 'color_preference', label: 'Color Preference' },

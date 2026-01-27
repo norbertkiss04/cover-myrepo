@@ -5,7 +5,7 @@ import { useGeneration } from '../context/GenerationContext';
 import type { GenerationInput, AspectRatioInfo, StyleReference } from '../types';
 
 const OPTIONAL_FIELD_DEFS = [
-  { key: 'summary', label: 'Book Summary' },
+  { key: 'description', label: 'Book Description' },
   { key: 'genres', label: 'Genres' },
   { key: 'character_description', label: 'Character Description' },
 ] as const;
@@ -32,7 +32,7 @@ export default function GeneratePage() {
     book_title: '',
     author_name: '',
     cover_ideas: '',
-    summary: '',
+    description: '',
     genres: [],
     aspect_ratio: '2:3',
     character_description: '',
@@ -89,8 +89,8 @@ export default function GeneratePage() {
     if (formData.cover_ideas) {
       payload.cover_ideas = formData.cover_ideas;
     }
-    if (visibleOptionalKeys.has('summary') && formData.summary) {
-      payload.summary = formData.summary;
+    if (visibleOptionalKeys.has('description') && formData.description) {
+      payload.description = formData.description;
     }
     if (visibleOptionalKeys.has('genres') && formData.genres && formData.genres.length > 0) {
       payload.genres = formData.genres;
@@ -146,7 +146,7 @@ export default function GeneratePage() {
     setFormData((prev) => {
       const updated = { ...prev };
       if (key === 'genres') updated.genres = [];
-      else if (key === 'summary') updated.summary = '';
+      else if (key === 'description') updated.description = '';
       else if (key === 'character_description') updated.character_description = '';
       return updated;
     });
@@ -175,17 +175,17 @@ export default function GeneratePage() {
     ) : null;
 
     switch (key) {
-      case 'summary':
+      case 'description':
         return (
           <div key={key}>
             <div className="flex items-center mb-1.5">
-              <label className="block text-sm font-medium text-text-secondary">Book Summary</label>
+              <label className="block text-sm font-medium text-text-secondary">Book Description</label>
               {removeBtn}
             </div>
             <textarea
               rows={4}
-              value={formData.summary || ''}
-              onChange={(e) => setFormData({ ...formData, summary: e.target.value })}
+              value={formData.description || ''}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               className={inputClass}
               placeholder="Describe your book's plot, themes, and key elements..."
             />
@@ -382,7 +382,7 @@ export default function GeneratePage() {
                       book_title: '',
                       author_name: '',
                       cover_ideas: '',
-                      summary: '',
+                      description: '',
                       genres: [],
                       aspect_ratio: '2:3',
                       character_description: '',

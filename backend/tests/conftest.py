@@ -212,7 +212,7 @@ def test_generation(app, test_user):
         'user_id': test_user.id,
         'book_title': 'Test Book',
         'author_name': 'Test Author',
-        'summary': 'A test book summary',
+        'description': 'A test book description',
         'genres': ['Fantasy', 'Adventure'],
         'mood': 'Epic & Grand',
         'aspect_ratio': '2:3',

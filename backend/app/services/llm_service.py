@@ -200,8 +200,8 @@ Title: {book_data.get('book_title')}
         if book_data.get('cover_ideas'):
             user_content += f"Cover Ideas (author's vision): {book_data.get('cover_ideas')}\n"
 
-        if book_data.get('summary'):
-            user_content += f"Summary: {book_data.get('summary')}\n"
+        if book_data.get('description'):
+            user_content += f"Description: {book_data.get('description')}\n"
 
         if book_data.get('genres'):
             user_content += f"Genre(s): {', '.join(book_data.get('genres', []))}\n"
@@ -310,8 +310,8 @@ Book Details:
         if book_data.get('cover_ideas'):
             user_content += f"- Cover Ideas: {book_data.get('cover_ideas')}\n"
 
-        if book_data.get('summary'):
-            user_content += f"- Summary: {book_data.get('summary')}\n"
+        if book_data.get('description'):
+            user_content += f"- Description: {book_data.get('description')}\n"
 
         if book_data.get('genres'):
             user_content += f"- Genre(s): {', '.join(book_data.get('genres', []))}\n"

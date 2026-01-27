@@ -105,7 +105,7 @@ export default function HomePage() {
             <div className="pt-1">
               <h3 className="font-heading font-semibold text-text text-lg">Describe your book</h3>
               <p className="text-text-secondary mt-1 leading-relaxed">
-                Title, genre, mood, a brief summary. The more you share, the better the result.
+                Title, genre, mood, a brief description. The more you share, the better the result.
               </p>
             </div>
           </div>

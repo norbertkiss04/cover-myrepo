@@ -40,7 +40,7 @@ export interface Generation {
   book_title: string;
   author_name: string;
   cover_ideas: string | null;
-  summary: string;
+  description: string;
   genres: string[];
   mood: string;
   color_preference: string | null;
@@ -64,7 +64,7 @@ export interface GenerationInput {
   book_title: string;
   author_name: string;
   cover_ideas?: string;
-  summary?: string;
+  description?: string;
   genres?: string[];
   aspect_ratio?: string;
   character_description?: string;
