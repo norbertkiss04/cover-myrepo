@@ -1,0 +1,24 @@
+services:
+  backend:
+    container_name: instacover-api
+    build: ./backend
+    ports:
+      - "7710:5000"
+    env_file:
+      - ./backend/.env
+    environment:
+      - FLASK_ENV=production
+      - FRONTEND_URL=https://instacover.yourdomain.com
+    restart: unless-stopped
+
+  frontend:
+    container_name: instacover-web
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: https://api.instacover.yourdomain.com
+        VITE_SUPABASE_URL: https://your-project.supabase.co
+        VITE_SUPABASE_ANON_KEY: your-anon-key
+    ports:
+      - "7711:80"
+    restart: unless-stopped
