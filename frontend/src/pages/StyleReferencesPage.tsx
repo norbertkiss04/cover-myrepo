@@ -104,7 +104,6 @@ export default function StyleReferencesPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [newRefId, setNewRefId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -112,14 +111,14 @@ export default function StyleReferencesPage() {
   }, []);
 
   useEffect(() => {
-    if (newRefId !== null) {
-      const ref = refs.find((r) => r.id === newRefId);
-      if (ref) {
-        startEdit(ref);
-        setNewRefId(null);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && editingId !== null && !isSaving) {
+        cancelEdit();
       }
-    }
-  }, [newRefId, refs]);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [editingId, isSaving]);
 
   const loadRefs = async () => {
     setIsLoading(true);
@@ -146,7 +145,6 @@ export default function StyleReferencesPage() {
       const ref = await generationApi.analyzeStyle(dataUrl);
 
       setRefs((prev) => [ref, ...prev]);
-      setNewRefId(ref.id);
     } catch (err: any) {
       setAnalyzeError(err.response?.data?.error || 'Failed to analyze image.');
     } finally {
@@ -354,120 +352,124 @@ export default function StyleReferencesPage() {
       {}
       {refs.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {refs.map((ref) => {
-            const isEditing = editingId === ref.id;
+          {refs.map((ref) => (
+            <div
+              key={ref.id}
+              className="bg-surface border border-border rounded-xl overflow-hidden hover:border-accent/30 transition-colors"
+            >
+              <div className="bg-surface-alt">
+                <img
+                  src={ref.image_url}
+                  alt={ref.title || 'Style reference'}
+                  className="w-full h-auto"
+                />
+              </div>
 
-            return (
-              <div
-                key={ref.id}
-                className={`bg-surface border rounded-xl overflow-hidden transition-colors ${
-                  isEditing ? 'border-accent ring-1 ring-accent/20' : 'border-border hover:border-accent/30'
-                }`}
-              >
-                {}
-                <div className="aspect-[4/3] bg-surface-alt">
+              <div className="p-4">
+                <h3 className="font-medium text-text truncate">{ref.title || 'Untitled Reference'}</h3>
+                {ref.feeling && (
+                  <p className="text-sm text-text-secondary line-clamp-2 mt-1">{ref.feeling}</p>
+                )}
+                <p className="text-xs text-text-muted mt-2">
+                  {new Date(ref.created_at).toLocaleDateString()}
+                </p>
+
+                <div className="mt-3 flex gap-2">
+                  <button
+                    onClick={() => startEdit(ref)}
+                    className="flex-1 text-center text-sm bg-surface-alt text-text border border-border py-1.5 px-3 rounded-lg hover:bg-surface-hover transition-colors font-medium"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(ref.id)}
+                    className="text-sm text-text-muted hover:text-error py-1.5 px-3 transition-colors"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {editingId !== null && editState && (() => {
+        const editingRef = refs.find((r) => r.id === editingId);
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+            onClick={(e) => { if (e.target === e.currentTarget && !isSaving) cancelEdit(); }}
+          >
+            <div className="bg-surface border border-border rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+              {editingRef && (
+                <div className="bg-surface-alt rounded-t-xl">
                   <img
-                    src={ref.image_url}
-                    alt={ref.title || 'Style reference'}
-                    className="w-full h-full object-cover"
+                    src={editingRef.image_url}
+                    alt={editingRef.title || 'Style reference'}
+                    className="w-full h-auto max-h-64 object-contain"
+                  />
+                </div>
+              )}
+
+              <div className="p-5 space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
+                    Title
+                  </label>
+                  <input
+                    type="text"
+                    value={editState.title}
+                    onChange={(e) => setEditState({ ...editState, title: e.target.value })}
+                    className="w-full px-3 py-2 bg-surface-alt border border-border rounded-lg text-sm text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent"
+                    placeholder="Give this style a name..."
+                    autoFocus
                   />
                 </div>
 
-                {}
-                <div className="p-4">
-                  {isEditing && editState ? (
+                <AccordionSection
+                  title="Feeling & Atmosphere"
+                  value={editState.feeling}
+                  onChange={(v) => setEditState({ ...editState, feeling: v })}
+                  defaultOpen
+                />
+                <AccordionSection
+                  title="Layout & Composition"
+                  value={editState.layout}
+                  onChange={(v) => setEditState({ ...editState, layout: v })}
+                />
+                <AccordionSection
+                  title="Illustration Rules"
+                  value={editState.illustration_rules}
+                  onChange={(v) => setEditState({ ...editState, illustration_rules: v })}
+                />
+                <AccordionSection
+                  title="Typography"
+                  value={editState.typography}
+                  onChange={(v) => setEditState({ ...editState, typography: v })}
+                />
 
-                    <div className="space-y-3">
-                      {}
-                      <div>
-                        <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wider mb-1">
-                          Title
-                        </label>
-                        <input
-                          type="text"
-                          value={editState.title}
-                          onChange={(e) => setEditState({ ...editState, title: e.target.value })}
-                          className="w-full px-3 py-2 bg-surface-alt border border-border rounded-lg text-sm text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent"
-                          placeholder="Give this style a name..."
-                          autoFocus
-                        />
-                      </div>
-
-                      {}
-                      <AccordionSection
-                        title="Feeling & Atmosphere"
-                        value={editState.feeling}
-                        onChange={(v) => setEditState({ ...editState, feeling: v })}
-                        defaultOpen
-                      />
-                      <AccordionSection
-                        title="Layout & Composition"
-                        value={editState.layout}
-                        onChange={(v) => setEditState({ ...editState, layout: v })}
-                      />
-                      <AccordionSection
-                        title="Illustration Rules"
-                        value={editState.illustration_rules}
-                        onChange={(v) => setEditState({ ...editState, illustration_rules: v })}
-                      />
-                      <AccordionSection
-                        title="Typography"
-                        value={editState.typography}
-                        onChange={(v) => setEditState({ ...editState, typography: v })}
-                      />
-
-                      {}
-                      <div className="flex gap-2 pt-1">
-                        <button
-                          onClick={saveEdit}
-                          disabled={isSaving}
-                          className="flex-1 bg-accent text-white py-2 px-3 rounded-lg text-sm font-medium hover:bg-accent-hover disabled:opacity-50 transition-colors"
-                        >
-                          {isSaving ? 'Saving...' : 'Save'}
-                        </button>
-                        <button
-                          onClick={cancelEdit}
-                          disabled={isSaving}
-                          className="flex-1 bg-surface-alt text-text-secondary border border-border py-2 px-3 rounded-lg text-sm font-medium hover:bg-surface-hover transition-colors"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-
-                    <>
-                      <h3 className="font-medium text-text truncate">{ref.title || 'Untitled Reference'}</h3>
-                      {ref.feeling && (
-                        <p className="text-sm text-text-secondary line-clamp-2 mt-1">{ref.feeling}</p>
-                      )}
-                      <p className="text-xs text-text-muted mt-2">
-                        {new Date(ref.created_at).toLocaleDateString()}
-                      </p>
-
-                      {}
-                      <div className="mt-3 flex gap-2">
-                        <button
-                          onClick={() => startEdit(ref)}
-                          className="flex-1 text-center text-sm bg-surface-alt text-text border border-border py-1.5 px-3 rounded-lg hover:bg-surface-hover transition-colors font-medium"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDelete(ref.id)}
-                          className="text-sm text-text-muted hover:text-error py-1.5 px-3 transition-colors"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </>
-                  )}
+                <div className="flex gap-2 pt-2">
+                  <button
+                    onClick={saveEdit}
+                    disabled={isSaving}
+                    className="flex-1 bg-accent text-white py-2 px-3 rounded-lg text-sm font-medium hover:bg-accent-hover disabled:opacity-50 transition-colors"
+                  >
+                    {isSaving ? 'Saving...' : 'Save'}
+                  </button>
+                  <button
+                    onClick={cancelEdit}
+                    disabled={isSaving}
+                    className="flex-1 bg-surface-alt text-text-secondary border border-border py-2 px-3 rounded-lg text-sm font-medium hover:bg-surface-hover transition-colors"
+                  >
+                    Cancel
+                  </button>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      )}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
