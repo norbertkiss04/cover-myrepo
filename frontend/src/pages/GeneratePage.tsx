@@ -31,7 +31,7 @@ function Toggle({ checked, onChange, disabled }: {
       }`}
     >
       <span
-        className={`pointer-events-none absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform duration-200 ease-in-out ${
+        className={`pointer-events-none absolute left-0.5 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full bg-white shadow-sm transition-transform duration-200 ease-in-out ${
           checked ? 'translate-x-4' : 'translate-x-0'
         }`}
       />
@@ -86,7 +86,7 @@ function useFakeProgress(isGenerating: boolean, isCompleted: boolean) {
       const tick = () => {
         const elapsed = (Date.now() - startTimeRef.current) / 1000;
         const t = Math.min(elapsed / TOTAL_FAKE_DURATION, 1);
-        const eased = 1 - Math.pow(1 - t, 4);
+        const eased = 1 - Math.pow(1 - t, 3);
         setPercent(Math.round(eased * MAX_FAKE_PERCENT));
 
         for (let i = FAKE_STEPS.length - 1; i >= 0; i--) {
@@ -181,28 +181,18 @@ function ResultPanel({ result }: { result: Generation }) {
           alt={result.book_title}
           className="w-full h-auto block"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-          <div className="absolute bottom-0 left-0 right-0 p-4 flex items-end justify-between">
-            <div className="min-w-0">
-              <h3 className="font-heading font-semibold text-white truncate">
-                {result.book_title || 'Untitled'}
-              </h3>
-              {result.author_name && (
-                <p className="text-sm text-white/70 truncate">by {result.author_name}</p>
-              )}
-            </div>
-            <a
-              href={result.final_image_url || result.base_image_url || ''}
-              download={`${result.book_title.replace(/\s+/g, '_')}_cover.png`}
-              onClick={(e) => e.stopPropagation()}
-              className="flex-shrink-0 p-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors"
-              title="Download"
-            >
-              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-              </svg>
-            </a>
-          </div>
+        <div className="absolute inset-0 bg-black/0 hover:bg-black/30 transition-all duration-200 flex items-end justify-end p-3 opacity-0 group-hover:opacity-100">
+          <a
+            href={result.final_image_url || result.base_image_url || ''}
+            download={`${result.book_title.replace(/\s+/g, '_')}_cover.png`}
+            onClick={(e) => e.stopPropagation()}
+            className="p-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors"
+            title="Download"
+          >
+            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+          </a>
         </div>
       </div>
     </div>
@@ -709,7 +699,7 @@ export default function GeneratePage() {
           </form>
         </div>
 
-        <div className="lg:sticky lg:top-20">
+        <div className="lg:sticky lg:top-4">
           {(isIdle || isFailed) && <PlaceholderPanel />}
           {isGenerating && <ProgressPanel generation={generation} />}
           {isCompleted && generation.result && (
