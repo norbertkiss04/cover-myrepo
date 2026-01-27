@@ -84,3 +84,24 @@ export interface ApiError {
   error: string;
   details?: string;
 }
+
+export type GenerationStatus = 'idle' | 'generating' | 'completed' | 'failed';
+
+export interface GenerationProgress {
+  generation_id: number;
+  step: number;
+  total_steps: number;
+  message: string;
+}
+
+export interface GenerationState {
+  status: GenerationStatus;
+  generationId: number | null;
+  bookTitle: string | null;
+  authorName: string | null;
+  step: number;
+  totalSteps: number;
+  stepMessage: string;
+  result: Generation | null;
+  error: string | null;
+}

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { AxiosRequestConfig } from 'axios';
 import { supabase, getAccessToken, setCurrentSession } from '../lib/supabase';
-import type { User, UserPreferences, Generation, GenerationInput, PaginatedResponse, AspectRatioInfo, StyleReference } from '../types';
+import type { User, UserPreferences, Generation, PaginatedResponse, AspectRatioInfo, StyleReference } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -117,11 +117,6 @@ export const generationApi = {
     return response.data.aspect_ratios;
   },
 
-  create: async (input: GenerationInput): Promise<Generation> => {
-    const response = await api.post('/api/generate', input);
-    return response.data;
-  },
-
   getAll: async (page = 1, perPage = 20): Promise<PaginatedResponse<Generation>> => {
     const response = await api.get('/api/generations', {
       params: { page, per_page: perPage },
@@ -131,11 +126,6 @@ export const generationApi = {
 
   getById: async (id: number): Promise<Generation> => {
     const response = await api.get(`/api/generations/${id}`);
-    return response.data;
-  },
-
-  regenerate: async (id: number): Promise<Generation> => {
-    const response = await api.post(`/api/generations/${id}/regenerate`);
     return response.data;
   },
 

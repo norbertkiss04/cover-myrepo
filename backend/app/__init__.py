@@ -4,11 +4,14 @@ import time
 
 from flask import Flask, request, g
 from flask_cors import CORS
+from flask_socketio import SocketIO
 from supabase import create_client, Client
 
 from app.config import config
 
 logger = logging.getLogger(__name__)
+
+socketio = SocketIO()
 
 def create_app(config_name=None):
     if config_name is None:
@@ -38,12 +41,18 @@ def create_app(config_name=None):
         )
         logger.info("Supabase client initialized (url=%s)", supabase_url)
 
+    socketio.init_app(app, cors_allowed_origins=[frontend_url], async_mode='threading')
+    logger.info("SocketIO initialized (async_mode=threading)")
+
     from app.routes.auth import auth_bp
     from app.routes.generate import generate_bp
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(generate_bp, url_prefix='/api')
     logger.info("Blueprints registered: /auth, /api")
+
+    from app import sockets as _socket_handlers
+    logger.info("Socket handlers registered (%s)", _socket_handlers.__name__)
 
     @app.before_request
     def log_request_start():

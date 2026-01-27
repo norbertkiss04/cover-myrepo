@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { generationApi } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import type { GenerationInput, Generation, AspectRatioInfo, StyleReference } from '../types';
+import { useGeneration } from '../context/GenerationContext';
+import type { GenerationInput, AspectRatioInfo, StyleReference } from '../types';
 
 const OPTIONAL_FIELD_DEFS = [
   { key: 'summary', label: 'Book Summary' },
@@ -13,9 +14,7 @@ type OptionalFieldKey = typeof OPTIONAL_FIELD_DEFS[number]['key'];
 
 export default function GeneratePage() {
   const { user } = useAuth();
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<Generation | null>(null);
+  const generation = useGeneration();
 
   const [genres, setGenres] = useState<string[]>([]);
   const [aspectRatios, setAspectRatios] = useState<Record<string, AspectRatioInfo>>({});
@@ -76,52 +75,42 @@ export default function GeneratePage() {
     return () => document.removeEventListener('mousedown', handler);
   }, [addFieldOpen]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    setError(null);
-    setResult(null);
 
-    try {
-      const payload: GenerationInput = {
-        book_title: formData.book_title,
-        author_name: formData.author_name,
-        aspect_ratio: formData.aspect_ratio,
-      };
+    const payload: GenerationInput = {
+      book_title: formData.book_title,
+      author_name: formData.author_name,
+      aspect_ratio: formData.aspect_ratio,
+    };
 
-      if (formData.cover_ideas) {
-        payload.cover_ideas = formData.cover_ideas;
-      }
-      if (visibleOptionalKeys.has('summary') && formData.summary) {
-        payload.summary = formData.summary;
-      }
-      if (visibleOptionalKeys.has('genres') && formData.genres && formData.genres.length > 0) {
-        payload.genres = formData.genres;
-      }
-      if (visibleOptionalKeys.has('character_description') && formData.character_description) {
-        payload.character_description = formData.character_description;
-      }
-
-      if (selectedRefId !== null) {
-        const ref = styleReferences.find((r) => r.id === selectedRefId);
-        if (ref) {
-          payload.style_analysis = {
-            feeling: ref.feeling || '',
-            layout: ref.layout || '',
-            illustration_rules: ref.illustration_rules || '',
-            typography: ref.typography || '',
-          };
-          payload.style_reference_id = ref.id;
-        }
-      }
-
-      const result = await generationApi.create(payload);
-      setResult(result);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to generate cover');
-    } finally {
-      setIsLoading(false);
+    if (formData.cover_ideas) {
+      payload.cover_ideas = formData.cover_ideas;
     }
+    if (visibleOptionalKeys.has('summary') && formData.summary) {
+      payload.summary = formData.summary;
+    }
+    if (visibleOptionalKeys.has('genres') && formData.genres && formData.genres.length > 0) {
+      payload.genres = formData.genres;
+    }
+    if (visibleOptionalKeys.has('character_description') && formData.character_description) {
+      payload.character_description = formData.character_description;
+    }
+
+    if (selectedRefId !== null) {
+      const ref = styleReferences.find((r) => r.id === selectedRefId);
+      if (ref) {
+        payload.style_analysis = {
+          feeling: ref.feeling || '',
+          layout: ref.layout || '',
+          illustration_rules: ref.illustration_rules || '',
+          typography: ref.typography || '',
+        };
+        payload.style_reference_id = ref.id;
+      }
+    }
+
+    generation.startGeneration(payload);
   };
 
   const handleGenreToggle = (genre: string) => {
@@ -157,19 +146,9 @@ export default function GeneratePage() {
     });
   };
 
-  const handleRegenerate = async () => {
-    if (!result) return;
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const newResult = await generationApi.regenerate(result.id);
-      setResult(newResult);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to regenerate cover');
-    } finally {
-      setIsLoading(false);
-    }
+  const handleRegenerate = () => {
+    if (!generation.result) return;
+    generation.startRegeneration(generation.result.id);
   };
 
   const isTempField = (key: string) => tempFields.has(key) && !prefsFields.includes(key);
@@ -255,7 +234,82 @@ export default function GeneratePage() {
     }
   };
 
-  if (result && result.status === 'completed') {
+  if (generation.status === 'generating') {
+    const progressPercent = generation.totalSteps > 0
+      ? Math.round((generation.step / generation.totalSteps) * 100)
+      : 0;
+
+    return (
+      <div className="max-w-2xl mx-auto">
+        <h1 className="text-2xl sm:text-3xl font-heading font-bold text-text mb-6">Generating Your Cover</h1>
+
+        <div className="bg-surface border border-border rounded-xl p-6 sm:p-8">
+          <div className="text-center mb-8">
+            <h2 className="text-xl font-heading font-semibold text-text">{generation.bookTitle}</h2>
+            <p className="text-text-secondary mt-1">by {generation.authorName}</p>
+          </div>
+
+          <div className="mb-6">
+            <div className="flex items-center justify-between text-sm text-text-secondary mb-2">
+              <span>{generation.stepMessage || 'Preparing...'}</span>
+              {generation.totalSteps > 0 && (
+                <span>Step {generation.step} of {generation.totalSteps}</span>
+              )}
+            </div>
+            <div className="w-full bg-surface-alt rounded-full h-3 overflow-hidden">
+              <div
+                className="h-full bg-accent rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${Math.max(progressPercent, 5)}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {Array.from({ length: generation.totalSteps || 4 }, (_, i) => {
+              const stepNum = i + 1;
+              const isActive = stepNum === generation.step;
+              const isDone = stepNum < generation.step;
+
+              return (
+                <div key={stepNum} className="flex items-center gap-3">
+                  <div className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium border-2 transition-colors ${
+                    isDone
+                      ? 'bg-accent border-accent text-white'
+                      : isActive
+                        ? 'border-accent text-accent bg-accent-soft'
+                        : 'border-border text-text-muted'
+                  }`}>
+                    {isDone ? (
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                      </svg>
+                    ) : (
+                      stepNum
+                    )}
+                  </div>
+                  <span className={`text-sm ${
+                    isActive ? 'text-text font-medium' : isDone ? 'text-text-secondary' : 'text-text-muted'
+                  }`}>
+                    {isActive ? generation.stepMessage : isDone ? 'Done' : 'Waiting...'}
+                  </span>
+                  {isActive && (
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-accent border-t-transparent ml-auto" />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <p className="text-center text-xs text-text-muted mt-8">
+            You can navigate to other pages while your cover is being generated.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (generation.status === 'completed' && generation.result) {
+    const result = generation.result;
     return (
       <div className="max-w-4xl mx-auto">
         <h1 className="text-2xl sm:text-3xl font-heading font-bold text-text mb-6">Your Book Cover</h1>
@@ -301,10 +355,10 @@ export default function GeneratePage() {
               <div className="mt-8 space-y-3">
                 <button
                   onClick={handleRegenerate}
-                  disabled={isLoading}
+                  disabled={generation.status !== 'completed'}
                   className="w-full bg-accent text-white py-2.5 px-4 rounded-lg font-medium hover:bg-accent-hover disabled:opacity-50 transition-colors"
                 >
-                  {isLoading ? 'Regenerating...' : 'Regenerate Cover'}
+                  Regenerate Cover
                 </button>
 
                 <a
@@ -317,7 +371,7 @@ export default function GeneratePage() {
 
                 <button
                   onClick={() => {
-                    setResult(null);
+                    generation.reset();
                     setFormData({
                       book_title: '',
                       author_name: '',
@@ -342,6 +396,28 @@ export default function GeneratePage() {
     );
   }
 
+  if (generation.status === 'failed') {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <h1 className="text-2xl sm:text-3xl font-heading font-bold text-text mb-6">Generation Failed</h1>
+
+        <div className="bg-surface border border-border rounded-xl p-6 sm:p-8 text-center">
+          <svg className="w-16 h-16 text-error mx-auto mb-4" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+          </svg>
+          <p className="text-error text-lg font-medium mb-2">Something went wrong</p>
+          <p className="text-text-secondary text-sm mb-6">{generation.error || 'An unexpected error occurred during generation.'}</p>
+          <button
+            onClick={generation.reset}
+            className="bg-accent text-white py-2.5 px-6 rounded-lg font-medium hover:bg-accent-hover transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const inputClass =
     'w-full px-3.5 py-2.5 bg-surface-alt border border-border rounded-lg text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent';
 
@@ -350,18 +426,9 @@ export default function GeneratePage() {
       <h1 className="text-2xl sm:text-3xl font-heading font-bold text-text mb-2">Generate Book Cover</h1>
       <p className="text-text-secondary mb-8">Describe your book and let the AI craft a cover for it.</p>
 
-      {error && (
+      {generation.error && generation.status === 'idle' && (
         <div className="mb-6 bg-error-bg border border-error-border text-error px-4 py-3 rounded-lg text-sm">
-          {error}
-        </div>
-      )}
-
-      {isLoading && (
-        <div className="mb-6 bg-info-bg border border-info-border text-info px-4 py-3 rounded-lg">
-          <div className="flex items-center text-sm">
-            <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-3"></div>
-            Generating your cover... This may take a minute.
-          </div>
+          {generation.error}
         </div>
       )}
 
@@ -494,10 +561,10 @@ export default function GeneratePage() {
 
         <button
           type="submit"
-          disabled={isLoading}
+          disabled={generation.status !== 'idle' || !generation.socketConnected}
           className="w-full bg-accent text-white py-3 px-4 rounded-lg font-medium hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          {isLoading ? 'Generating...' : 'Generate Cover'}
+          Generate Cover
         </button>
       </form>
     </div>
