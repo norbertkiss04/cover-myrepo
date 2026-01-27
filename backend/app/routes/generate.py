@@ -38,8 +38,18 @@ AVAILABLE_GENRES = [
     'Poetry'
 ]
 
+class GenerationCancelled(Exception):
+    pass
+
+
 def _sb():
     return current_app.supabase
+
+
+def _check_cancelled(gen_id):
+    result = _sb().table('generations').select('status').eq('id', gen_id).execute()
+    if result.data and result.data[0]['status'] != 'generating':
+        raise GenerationCancelled(f"Generation #{gen_id} was cancelled")
 
 
 def _extract_path(public_url):
@@ -248,6 +258,7 @@ def run_standard_pipeline(gen_id, generation, book_data, style_analysis, aspect_
     total_steps = 2 if base_image_only else 4
 
     def progress(step, total, message):
+        _check_cancelled(gen_id)
         if on_progress:
             on_progress(step, total, message)
 
@@ -325,6 +336,7 @@ def run_style_ref_pipeline(
     cover_style_image=False, base_image_only=False,
 ):
     def progress(step, total_steps, message):
+        _check_cancelled(gen_id)
         if on_progress:
             on_progress(step, total_steps, message)
 

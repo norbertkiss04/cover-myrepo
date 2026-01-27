@@ -53,38 +53,79 @@ function PlaceholderPanel() {
   );
 }
 
-function ProgressPanel({ generation }: { generation: ReturnType<typeof useGeneration> }) {
-  const { fakePercent: percent, fakeMessage: message } = generation;
+function StepIcon({ state }: { state: 'done' | 'active' | 'pending' }) {
+  if (state === 'done') {
+    return (
+      <div className="w-6 h-6 rounded-full bg-accent flex items-center justify-center flex-shrink-0">
+        <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+        </svg>
+      </div>
+    );
+  }
+  if (state === 'active') {
+    return (
+      <div className="w-6 h-6 rounded-full border-2 border-accent flex items-center justify-center flex-shrink-0">
+        <div className="w-2.5 h-2.5 rounded-full bg-accent animate-pulse" />
+      </div>
+    );
+  }
+  return (
+    <div className="w-6 h-6 rounded-full border-2 border-border flex-shrink-0" />
+  );
+}
 
-  const circumference = 2 * Math.PI * 52;
-  const strokeOffset = circumference - (percent / 100) * circumference;
+function ProgressPanel({ generation }: { generation: ReturnType<typeof useGeneration> }) {
+  const { step, totalSteps, stepMessage, cancelGeneration } = generation;
+
+  const stepLabels: Record<number, string[]> = {
+    2: ['Generate image prompt', 'Create base image'],
+    3: ['Generate image prompt', 'Prepare style reference', 'Generate final cover'],
+    4: ['Generate image prompt', 'Create base image', 'Design typography', 'Add text to cover'],
+  };
+
+  const labels = stepLabels[totalSteps] || stepLabels[4];
+  const displayTotal = totalSteps || 4;
 
   return (
-    <div className="w-full rounded-2xl border border-border bg-surface flex flex-col items-center justify-center p-6 min-h-[320px]">
-      <div className="relative w-28 h-28 mb-5">
-        <svg className="w-28 h-28 -rotate-90" viewBox="0 0 120 120">
-          <circle cx="60" cy="60" r="52" fill="none" stroke="var(--color-border)" strokeWidth="8" />
-          <circle
-            cx="60" cy="60" r="52" fill="none"
-            stroke="var(--color-accent)" strokeWidth="8"
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={strokeOffset}
-            className="transition-all duration-300 ease-out"
-          />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-xl font-heading font-bold text-text">{percent}%</span>
+    <div className="w-full rounded-2xl border border-border bg-surface flex flex-col p-6 min-h-[320px]">
+      <div className="flex-1 flex flex-col justify-center">
+        <div className="space-y-3">
+          {Array.from({ length: displayTotal }, (_, i) => {
+            const stepNum = i + 1;
+            const state: 'done' | 'active' | 'pending' =
+              stepNum < step ? 'done' : stepNum === step ? 'active' : 'pending';
+
+            return (
+              <div key={stepNum} className="flex items-center gap-3">
+                <StepIcon state={state} />
+                <span className={`text-sm ${
+                  state === 'done' ? 'text-text-secondary line-through' :
+                  state === 'active' ? 'text-text font-medium' :
+                  'text-text-muted'
+                }`}>
+                  {labels[i] || `Step ${stepNum}`}
+                </span>
+              </div>
+            );
+          })}
         </div>
+
+        {stepMessage && (
+          <p className="text-xs text-text-muted mt-4">{stepMessage}</p>
+        )}
       </div>
 
-      <p className="text-sm font-medium text-text mb-1">
-        {message}
-      </p>
-
-      <p className="text-xs text-text-muted mt-4">
-        You can navigate away while generating.
-      </p>
+      <div className="pt-4 flex flex-col items-center gap-2">
+        <p className="text-xs text-text-muted">You can navigate away while generating.</p>
+        <button
+          type="button"
+          onClick={cancelGeneration}
+          className="text-xs text-error hover:text-error/80 font-medium transition-colors"
+        >
+          Cancel generation
+        </button>
+      </div>
     </div>
   );
 }

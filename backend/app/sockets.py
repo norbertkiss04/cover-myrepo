@@ -226,6 +226,34 @@ def handle_start_generation(data):
     )
 
 
+@socketio.on('cancel_generation')
+def handle_cancel_generation():
+    user = _get_user_from_sid(request.sid)
+    if not user:
+        emit('generation_error', {'error': 'Not authenticated'})
+        return
+
+    active = _check_active_generation(user.id)
+    if not active:
+        emit('generation_error', {'error': 'No active generation to cancel'})
+        return
+
+    logger.info("User id=%s cancelling generation #%s", user.id, active.id)
+
+    _sb().table('generations').update({
+        'status': 'failed',
+        'error_message': 'Cancelled by user',
+    }).eq('id', active.id).execute()
+
+    remaining = refund_credits(user, GENERATION_COST)
+
+    socketio.emit('generation_failed', {
+        'generation_id': active.id,
+        'error': 'Cancelled by user',
+        'remaining_credits': remaining,
+    }, room=_room_for(user.id))
+
+
 @socketio.on('start_regeneration')
 def handle_start_regeneration(data):
     user = _get_user_from_sid(request.sid)
@@ -372,6 +400,11 @@ def _run_generation_task(app, generation, user_id, style_analysis, style_referen
             logger.info("Gen #%s background task completed successfully", gen_id)
 
         except Exception as e:
+            from app.routes.generate import GenerationCancelled
+            if isinstance(e, GenerationCancelled):
+                logger.info("Gen #%s was cancelled, background task stopping", gen_id)
+                return
+
             logger.error("Gen #%s background task FAILED: %s", gen_id, e, exc_info=True)
 
             _sb().table('generations').update({
