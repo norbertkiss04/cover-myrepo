@@ -14,6 +14,20 @@ const FAKE_STEPS = [
 
 const TOTAL_FAKE_DURATION = 60;
 const MAX_FAKE_PERCENT = 95;
+const SESSION_KEY = 'gen_start_time';
+
+function getMessageForElapsed(elapsed: number): string {
+  for (let i = FAKE_STEPS.length - 1; i >= 0; i--) {
+    if (elapsed >= FAKE_STEPS[i].at) return FAKE_STEPS[i].message;
+  }
+  return FAKE_STEPS[0].message;
+}
+
+function getPercentForElapsed(elapsed: number): number {
+  const t = Math.min(elapsed / TOTAL_FAKE_DURATION, 1);
+  const eased = 1 - Math.pow(1 - t, 3);
+  return Math.round(eased * MAX_FAKE_PERCENT);
+}
 
 interface GenerationContextType {
   status: GenerationStatus;
@@ -59,43 +73,66 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
   const fakeTimerRef = useRef<number>(0);
   const fakeStartRef = useRef<number>(0);
   const fakeFinishingRef = useRef(false);
+  const fakeRunningRef = useRef(false);
+  const fakePercentRef = useRef(0);
 
-  const startFakeProgress = useCallback(() => {
+  useEffect(() => {
+    fakePercentRef.current = fakePercent;
+  }, [fakePercent]);
+
+  const runFakeTicker = useCallback((startTime: number) => {
     cancelAnimationFrame(fakeTimerRef.current);
     fakeFinishingRef.current = false;
-    fakeStartRef.current = Date.now();
-    setFakePercent(0);
-    setFakeMessage(FAKE_STEPS[0].message);
+    fakeRunningRef.current = true;
+    fakeStartRef.current = startTime;
 
     const tick = () => {
       const elapsed = (Date.now() - fakeStartRef.current) / 1000;
-      const t = Math.min(elapsed / TOTAL_FAKE_DURATION, 1);
-      const eased = 1 - Math.pow(1 - t, 3);
-      setFakePercent(Math.round(eased * MAX_FAKE_PERCENT));
+      setFakePercent(getPercentForElapsed(elapsed));
+      setFakeMessage(getMessageForElapsed(elapsed));
 
-      for (let i = FAKE_STEPS.length - 1; i >= 0; i--) {
-        if (elapsed >= FAKE_STEPS[i].at) {
-          setFakeMessage(FAKE_STEPS[i].message);
-          break;
-        }
-      }
-
+      const t = elapsed / TOTAL_FAKE_DURATION;
       if (t < 1 && !fakeFinishingRef.current) {
         fakeTimerRef.current = requestAnimationFrame(tick);
       }
     };
 
+    const elapsed = (Date.now() - startTime) / 1000;
+    setFakePercent(getPercentForElapsed(elapsed));
+    setFakeMessage(getMessageForElapsed(elapsed));
     fakeTimerRef.current = requestAnimationFrame(tick);
   }, []);
+
+  const startFakeProgress = useCallback(() => {
+    const now = Date.now();
+    try { sessionStorage.setItem(SESSION_KEY, now.toString()); } catch {}
+    runFakeTicker(now);
+  }, [runFakeTicker]);
+
+  const resumeFakeProgress = useCallback(() => {
+    let startTime: number | null = null;
+    try {
+      const saved = sessionStorage.getItem(SESSION_KEY);
+      if (saved) startTime = parseInt(saved, 10);
+    } catch {}
+
+    if (startTime && !isNaN(startTime)) {
+      runFakeTicker(startTime);
+    } else {
+      startFakeProgress();
+    }
+  }, [runFakeTicker, startFakeProgress]);
 
   const finishFakeProgress = useCallback(() => {
     if (fakeFinishingRef.current) return;
     fakeFinishingRef.current = true;
+    fakeRunningRef.current = false;
     cancelAnimationFrame(fakeTimerRef.current);
+    try { sessionStorage.removeItem(SESSION_KEY); } catch {}
 
     setFakeMessage('Complete!');
 
-    const startPercent = fakePercent;
+    const startPercent = fakePercentRef.current;
     const startTime = Date.now();
     const duration = 500;
 
@@ -110,13 +147,15 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
     };
 
     fakeTimerRef.current = requestAnimationFrame(animate);
-  }, [fakePercent]);
+  }, []);
 
   const stopFakeProgress = useCallback(() => {
     cancelAnimationFrame(fakeTimerRef.current);
     fakeFinishingRef.current = false;
+    fakeRunningRef.current = false;
     setFakePercent(0);
     setFakeMessage(FAKE_STEPS[0].message);
+    try { sessionStorage.removeItem(SESSION_KEY); } catch {}
   }, []);
 
   const finishRef = useRef(finishFakeProgress);
@@ -218,14 +257,14 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
   }, [isAuthenticated, session]);
 
   useEffect(() => {
-    if (status === 'generating' && !fakeFinishingRef.current && fakePercent === 0) {
-      startFakeProgress();
+    if (status === 'generating' && !fakeRunningRef.current && !fakeFinishingRef.current) {
+      resumeFakeProgress();
     } else if (status === 'completed') {
       finishRef.current();
     } else if (status === 'failed' || status === 'idle') {
       stopFakeProgress();
     }
-  }, [status, startFakeProgress, stopFakeProgress]);
+  }, [status, resumeFakeProgress, stopFakeProgress]);
 
   const startGeneration = useCallback((data: GenerationInput) => {
     const socket = getSocket();
@@ -234,8 +273,9 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
       return;
     }
     setError(null);
+    stopFakeProgress();
     socket.emit('start_generation', data);
-  }, []);
+  }, [stopFakeProgress]);
 
   const startRegeneration = useCallback((id: number) => {
     const socket = getSocket();
@@ -244,8 +284,9 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
       return;
     }
     setError(null);
+    stopFakeProgress();
     socket.emit('start_regeneration', { generation_id: id });
-  }, []);
+  }, [stopFakeProgress]);
 
   const reset = useCallback(() => {
     setStatus('idle');

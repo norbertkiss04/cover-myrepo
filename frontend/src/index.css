@@ -30,9 +30,9 @@
   --color-success: #16A34A;
   --color-success-bg: #F0FDF4;
   --color-success-border: #BBF7D0;
-  --color-info: #9F1239;
-  --color-info-bg: #FFF1F2;
-  --color-info-border: #FECDD3;
+  --color-info: #2563EB;
+  --color-info-bg: #EFF6FF;
+  --color-info-border: #BFDBFE;
 }
 
 .dark {
@@ -59,9 +59,9 @@
   --color-success: #4ADE80;
   --color-success-bg: #052E16;
   --color-success-border: #14532D;
-  --color-info: #D44060;
-  --color-info-bg: #4C0519;
-  --color-info-border: #881337;
+  --color-info: #60A5FA;
+  --color-info-bg: #172554;
+  --color-info-border: #1E3A5F;
 }
 
 :root {
