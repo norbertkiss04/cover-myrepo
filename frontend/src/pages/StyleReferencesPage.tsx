@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { generationApi } from '../services/api';
 import type { StyleReference } from '../types';
 
@@ -36,13 +37,16 @@ function resizeImage(file: File, maxDim = 2048): Promise<string> {
 function InlineTitle({
   refId,
   title,
+  isEditing,
   onSaved,
+  onStopEdit,
 }: {
   refId: number;
   title: string;
+  isEditing: boolean;
   onSaved: (updated: StyleReference) => void;
+  onStopEdit: () => void;
 }) {
-  const [isEditing, setIsEditing] = useState(false);
   const [value, setValue] = useState(title);
   const [isSaving, setIsSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -62,17 +66,17 @@ function InlineTitle({
     const trimmed = value.trim();
     if (!trimmed || trimmed === title) {
       setValue(title);
-      setIsEditing(false);
+      onStopEdit();
       return;
     }
     setIsSaving(true);
     try {
       const updated = await generationApi.updateStyleReference(refId, { title: trimmed });
       onSaved(updated);
-      setIsEditing(false);
+      onStopEdit();
     } catch {
       setValue(title);
-      setIsEditing(false);
+      onStopEdit();
     } finally {
       setIsSaving(false);
     }
@@ -85,7 +89,7 @@ function InlineTitle({
     }
     if (e.key === 'Escape') {
       setValue(title);
-      setIsEditing(false);
+      onStopEdit();
     }
   };
 
@@ -99,18 +103,14 @@ function InlineTitle({
         onBlur={save}
         onKeyDown={handleKeyDown}
         disabled={isSaving}
-        className="w-full font-medium text-text bg-surface-alt border border-accent rounded px-1.5 py-0.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
+        className="flex-1 min-w-0 font-medium text-text bg-surface-alt border border-accent rounded px-1.5 py-0.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent/40"
         placeholder="Give this style a name..."
       />
     );
   }
 
   return (
-    <h3
-      onClick={() => setIsEditing(true)}
-      className="font-medium text-text truncate cursor-pointer hover:text-accent transition-colors"
-      title="Click to rename"
-    >
+    <h3 className="flex-1 min-w-0 font-medium text-text truncate">
       {title || 'Untitled Reference'}
     </h3>
   );
@@ -121,6 +121,7 @@ export default function StyleReferencesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [renamingId, setRenamingId] = useState<number | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
@@ -342,23 +343,34 @@ export default function StyleReferencesPage() {
               </div>
 
               <div className="p-4">
-                <InlineTitle
-                  refId={ref.id}
-                  title={ref.title || 'Untitled Reference'}
-                  onSaved={handleTitleSaved}
-                />
+                <div className="flex items-center gap-2">
+                  <InlineTitle
+                    refId={ref.id}
+                    title={ref.title || 'Untitled Reference'}
+                    isEditing={renamingId === ref.id}
+                    onSaved={handleTitleSaved}
+                    onStopEdit={() => setRenamingId(null)}
+                  />
+                  {renamingId !== ref.id && (
+                    <button
+                      onClick={() => setRenamingId(ref.id)}
+                      className="flex-shrink-0 p-1 text-text-muted hover:text-accent transition-colors"
+                      title="Rename"
+                    >
+                      <PencilIcon className="w-4 h-4" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleDelete(ref.id)}
+                    className="flex-shrink-0 p-1 text-text-muted hover:text-error transition-colors"
+                    title="Delete"
+                  >
+                    <TrashIcon className="w-4 h-4" />
+                  </button>
+                </div>
                 <p className="text-xs text-text-muted mt-2">
                   {new Date(ref.created_at).toLocaleDateString()}
                 </p>
-
-                <div className="mt-3 flex justify-end">
-                  <button
-                    onClick={() => handleDelete(ref.id)}
-                    className="text-sm text-text-muted hover:text-error py-1.5 px-3 transition-colors"
-                  >
-                    Delete
-                  </button>
-                </div>
               </div>
             </div>
           ))}
