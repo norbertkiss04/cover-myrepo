@@ -47,11 +47,20 @@ def _fail_stale_generation(gen_id):
 def _check_active_generation(user_id):
     result = _sb().table('generations').select('*').eq(
         'user_id', user_id
-    ).eq('status', 'generating').order('created_at', desc=True).limit(1).execute()
+    ).eq('status', 'generating').order('created_at', desc=True).execute()
 
-    if result.data:
-        return Generation.from_row(result.data[0])
-    return None
+    if not result.data:
+        return None
+
+    active = None
+    for row in result.data:
+        gen = Generation.from_row(row)
+        if _is_stale(gen):
+            logger.warning("Gen #%s is stale, marking as failed", gen.id)
+            _fail_stale_generation(gen.id)
+        elif active is None:
+            active = gen
+    return active
 
 
 @socketio.on('connect')
@@ -91,16 +100,12 @@ def handle_connect(auth=None):
 
     active = _check_active_generation(user.id)
     if active:
-        if _is_stale(active):
-            logger.warning("Gen #%s is stale, marking as failed", active.id)
-            _fail_stale_generation(active.id)
-        else:
-            logger.info("User id=%s has active generation #%s, notifying", user.id, active.id)
-            emit('active_generation', {
-                'generation_id': active.id,
-                'book_title': active.book_title,
-                'author_name': active.author_name,
-            })
+        logger.info("User id=%s has active generation #%s, notifying", user.id, active.id)
+        emit('active_generation', {
+            'generation_id': active.id,
+            'book_title': active.book_title,
+            'author_name': active.author_name,
+        })
 
 
 @socketio.on('disconnect')
@@ -158,6 +163,7 @@ def handle_start_generation(data):
         'character_description': data.get('character_description'),
         'keywords': data.get('keywords'),
         'style_analysis': style_analysis,
+        'style_reference_id': style_reference_id,
         'status': 'generating',
     }
 
@@ -226,6 +232,7 @@ def handle_start_regeneration(data):
         'character_description': original.character_description,
         'keywords': original.keywords,
         'style_analysis': original.style_analysis,
+        'style_reference_id': original.style_reference_id,
         'status': 'generating',
     }
 
@@ -249,7 +256,7 @@ def handle_start_regeneration(data):
         new_generation,
         user.id,
         new_generation.style_analysis,
-        None,
+        new_generation.style_reference_id,
         new_generation.aspect_ratio,
     )
 

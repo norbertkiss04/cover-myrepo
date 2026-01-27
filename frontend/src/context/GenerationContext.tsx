@@ -67,15 +67,18 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
     });
 
     socket.on('active_generation', (data: { generation_id: number; book_title: string; author_name: string }) => {
-      setStatus('generating');
-      setGenerationId(data.generation_id);
-      setBookTitle(data.book_title);
-      setAuthorName(data.author_name);
-      setStep(0);
-      setTotalSteps(0);
-      setStepMessage('Resuming generation...');
-      setResult(null);
-      setError(null);
+      setStatus((prev) => {
+        if (prev === 'generating') return prev;
+        setGenerationId(data.generation_id);
+        setBookTitle(data.book_title);
+        setAuthorName(data.author_name);
+        setStep(0);
+        setTotalSteps(0);
+        setStepMessage('Resuming generation...');
+        setResult(null);
+        setError(null);
+        return 'generating';
+      });
     });
 
     socket.on('generation_started', (data: { generation_id: number; book_title: string; author_name: string }) => {
