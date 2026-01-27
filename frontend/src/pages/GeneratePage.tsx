@@ -500,7 +500,7 @@ export default function GeneratePage() {
         </div>
       )}
 
-      <div className="grid lg:grid-cols-2 gap-5 lg:gap-6 items-center">
+      <div className="grid lg:grid-cols-2 gap-5 lg:gap-6">
         <div>
           <div className="mb-4">
             <h1 className="text-2xl font-heading font-bold text-text tracking-tight">
@@ -700,7 +700,7 @@ export default function GeneratePage() {
           </div>
         </div>
 
-        <div>
+        <div className="flex items-center justify-center">
           {(isIdle || isFailed) && <PlaceholderPanel />}
           {isGenerating && <ProgressPanel generation={generation} />}
           {isCompleted && generation.result && (
