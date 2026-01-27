@@ -43,6 +43,10 @@ STYLE_ANALYSIS_SCHEMA = {
     "schema": {
         "type": "object",
         "properties": {
+            "title": {
+                "type": "string",
+                "title": "Short Title",
+            },
             "feeling": {
                 "type": "string",
                 "title": "Feeling & Atmosphere",
@@ -60,7 +64,7 @@ STYLE_ANALYSIS_SCHEMA = {
                 "title": "Typography Analysis",
             },
         },
-        "required": ["feeling", "layout", "illustration_rules", "typography"],
+        "required": ["title", "feeling", "layout", "illustration_rules", "typography"],
         "additionalProperties": False,
     },
 }
@@ -77,7 +81,9 @@ Provide your analysis for these four areas:
 
 3. Illustration Rules (or Visual Style): Describe the medium and artistic technique. If illustrated: Analyze the line work (clean vs. sketchy), shading (cel-shaded, gradient, cross-hatched), and texture (grainy, paper, smooth digital). If photographic: Describe the lighting (soft, harsh, cinematic), depth of field, and color grading. Color Palette: Describe the dominant colors, saturation levels, and contrast.
 
-4. Typography: Analyze the font choices and hierarchy. Describe the Title font (Serif, Sans-Serif, Display, Handwritten, Grunge). Describe the treatments (embossing, drop shadows, distressing, glowing, interlocking letters). How does the Author Name compare to the Title in size and weight?"""
+4. Typography: Analyze the font choices and hierarchy. Describe the Title font (Serif, Sans-Serif, Display, Handwritten, Grunge). Describe the treatments (embossing, drop shadows, distressing, glowing, interlocking letters). How does the Author Name compare to the Title in size and weight?
+
+5. Title: Provide a short title (maximum 2 words) that captures the core visual style or mood of this cover design. Examples: "Gothic Horror", "Pastel Romance", "Noir Thriller", "Vintage Western", "Minimalist Sci-Fi"."""
 
 class LLMService:
 
@@ -172,7 +178,8 @@ class LLMService:
             model='google/gemini-3-flash-preview',
         )
 
-        logger.info("Style analysis complete (feeling=%d chars, layout=%d chars, illustration=%d chars, typography=%d chars)",
+        logger.info("Style analysis complete (title=%s, feeling=%d chars, layout=%d chars, illustration=%d chars, typography=%d chars)",
+                     result.get('title', ''),
                      len(result.get('feeling', '')),
                      len(result.get('layout', '')),
                      len(result.get('illustration_rules', '')),

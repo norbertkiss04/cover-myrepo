@@ -136,7 +136,7 @@ def analyze_style(current_user):
             'user_id': current_user.id,
             'image_url': image_url,
             'image_path': image_path,
-            'title': data.get('title', 'Untitled Reference'),
+            'title': data.get('title') or analysis.get('title') or 'Untitled Reference',
             'feeling': analysis.get('feeling', ''),
             'layout': analysis.get('layout', ''),
             'illustration_rules': analysis.get('illustration_rules', ''),

@@ -589,7 +589,7 @@ export default function GeneratePage() {
               </div>
             )}
 
-            <div className="flex gap-2 pt-1">
+            <div className="flex gap-2 pt-3">
               <button
                 type="submit"
                 disabled={isGenerating || !generation.socketConnected || (!user?.unlimited_credits && (user?.credits ?? 0) < 3)}
