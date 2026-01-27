@@ -5,8 +5,8 @@ function HeroBlobs() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
       <div className="absolute -top-20 -right-20 w-72 h-72 bg-accent/10 rounded-full blur-3xl animate-gradient-blob" />
-      <div className="absolute top-1/2 -right-10 w-56 h-56 bg-indigo-300/10 dark:bg-indigo-500/5 rounded-full blur-3xl animate-gradient-blob-delay" />
-      <div className="absolute -bottom-10 right-1/4 w-48 h-48 bg-violet-200/15 dark:bg-violet-500/5 rounded-full blur-3xl animate-gradient-blob-delay-2" />
+      <div className="absolute top-1/2 -right-10 w-56 h-56 bg-rose-300/10 dark:bg-rose-500/5 rounded-full blur-3xl animate-gradient-blob-delay" />
+      <div className="absolute -bottom-10 right-1/4 w-48 h-48 bg-pink-200/15 dark:bg-pink-500/5 rounded-full blur-3xl animate-gradient-blob-delay-2" />
     </div>
   );
 }

@@ -191,8 +191,9 @@ IMPORTANT RULES:
 3. Focus on visual elements: composition, colors, mood, key imagery
 4. Be specific about style, lighting, and atmosphere
 5. Consider the genre conventions for book covers
-6. Keep the prompt under 500 characters for best results
-7. Return your response as JSON with a single "prompt" field containing the image prompt"""
+6. NEVER include nudity, exposed intimate body parts, or explicit sexual acts in the prompt — even for erotic or romance genres, keep all figures clothed or tastefully obscured (e.g. silhouettes, draped fabric, suggestive but covered poses)
+7. Keep the prompt under 500 characters for best results
+8. Return your response as JSON with a single "prompt" field containing the image prompt"""
         else:
             system_prompt = """You are an expert book cover designer. Your task is to create a detailed 
 image generation prompt for a book cover illustration. 
@@ -202,8 +203,9 @@ IMPORTANT RULES:
 2. Focus on visual elements: composition, colors, mood, key imagery
 3. Be specific about style, lighting, and atmosphere
 4. Consider the genre conventions for book covers
-5. Keep the prompt under 500 characters for best results
-6. Return your response as JSON with a single "prompt" field containing the image prompt"""
+5. NEVER include nudity, exposed intimate body parts, or explicit sexual acts in the prompt — even for erotic or romance genres, keep all figures clothed or tastefully obscured (e.g. silhouettes, draped fabric, suggestive but covered poses)
+6. Keep the prompt under 500 characters for best results
+7. Return your response as JSON with a single "prompt" field containing the image prompt"""
 
         user_content = f"""Create an image generation prompt for a book cover with these details:
 """
@@ -305,8 +307,9 @@ Your task is to create a SINGLE, comprehensive image generation prompt that:
 2. INCLUDES the book title and author name as text elements on the cover
 3. Specifies typography style, placement, and hierarchy for the title and author name
 4. Instructs the model to use the reference image ONLY for visual style — NOT its subject matter
-5. Keep the prompt under 800 characters for best results
-6. Return your response as JSON with a single "prompt" field
+5. NEVER include nudity, exposed intimate body parts, or explicit sexual acts in the prompt — even for erotic or romance genres, keep all figures clothed or tastefully obscured (e.g. silhouettes, draped fabric, suggestive but covered poses)
+6. Keep the prompt under 800 characters for best results
+7. Return your response as JSON with a single "prompt" field
 
 CRITICAL: The prompt must explicitly state that the reference image is for STYLE REFERENCE ONLY. 
 The new cover must depict entirely new imagery appropriate for the book described, 
@@ -364,8 +367,9 @@ Your task is to create a SINGLE, comprehensive image generation prompt that:
 1. Describes the new book cover's visual content (imagery, composition, colors, mood)
 2. DO NOT include any text, titles, or author names in the image — this is a text-free illustration
 3. Instructs the model to use the reference image ONLY for visual style — NOT its subject matter
-4. Keep the prompt under 800 characters for best results
-5. Return your response as JSON with a single "prompt" field
+4. NEVER include nudity, exposed intimate body parts, or explicit sexual acts in the prompt — even for erotic or romance genres, keep all figures clothed or tastefully obscured (e.g. silhouettes, draped fabric, suggestive but covered poses)
+5. Keep the prompt under 800 characters for best results
+6. Return your response as JSON with a single "prompt" field
 
 CRITICAL: The prompt must explicitly state that the reference image is for STYLE REFERENCE ONLY. 
 The new cover must depict entirely new imagery appropriate for the book described, 
