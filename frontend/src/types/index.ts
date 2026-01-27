@@ -70,6 +70,7 @@ export interface GenerationInput {
   character_description?: string;
   style_analysis?: StyleAnalysis;
   style_reference_id?: number;
+  use_style_image?: boolean;
 }
 
 export interface PaginatedResponse<T> {

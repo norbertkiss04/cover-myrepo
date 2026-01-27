@@ -21,6 +21,7 @@ export default function GeneratePage() {
 
   const [styleReferences, setStyleReferences] = useState<StyleReference[]>([]);
   const [selectedRefId, setSelectedRefId] = useState<number | null>(null);
+  const [useStyleImage, setUseStyleImage] = useState(false);
 
   const [tempFields, setTempFields] = useState<Set<string>>(new Set());
   const [addFieldOpen, setAddFieldOpen] = useState(false);
@@ -107,6 +108,7 @@ export default function GeneratePage() {
           typography: ref.typography || '',
         };
         payload.style_reference_id = ref.id;
+        payload.use_style_image = useStyleImage;
       }
     }
 
@@ -520,6 +522,19 @@ export default function GeneratePage() {
                 Create one
               </a>
             </p>
+          )}
+          {selectedRefId !== null && (
+            <label className="mt-2 flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={useStyleImage}
+                onChange={(e) => setUseStyleImage(e.target.checked)}
+                className="w-4 h-4 rounded border-border text-accent focus:ring-accent/40 cursor-pointer"
+              />
+              <span className="text-sm text-text-secondary">
+                Use reference image directly (sends the actual image to the generator)
+              </span>
+            </label>
           )}
         </div>
 

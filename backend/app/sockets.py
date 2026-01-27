@@ -149,6 +149,7 @@ def handle_start_generation(data):
 
     style_analysis = data.get('style_analysis')
     style_reference_id = data.get('style_reference_id')
+    use_style_image = bool(data.get('use_style_image', False))
 
     gen_data = {
         'user_id': user.id,
@@ -164,13 +165,14 @@ def handle_start_generation(data):
         'keywords': data.get('keywords'),
         'style_analysis': style_analysis,
         'style_reference_id': style_reference_id,
+        'use_style_image': use_style_image,
         'status': 'generating',
     }
 
     result = _sb().table('generations').insert(gen_data).execute()
     generation = Generation.from_row(result.data[0])
 
-    logger.info("Gen #%s created via socket (user id=%s)", generation.id, user.id)
+    logger.info("Gen #%s created via socket (user id=%s, use_style_image=%s)", generation.id, user.id, use_style_image)
 
     emit('generation_started', {
         'generation_id': generation.id,
@@ -185,6 +187,7 @@ def handle_start_generation(data):
         user.id,
         style_analysis,
         style_reference_id,
+        use_style_image,
         aspect_ratio,
     )
 
@@ -233,6 +236,7 @@ def handle_start_regeneration(data):
         'keywords': original.keywords,
         'style_analysis': original.style_analysis,
         'style_reference_id': original.style_reference_id,
+        'use_style_image': original.use_style_image,
         'status': 'generating',
     }
 
@@ -257,11 +261,12 @@ def handle_start_regeneration(data):
         user.id,
         new_generation.style_analysis,
         new_generation.style_reference_id,
+        new_generation.use_style_image,
         new_generation.aspect_ratio,
     )
 
 
-def _run_generation_task(app, generation, user_id, style_analysis, style_reference_id, aspect_ratio):
+def _run_generation_task(app, generation, user_id, style_analysis, style_reference_id, use_style_image, aspect_ratio):
     with app.app_context():
         gen_id = generation.id
         room = _room_for(user_id)
@@ -289,7 +294,7 @@ def _run_generation_task(app, generation, user_id, style_analysis, style_referen
 
             from app.routes.generate import run_standard_pipeline, run_style_ref_pipeline
 
-            if style_reference_id and style_analysis:
+            if use_style_image and style_reference_id and style_analysis:
                 final_gen = run_style_ref_pipeline(
                     gen_id, generation, book_data, style_analysis,
                     style_reference_id, aspect_ratio, user_id,

@@ -26,6 +26,7 @@ class Generation:
     reference_image_description: Optional[str] = None
     style_analysis: Optional[dict] = None
     style_reference_id: Optional[int] = None
+    use_style_image: bool = False
     aspect_ratio: str = '2:3'
     base_prompt: Optional[str] = None
     text_prompt: Optional[str] = None
@@ -55,6 +56,7 @@ class Generation:
             reference_image_description=row.get('reference_image_description'),
             style_analysis=row.get('style_analysis'),
             style_reference_id=row.get('style_reference_id'),
+            use_style_image=row.get('use_style_image', False),
             aspect_ratio=row.get('aspect_ratio', '2:3'),
             base_prompt=row.get('base_prompt'),
             text_prompt=row.get('text_prompt'),
@@ -81,6 +83,7 @@ class Generation:
             'reference_image_description': self.reference_image_description,
             'style_analysis': self.style_analysis,
             'style_reference_id': self.style_reference_id,
+            'use_style_image': self.use_style_image,
             'aspect_ratio': self.aspect_ratio,
             'aspect_ratio_info': ASPECT_RATIOS.get(self.aspect_ratio),
             'base_prompt': self.base_prompt,
