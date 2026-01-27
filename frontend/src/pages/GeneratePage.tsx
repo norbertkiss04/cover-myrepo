@@ -41,7 +41,7 @@ function Toggle({ checked, onChange, disabled }: {
 
 function PlaceholderPanel() {
   return (
-    <div className="rounded-2xl border border-dashed border-border bg-surface-alt/50 flex flex-col items-center justify-center p-8 min-h-[320px] text-center">
+    <div className="w-full rounded-2xl border border-dashed border-border bg-surface-alt/50 flex flex-col items-center justify-center p-8 min-h-[320px] text-center">
       <div className="w-14 h-14 rounded-2xl bg-accent/10 flex items-center justify-center mb-4">
         <svg className="w-7 h-7 text-accent/50" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
@@ -53,97 +53,14 @@ function PlaceholderPanel() {
   );
 }
 
-const FAKE_STEPS = [
-  { at: 0, message: 'Analyzing your description...' },
-  { at: 5, message: 'Crafting the visual concept...' },
-  { at: 12, message: 'Composing the layout...' },
-  { at: 22, message: 'Rendering the artwork...' },
-  { at: 38, message: 'Refining details...' },
-  { at: 50, message: 'Finalizing your cover...' },
-];
-
-const TOTAL_FAKE_DURATION = 60;
-const MAX_FAKE_PERCENT = 95;
-
-function useFakeProgress(isGenerating: boolean, isCompleted: boolean) {
-  const [percent, setPercent] = useState(0);
-  const [message, setMessage] = useState(FAKE_STEPS[0].message);
-  const [finishing, setFinishing] = useState(false);
-  const startTimeRef = useRef<number>(0);
-  const rafRef = useRef<number>(0);
-
-  useEffect(() => {
-    if (!isGenerating && !isCompleted) {
-      setPercent(0);
-      setMessage(FAKE_STEPS[0].message);
-      setFinishing(false);
-      return;
-    }
-
-    if (isGenerating && !finishing) {
-      startTimeRef.current = Date.now();
-
-      const tick = () => {
-        const elapsed = (Date.now() - startTimeRef.current) / 1000;
-        const t = Math.min(elapsed / TOTAL_FAKE_DURATION, 1);
-        const eased = 1 - Math.pow(1 - t, 3);
-        setPercent(Math.round(eased * MAX_FAKE_PERCENT));
-
-        for (let i = FAKE_STEPS.length - 1; i >= 0; i--) {
-          if (elapsed >= FAKE_STEPS[i].at) {
-            setMessage(FAKE_STEPS[i].message);
-            break;
-          }
-        }
-
-        if (t < 1) {
-          rafRef.current = requestAnimationFrame(tick);
-        }
-      };
-
-      rafRef.current = requestAnimationFrame(tick);
-      return () => cancelAnimationFrame(rafRef.current);
-    }
-  }, [isGenerating, finishing]);
-
-  useEffect(() => {
-    if (isCompleted && !finishing) {
-      setFinishing(true);
-      cancelAnimationFrame(rafRef.current);
-      setMessage('Complete!');
-
-      const start = percent;
-      const startTime = Date.now();
-      const duration = 500;
-
-      const animate = () => {
-        const elapsed = Date.now() - startTime;
-        const t = Math.min(elapsed / duration, 1);
-        const eased = 1 - Math.pow(1 - t, 3);
-        setPercent(Math.round(start + (100 - start) * eased));
-        if (t < 1) {
-          rafRef.current = requestAnimationFrame(animate);
-        }
-      };
-
-      rafRef.current = requestAnimationFrame(animate);
-      return () => cancelAnimationFrame(rafRef.current);
-    }
-  }, [isCompleted]);
-
-  return { percent, message, finishing };
-}
-
 function ProgressPanel({ generation }: { generation: ReturnType<typeof useGeneration> }) {
-  const isGenerating = generation.status === 'generating';
-  const isCompleted = generation.status === 'completed';
-  const { percent, message } = useFakeProgress(isGenerating, isCompleted);
+  const { fakePercent: percent, fakeMessage: message } = generation;
 
   const circumference = 2 * Math.PI * 52;
   const strokeOffset = circumference - (percent / 100) * circumference;
 
   return (
-    <div className="rounded-2xl border border-border bg-surface flex flex-col items-center justify-center p-6 min-h-[320px]">
+    <div className="w-full rounded-2xl border border-border bg-surface flex flex-col items-center justify-center p-6 min-h-[320px]">
       <div className="relative w-28 h-28 mb-5">
         <svg className="w-28 h-28 -rotate-90" viewBox="0 0 120 120">
           <circle cx="60" cy="60" r="52" fill="none" stroke="var(--color-border)" strokeWidth="8" />
@@ -174,7 +91,7 @@ function ProgressPanel({ generation }: { generation: ReturnType<typeof useGenera
 
 function ResultPanel({ result }: { result: Generation }) {
   return (
-    <div className="flex justify-center">
+    <div className="w-full flex justify-center">
       <div className="w-[85%] relative group rounded-2xl overflow-hidden border border-border bg-surface cursor-pointer">
         <img
           src={result.final_image_url || result.base_image_url || ''}
