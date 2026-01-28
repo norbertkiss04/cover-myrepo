@@ -19,8 +19,17 @@ interface SettingsModalProps {
 
 export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { effective, setTheme } = useTheme();
-  const { user, updatePreferences } = useAuth();
+  const { user, supabaseUser, updatePreferences, updateEmail, updatePassword } = useAuth();
   const [saving, setSaving] = useState(false);
+
+  const [newEmail, setNewEmail] = useState('');
+  const [emailStatus, setEmailStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [emailLoading, setEmailLoading] = useState(false);
+
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordStatus, setPasswordStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -31,7 +40,65 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     return () => document.removeEventListener('keydown', handler);
   }, [isOpen, onClose]);
 
+  useEffect(() => {
+    if (!isOpen) {
+      setNewEmail('');
+      setEmailStatus(null);
+      setNewPassword('');
+      setConfirmPassword('');
+      setPasswordStatus(null);
+    }
+  }, [isOpen]);
+
+  const handleEmailChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEmailStatus(null);
+    setEmailLoading(true);
+
+    try {
+      await updateEmail(newEmail);
+      setEmailStatus({ type: 'success', message: 'Confirmation email sent to your new address.' });
+      setNewEmail('');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to update email';
+      setEmailStatus({ type: 'error', message });
+    } finally {
+      setEmailLoading(false);
+    }
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordStatus(null);
+
+    if (newPassword !== confirmPassword) {
+      setPasswordStatus({ type: 'error', message: 'Passwords do not match.' });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordStatus({ type: 'error', message: 'Password must be at least 6 characters.' });
+      return;
+    }
+
+    setPasswordLoading(true);
+
+    try {
+      await updatePassword(newPassword);
+      setPasswordStatus({ type: 'success', message: 'Password updated successfully.' });
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to update password';
+      setPasswordStatus({ type: 'error', message });
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
   if (!isOpen) return null;
+
+  const currentEmail = supabaseUser?.email || user?.email || '';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -54,87 +121,186 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           </button>
         </div>
 
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-text">Theme</span>
-          <div className="flex bg-surface-alt border border-border rounded-lg p-0.5">
-            <button
-              onClick={() => setTheme('light')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                effective === 'light'
-                  ? 'bg-surface text-text shadow-sm border border-border'
-                  : 'text-text-muted hover:text-text'
-              }`}
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
-              </svg>
-              Light
-            </button>
-            <button
-              onClick={() => setTheme('dark')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                effective === 'dark'
-                  ? 'bg-surface text-text shadow-sm border border-border'
-                  : 'text-text-muted hover:text-text'
-              }`}
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
-              </svg>
-              Dark
-            </button>
-          </div>
-        </div>
+        <div className="space-y-6">
 
-        <div className="mt-6 pt-6 border-t border-border">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium text-text">Default Form Fields</span>
-            {saving && (
-              <span className="text-xs text-text-muted">Saving...</span>
-            )}
-          </div>
-          <p className="text-xs text-text-muted mb-3">
-            Choose which optional fields appear by default on the generation form.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {OPTIONAL_FIELDS.map(({ key, label }) => {
-              const visibleFields = user?.preferences?.visible_fields || [];
-              const isActive = visibleFields.includes(key);
+          <div>
+            <span className="text-sm font-medium text-text">Account</span>
+            <div className="mt-3 space-y-4">
 
-              return (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <svg className="w-4 h-4 text-text-muted" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                  </svg>
+                  <span className="text-xs text-text-muted">
+                    Current: {currentEmail}
+                  </span>
+                </div>
+                {emailStatus && (
+                  <div className={`mb-2 p-2.5 rounded-lg text-xs ${
+                    emailStatus.type === 'success'
+                      ? 'bg-success-bg border border-success-border text-success'
+                      : 'bg-error-bg border border-error-border text-error'
+                  }`}>
+                    {emailStatus.message}
+                  </div>
+                )}
+                <form onSubmit={handleEmailChange} className="flex gap-2">
+                  <input
+                    type="email"
+                    required
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    className="flex-1 px-3 py-2 bg-surface-alt border border-border rounded-lg text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 text-sm"
+                    placeholder="New email address"
+                  />
+                  <button
+                    type="submit"
+                    disabled={emailLoading || !newEmail}
+                    className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                  >
+                    {emailLoading ? 'Sending...' : 'Change Email'}
+                  </button>
+                </form>
+              </div>
+
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <svg className="w-4 h-4 text-text-muted" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+                  </svg>
+                  <span className="text-xs text-text-muted">
+                    Change password
+                  </span>
+                </div>
+                {passwordStatus && (
+                  <div className={`mb-2 p-2.5 rounded-lg text-xs ${
+                    passwordStatus.type === 'success'
+                      ? 'bg-success-bg border border-success-border text-success'
+                      : 'bg-error-bg border border-error-border text-error'
+                  }`}>
+                    {passwordStatus.message}
+                  </div>
+                )}
+                <form onSubmit={handlePasswordChange} className="space-y-2">
+                  <div className="flex gap-2">
+                    <input
+                      type="password"
+                      required
+                      minLength={6}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="flex-1 px-3 py-2 bg-surface-alt border border-border rounded-lg text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 text-sm"
+                      placeholder="New password"
+                    />
+                    <input
+                      type="password"
+                      required
+                      minLength={6}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="flex-1 px-3 py-2 bg-surface-alt border border-border rounded-lg text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 text-sm"
+                      placeholder="Confirm password"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={passwordLoading || !newPassword || !confirmPassword}
+                    className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {passwordLoading ? 'Updating...' : 'Update Password'}
+                  </button>
+                </form>
+              </div>
+
+            </div>
+          </div>
+
+          <div className="pt-6 border-t border-border">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-text">Theme</span>
+              <div className="flex bg-surface-alt border border-border rounded-lg p-0.5">
                 <button
-                  key={key}
-                  type="button"
-                  aria-pressed={isActive}
-                  onClick={async () => {
-                    const newFields = isActive
-                      ? visibleFields.filter((f) => f !== key)
-                      : [...visibleFields, key];
-                    setSaving(true);
-                    try {
-                      await updatePreferences({ visible_fields: newFields });
-                    } catch {
-
-                    } finally {
-                      setSaving(false);
-                    }
-                  }}
-                  className={`group flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-accent text-white border-accent shadow-sm'
-                      : 'bg-surface-alt text-text-secondary border-border hover:border-accent/40 hover:text-text'
+                  onClick={() => setTheme('light')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    effective === 'light'
+                      ? 'bg-surface text-text shadow-sm border border-border'
+                      : 'text-text-muted hover:text-text'
                   }`}
                 >
-                  <span
-                    className={`h-2 w-2 rounded-full transition-colors ${
-                      isActive ? 'bg-white' : 'bg-border-strong group-hover:bg-accent/40'
-                    }`}
-                  />
-                  {label}
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
+                  </svg>
+                  Light
                 </button>
-              );
-            })}
+                <button
+                  onClick={() => setTheme('dark')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    effective === 'dark'
+                      ? 'bg-surface text-text shadow-sm border border-border'
+                      : 'text-text-muted hover:text-text'
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
+                  </svg>
+                  Dark
+                </button>
+              </div>
+            </div>
           </div>
+
+          <div className="pt-6 border-t border-border">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium text-text">Default Form Fields</span>
+              {saving && (
+                <span className="text-xs text-text-muted">Saving...</span>
+              )}
+            </div>
+            <p className="text-xs text-text-muted mb-3">
+              Choose which optional fields appear by default on the generation form.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {OPTIONAL_FIELDS.map(({ key, label }) => {
+                const visibleFields = user?.preferences?.visible_fields || [];
+                const isActive = visibleFields.includes(key);
+
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    aria-pressed={isActive}
+                    onClick={async () => {
+                      const newFields = isActive
+                        ? visibleFields.filter((f) => f !== key)
+                        : [...visibleFields, key];
+                      setSaving(true);
+                      try {
+                        await updatePreferences({ visible_fields: newFields });
+                      } catch {
+
+                      } finally {
+                        setSaving(false);
+                      }
+                    }}
+                    className={`group flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                      isActive
+                        ? 'bg-accent text-white border-accent shadow-sm'
+                        : 'bg-surface-alt text-text-secondary border-border hover:border-accent/40 hover:text-text'
+                    }`}
+                  >
+                    <span
+                      className={`h-2 w-2 rounded-full transition-colors ${
+                        isActive ? 'bg-white' : 'bg-border-strong group-hover:bg-accent/40'
+                      }`}
+                    />
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
