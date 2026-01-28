@@ -6,7 +6,6 @@ import { generationApi } from '../services/api';
 import { useStyleReferences, useDeleteStyleReference, useUpdateStyleReference, queryKeys } from '../hooks/useApiQueries';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import ErrorState from '../components/common/ErrorState';
-import StyleReferenceModal from '../components/common/StyleReferenceModal';
 import type { StyleReference } from '../types';
 import { MASONRY_BREAKPOINTS } from '../constants';
 
@@ -98,7 +97,6 @@ function InlineTitle({
         onChange={(e) => setValue(e.target.value)}
         onBlur={save}
         onKeyDown={handleKeyDown}
-        onClick={(e) => e.stopPropagation()}
         className="w-full font-medium text-white bg-white/20 border border-white/40 rounded px-1.5 py-0.5 text-sm focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-white/50 backdrop-blur-sm"
         placeholder="Give this style a name..."
       />
@@ -122,8 +120,6 @@ export default function StyleReferencesPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedRef, setSelectedRef] = useState<StyleReference | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleImageFile = useCallback(async (file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -195,25 +191,6 @@ export default function StyleReferencesPage() {
   };
 
   const handleDelete = (id: number) => {
-    deleteMutation.mutate(id);
-  };
-
-  const handleCardClick = (ref: StyleReference) => {
-    setSelectedRef(ref);
-    setIsModalOpen(true);
-  };
-
-  const handleModalClose = () => {
-    setIsModalOpen(false);
-  };
-
-  const handleModalUpdate = (id: number, data: Partial<Pick<StyleReference, 'title'>>) => {
-    if (selectedRef && selectedRef.id === id) {
-      setSelectedRef({ ...selectedRef, ...data });
-    }
-  };
-
-  const handleModalDelete = (id: number) => {
     deleteMutation.mutate(id);
   };
 
@@ -307,8 +284,7 @@ export default function StyleReferencesPage() {
           {refs.map((ref) => (
             <div
               key={ref.id}
-              onClick={() => handleCardClick(ref)}
-              className="relative group rounded-2xl overflow-hidden cursor-pointer"
+              className="relative group rounded-2xl overflow-hidden"
             >
               <img
                 src={ref.image_url}
@@ -328,7 +304,7 @@ export default function StyleReferencesPage() {
                     />
                     {renamingId !== ref.id && (
                       <button
-                        onClick={(e) => { e.stopPropagation(); setRenamingId(ref.id); }}
+                        onClick={() => setRenamingId(ref.id)}
                         className="flex-shrink-0 p-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors cursor-pointer"
                         title="Rename"
                       >
@@ -336,28 +312,19 @@ export default function StyleReferencesPage() {
                       </button>
                     )}
                     <button
-                      onClick={(e) => { e.stopPropagation(); if (confirm('Delete this style reference? This cannot be undone.')) handleDelete(ref.id); }}
+                      onClick={() => { if (confirm('Delete this style reference? This cannot be undone.')) handleDelete(ref.id); }}
                       className="flex-shrink-0 p-2 bg-white/20 hover:bg-red-500/60 rounded-lg backdrop-blur-sm transition-colors cursor-pointer"
                       title="Delete"
                     >
                       <TrashIcon className="w-5 h-5 text-white" />
                     </button>
                   </div>
-
                 </div>
               </div>
             </div>
           ))}
         </Masonry>
       )}
-
-      <StyleReferenceModal
-        styleRef={selectedRef}
-        isOpen={isModalOpen}
-        onClose={handleModalClose}
-        onUpdate={handleModalUpdate}
-        onDelete={handleModalDelete}
-      />
     </div>
   );
 }
