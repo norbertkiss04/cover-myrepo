@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { generationApi } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useGeneration } from '../context/GenerationContext';
 import { useGenerationForm } from '../context/GenerationFormContext';
+import { useGenres, useAspectRatios, useStyleReferences } from '../hooks/useApiQueries';
 import { Toggle, PlaceholderPanel, ProgressPanel, ResultPanel } from '../components/Generate';
-import type { Generation, GenerationInput, AspectRatioInfo, StyleReference } from '../types';
+import type { Generation, GenerationInput } from '../types';
 
 const OPTIONAL_FIELD_DEFS = [
   { key: 'description', label: 'Book Description' },
@@ -22,9 +22,9 @@ export default function GeneratePage() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [genres, setGenres] = useState<string[]>([]);
-  const [aspectRatios, setAspectRatios] = useState<Record<string, AspectRatioInfo>>({});
-  const [styleReferences, setStyleReferences] = useState<StyleReference[]>([]);
+  const { data: genres = [] } = useGenres();
+  const { data: aspectRatios = {} } = useAspectRatios();
+  const { data: styleReferences = [] } = useStyleReferences();
 
   const [addFieldOpen, setAddFieldOpen] = useState(false);
   const addFieldRef = useRef<HTMLDivElement>(null);
@@ -39,24 +39,6 @@ export default function GeneratePage() {
   const hiddenOptionalFields = OPTIONAL_FIELD_DEFS.filter(
     (f) => !visibleOptionalKeys.has(f.key)
   );
-
-  useEffect(() => {
-    const loadOptions = async () => {
-      try {
-        const [genresData, ratiosData, refsData] = await Promise.all([
-          generationApi.getGenres(),
-          generationApi.getAspectRatios(),
-          generationApi.getStyleReferences(),
-        ]);
-        setGenres(genresData);
-        setAspectRatios(ratiosData);
-        setStyleReferences(refsData);
-      } catch (err) {
-        console.error('Failed to load options:', err);
-      }
-    };
-    loadOptions();
-  }, []);
 
   useEffect(() => {
     const state = location.state as { fromGeneration?: Generation } | null;

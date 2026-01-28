@@ -14,7 +14,15 @@ import GeneratePage from './pages/GeneratePage';
 import StyleReferencesPage from './pages/StyleReferencesPage';
 import HistoryPage from './pages/HistoryPage';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 function App() {
   return (

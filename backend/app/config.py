@@ -8,7 +8,7 @@ GENERATION_COST = 3
 ANALYSIS_COST = 1
 
 class Config:
-    SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key')
+    SECRET_KEY = os.getenv('SECRET_KEY')
 
     SUPABASE_URL = os.getenv('SUPABASE_URL')
     SUPABASE_ANON_KEY = os.getenv('SUPABASE_ANON_KEY')
@@ -30,12 +30,14 @@ class Config:
 
 class DevelopmentConfig(Config):
     DEBUG = True
+    SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-NOT-FOR-PRODUCTION')
 
 class ProductionConfig(Config):
     DEBUG = False
 
 class TestingConfig(Config):
     TESTING = True
+    SECRET_KEY = 'test-secret-key'
     SUPABASE_URL = 'https://test.supabase.co'
     SUPABASE_ANON_KEY = 'test-anon-key'
     SUPABASE_SERVICE_KEY = 'test-service-key'

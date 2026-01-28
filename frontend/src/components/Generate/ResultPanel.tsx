@@ -7,6 +7,7 @@ export default function ResultPanel({ result }: { result: Generation }) {
         <img
           src={result.final_image_url || result.base_image_url || ''}
           alt={result.book_title}
+          crossOrigin="anonymous"
           className="w-full h-auto block"
         />
         <div className="absolute inset-0 bg-black/0 hover:bg-black/30 transition-all duration-200 flex items-end justify-end p-3 opacity-0 group-hover:opacity-100">

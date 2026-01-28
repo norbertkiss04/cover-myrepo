@@ -1,4 +1,6 @@
 import logging
+import time as _time
+from collections import defaultdict
 from datetime import datetime, timezone
 from flask import request
 from flask_socketio import emit
@@ -13,6 +15,26 @@ logger = logging.getLogger(__name__)
 connected_users = {}
 
 STALE_TIMEOUT_MINUTES = 5
+
+_rate_limit_store = defaultdict(list)
+SOCKET_RATE_LIMIT = 10
+SOCKET_RATE_WINDOW = 60
+
+
+def _check_socket_rate_limit(sid):
+    now = _time.time()
+    window_start = now - SOCKET_RATE_WINDOW
+    _rate_limit_store[sid] = [
+        t for t in _rate_limit_store[sid] if t > window_start
+    ]
+    if len(_rate_limit_store[sid]) >= SOCKET_RATE_LIMIT:
+        return False
+    _rate_limit_store[sid].append(now)
+    return True
+
+
+def _cleanup_rate_limit(sid):
+    _rate_limit_store.pop(sid, None)
 
 
 def _get_user_from_sid(sid):

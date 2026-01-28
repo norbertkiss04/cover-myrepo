@@ -1,58 +1,40 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Masonry from 'react-masonry-css';
 import { ArrowDownTrayIcon, TrashIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
 import { generationApi } from '../services/api';
+import { useGenerations, useStyleReferences, useInvalidateGenerations } from '../hooks/useApiQueries';
 import GenerationSettingsModal from '../components/GenerationSettingsModal';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import ErrorState from '../components/common/ErrorState';
-import type { Generation, StyleReference } from '../types';
+import type { Generation } from '../types';
 import { MASONRY_BREAKPOINTS } from '../constants';
 
 export default function HistoryPage() {
   const navigate = useNavigate();
-  const [generations, setGenerations] = useState<Generation[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [settingsGen, setSettingsGen] = useState<Generation | null>(null);
-  const [styleReferences, setStyleReferences] = useState<StyleReference[]>([]);
 
-  useEffect(() => {
-    loadGenerations();
-  }, [page]);
+  const { data: generationsData, isLoading, error, refetch } = useGenerations(page);
+  const { data: styleReferences = [] } = useStyleReferences();
+  const invalidateGenerations = useInvalidateGenerations();
 
-  useEffect(() => {
-    generationApi.getStyleReferences().then(setStyleReferences).catch(() => {});
-  }, []);
-
-  const loadGenerations = async () => {
-    setIsLoading(true);
-    try {
-      const data = await generationApi.getAll(page);
-      setGenerations(data.generations);
-      setTotalPages(data.pages);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load history');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const generations = generationsData?.generations ?? [];
+  const totalPages = generationsData?.pages ?? 1;
 
   const handleDelete = async (id: number) => {
     if (!confirm('Are you sure you want to delete this generation?')) return;
 
     try {
       await generationApi.delete(id);
-      setGenerations((prev) => prev.filter((g) => g.id !== id));
+      invalidateGenerations();
     } catch (err: any) {
       alert(err.response?.data?.error || 'Failed to delete');
     }
   };
 
   if (isLoading) return <LoadingSpinner />;
-  if (error) return <ErrorState message={error} onRetry={loadGenerations} />;
+  if (error) return <ErrorState message={error.message || 'Failed to load history'} onRetry={refetch} />;
 
   if (generations.length === 0) {
     return (
@@ -88,6 +70,7 @@ export default function HistoryPage() {
             <img
               src={gen.final_image_url!}
               alt={gen.book_title}
+              crossOrigin="anonymous"
               className="w-full h-auto block opacity-0 transition-opacity duration-300"
               onLoad={(e) => { (e.target as HTMLImageElement).style.opacity = '1'; }}
             />

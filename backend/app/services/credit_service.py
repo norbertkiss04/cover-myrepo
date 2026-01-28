@@ -33,10 +33,11 @@ def refund_credits(user, amount: int) -> int:
         return user.credits
 
     sb = get_supabase()
-    result = sb.table('users').update(
-        {'credits': user.credits + amount}
-    ).eq('id', user.id).execute()
+    result = sb.rpc('refund_credits', {
+        'p_user_id': user.id,
+        'p_amount': amount,
+    }).execute()
 
-    new_credits = result.data[0]['credits'] if result.data else user.credits + amount
+    new_credits = result.data if result.data is not None else user.credits + amount
     logger.info("Refunded %d credits to user id=%s (now=%s)", amount, user.id, new_credits)
     return new_credits

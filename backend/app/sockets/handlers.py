@@ -14,9 +14,12 @@ from app.sockets.helpers import (
     _require_authenticated_user,
     _require_no_active_generation,
     _deduct_and_refresh,
+    _check_socket_rate_limit,
+    _cleanup_rate_limit,
 )
 from app.sockets.tasks import _run_generation_task
 from app.utils.db import get_supabase
+from app.utils.validation import sanitize_generation_data, sanitize_text
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +94,7 @@ def handle_connect(auth=None):
 
 @socketio.on('disconnect')
 def handle_disconnect():
+    _cleanup_rate_limit(request.sid)
     user = connected_users.pop(request.sid, None)
     if user:
         logger.info("Socket disconnected: user id=%s (sid=%s)", user.id, request.sid)
@@ -100,6 +104,10 @@ def handle_disconnect():
 
 @socketio.on('start_generation')
 def handle_start_generation(data):
+    if not _check_socket_rate_limit(request.sid):
+        emit('generation_error', {'error': 'Too many requests. Please slow down.'})
+        return
+
     user = _require_authenticated_user()
     if not user:
         return
@@ -107,13 +115,18 @@ def handle_start_generation(data):
     if not _require_no_active_generation(user):
         return
 
+    sanitized = sanitize_generation_data(data)
+    if sanitized is None:
+        emit('generation_error', {'error': 'Invalid input detected. Please revise your text.'})
+        return
+
     base_image_only = bool(data.get('base_image_only', False))
 
-    if not base_image_only and (not data.get('book_title') or not data.get('author_name')):
+    if not base_image_only and (not sanitized.get('book_title') or not sanitized.get('author_name')):
         emit('generation_error', {'error': 'Missing required fields: book_title, author_name'})
         return
 
-    if data.get('genres') and not isinstance(data['genres'], list):
+    if sanitized.get('genres') and not isinstance(sanitized['genres'], list):
         emit('generation_error', {'error': 'genres must be an array'})
         return
 
@@ -130,16 +143,16 @@ def handle_start_generation(data):
 
     gen_data = {
         'user_id': user.id,
-        'book_title': data.get('book_title', '') or ('Untitled' if base_image_only else ''),
-        'author_name': data.get('author_name', ''),
-        'cover_ideas': data.get('cover_ideas', ''),
-        'description': data.get('description', ''),
-        'genres': data.get('genres', []),
-        'mood': data.get('mood', ''),
+        'book_title': sanitized.get('book_title', '') or ('Untitled' if base_image_only else ''),
+        'author_name': sanitized.get('author_name', ''),
+        'cover_ideas': sanitized.get('cover_ideas', ''),
+        'description': sanitized.get('description', ''),
+        'genres': sanitized.get('genres', []),
+        'mood': sanitized.get('mood', ''),
         'aspect_ratio': aspect_ratio,
-        'color_preference': data.get('color_preference'),
-        'character_description': data.get('character_description'),
-        'keywords': data.get('keywords'),
+        'color_preference': sanitized.get('color_preference'),
+        'character_description': sanitized.get('character_description'),
+        'keywords': sanitized.get('keywords'),
         'style_analysis': data.get('style_analysis'),
         'style_reference_id': data.get('style_reference_id'),
         'use_style_image': bool(data.get('use_style_image', False)),
@@ -188,6 +201,10 @@ def handle_cancel_generation():
 
 @socketio.on('start_regeneration')
 def handle_start_regeneration(data):
+    if not _check_socket_rate_limit(request.sid):
+        emit('generation_error', {'error': 'Too many requests. Please slow down.'})
+        return
+
     user = _require_authenticated_user()
     if not user:
         return

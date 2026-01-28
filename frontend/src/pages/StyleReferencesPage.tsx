@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import Masonry from 'react-masonry-css';
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { generationApi } from '../services/api';
+import { useStyleReferences, queryKeys } from '../hooks/useApiQueries';
 import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import ErrorState from '../components/common/ErrorState';
@@ -123,9 +125,8 @@ function InlineTitle({
 }
 
 export default function StyleReferencesPage() {
-  const [refs, setRefs] = useState<StyleReference[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
+  const { data: refs = [], isLoading, error, refetch } = useStyleReferences();
 
   const [renamingId, setRenamingId] = useState<number | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -133,22 +134,6 @@ export default function StyleReferencesPage() {
   const { user, updateCredits } = useAuth();
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    loadRefs();
-  }, []);
-
-  const loadRefs = async () => {
-    setIsLoading(true);
-    try {
-      const data = await generationApi.getStyleReferences();
-      setRefs(data);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to load style references');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleImageFile = useCallback(async (file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -169,7 +154,9 @@ export default function StyleReferencesPage() {
       if ((ref as any).remaining_credits !== undefined) {
         updateCredits((ref as any).remaining_credits);
       }
-      setRefs((prev) => [ref, ...prev]);
+      queryClient.setQueryData<StyleReference[]>(queryKeys.styleReferences, (old) =>
+        old ? [ref, ...old] : [ref]
+      );
     } catch (err: any) {
       setAnalyzeError(err.response?.data?.error || 'Failed to analyze image.');
     } finally {
@@ -225,21 +212,25 @@ export default function StyleReferencesPage() {
   };
 
   const handleTitleSaved = (updated: StyleReference) => {
-    setRefs((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+    queryClient.setQueryData<StyleReference[]>(queryKeys.styleReferences, (old) =>
+      old ? old.map((r) => (r.id === updated.id ? updated : r)) : []
+    );
   };
 
   const handleDelete = async (id: number) => {
     if (!confirm('Delete this style reference? This cannot be undone.')) return;
     try {
       await generationApi.deleteStyleReference(id);
-      setRefs((prev) => prev.filter((r) => r.id !== id));
+      queryClient.setQueryData<StyleReference[]>(queryKeys.styleReferences, (old) =>
+        old ? old.filter((r) => r.id !== id) : []
+      );
     } catch (err: any) {
       alert(err.response?.data?.error || 'Failed to delete');
     }
   };
 
   if (isLoading) return <LoadingSpinner />;
-  if (error) return <ErrorState message={error} onRetry={loadRefs} />;
+  if (error) return <ErrorState message={error.message || 'Failed to load style references'} onRetry={refetch} />;
 
   return (
     <div
@@ -333,6 +324,7 @@ export default function StyleReferencesPage() {
               <img
                 src={ref.image_url}
                 alt={ref.title || 'Style reference'}
+                crossOrigin="anonymous"
                 className="w-full h-auto block opacity-0 transition-opacity duration-300"
                 onLoad={(e) => { (e.target as HTMLImageElement).style.opacity = '1'; }}
               />

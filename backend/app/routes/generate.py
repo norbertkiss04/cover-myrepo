@@ -1,7 +1,7 @@
 import base64
 import logging
 import math
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, make_response
 
 from app.models.generation import Generation, ASPECT_RATIOS
 from app.models.style_reference import StyleReference
@@ -11,6 +11,8 @@ from app.services.storage_service import storage_service
 from app.services.credit_service import deduct_credits
 from app.config import ANALYSIS_COST
 from app.utils.db import get_supabase
+from app.utils.validation import sanitize_text, MAX_SHORT_TEXT_LENGTH, MAX_LONG_TEXT_LENGTH
+from app import limiter
 
 logger = logging.getLogger(__name__)
 
@@ -39,13 +41,18 @@ AVAILABLE_GENRES = [
 
 @generate_bp.route('/genres', methods=['GET'])
 def get_genres():
-    return jsonify({'genres': AVAILABLE_GENRES})
+    response = make_response(jsonify({'genres': AVAILABLE_GENRES}))
+    response.headers['Cache-Control'] = 'public, max-age=3600'
+    return response
 
 @generate_bp.route('/aspect-ratios', methods=['GET'])
 def get_aspect_ratios():
-    return jsonify({'aspect_ratios': ASPECT_RATIOS})
+    response = make_response(jsonify({'aspect_ratios': ASPECT_RATIOS}))
+    response.headers['Cache-Control'] = 'public, max-age=3600'
+    return response
 
 @generate_bp.route('/analyze-style', methods=['POST'])
+@limiter.limit("5 per minute")
 @token_required
 def analyze_style(current_user):
     data = request.get_json()
@@ -93,11 +100,12 @@ def analyze_style(current_user):
         analysis = llm_service.analyze_style_reference(image_data_url)
         logger.info("Style analysis complete")
 
+        user_title = sanitize_text(data.get('title'), max_length=MAX_SHORT_TEXT_LENGTH)
         ref_data = {
             'user_id': current_user.id,
             'image_url': image_url,
             'image_path': image_path,
-            'title': data.get('title') or analysis.get('title') or 'Untitled Reference',
+            'title': user_title or analysis.get('title') or 'Untitled Reference',
             'feeling': analysis.get('feeling', ''),
             'layout': analysis.get('layout', ''),
             'illustration_rules': analysis.get('illustration_rules', ''),
@@ -185,7 +193,11 @@ def update_style_reference(current_user, ref_id):
         return jsonify({'error': 'No data provided'}), 400
 
     allowed = {'title', 'feeling', 'layout', 'illustration_rules', 'typography'}
-    updates = {k: v for k, v in data.items() if k in allowed}
+    updates = {}
+    for k, v in data.items():
+        if k in allowed:
+            max_len = MAX_LONG_TEXT_LENGTH if k in ('illustration_rules', 'layout') else MAX_SHORT_TEXT_LENGTH
+            updates[k] = sanitize_text(v, max_length=max_len)
 
     if not updates:
         return jsonify({'error': 'No valid fields to update'}), 400

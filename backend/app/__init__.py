@@ -5,6 +5,8 @@ import time
 from flask import Flask, request, g, jsonify
 from flask_cors import CORS
 from flask_socketio import SocketIO
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from supabase import create_client, Client
 
 from app.config import config
@@ -17,6 +19,11 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 socketio = SocketIO()
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=["200 per minute"],
+    storage_uri="memory://",
+)
 
 
 def create_app(config_name=None):
@@ -44,6 +51,12 @@ def create_app(config_name=None):
 
     app = Flask(__name__)
     app.config.from_object(config[config_name])
+
+    if config_name == 'production' and not app.config.get('SECRET_KEY'):
+        raise ValueError(
+            'SECRET_KEY environment variable is required in production'
+        )
+
     logger.info("Config loaded")
 
     sentry_dsn = app.config.get('SENTRY_DSN')
@@ -64,6 +77,9 @@ def create_app(config_name=None):
     frontend_url = app.config['FRONTEND_URL']
     CORS(app, origins=[frontend_url], supports_credentials=True)
     logger.info("CORS configured for %s", frontend_url)
+
+    limiter.init_app(app)
+    logger.info("Rate limiter initialized")
 
     if not app.config.get('TESTING'):
         supabase_url = app.config['SUPABASE_URL']
