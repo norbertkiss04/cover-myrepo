@@ -117,29 +117,6 @@ def get_contrasting_background(image_bytes):
     return hex_color
 
 
-def remove_background_color(image_bytes, background_hex_color, tolerance=45):
-    img = Image.open(io.BytesIO(image_bytes)).convert('RGBA')
-
-    bg_r = int(background_hex_color[1:3], 16)
-    bg_g = int(background_hex_color[3:5], 16)
-    bg_b = int(background_hex_color[5:7], 16)
-
-    pixels = img.load()
-    width, height = img.size
-
-    for y in range(height):
-        for x in range(width):
-            r, g, b, a = pixels[x, y]
-            if (abs(r - bg_r) <= tolerance and
-                abs(g - bg_g) <= tolerance and
-                abs(b - bg_b) <= tolerance):
-                pixels[x, y] = (r, g, b, 0)
-
-    output = io.BytesIO()
-    img.save(output, format='PNG')
-    return output.getvalue()
-
-
 class ImageService:
 
     def __init__(self):

@@ -8,7 +8,7 @@ from app.models.generation import Generation, ASPECT_RATIOS
 from app.models.style_reference import StyleReference
 from app.routes.auth import token_required
 from app.services.llm_service import llm_service
-from app.services.image_service import image_service, get_contrasting_background, remove_background_color
+from app.services.image_service import image_service, get_contrasting_background
 from app.services.storage_service import storage_service
 from app.services.credit_service import deduct_credits
 from app.config import ANALYSIS_COST, REGENERATION_COST
@@ -141,9 +141,8 @@ def analyze_style(current_user):
                 response.raise_for_status()
                 text_layer_bytes = response.content
 
-            transparent_bytes = remove_background_color(text_layer_bytes, background_color)
             text_layer_upload = storage_service.upload_bytes(
-                transparent_bytes,
+                text_layer_bytes,
                 folder='references-text',
                 content_type='image/png'
             )
@@ -363,9 +362,8 @@ def regenerate_style_reference_part(current_user, ref_id):
                 response.raise_for_status()
                 text_layer_bytes = response.content
 
-            transparent_bytes = remove_background_color(text_layer_bytes, background_color)
             text_layer_upload = storage_service.upload_bytes(
-                transparent_bytes,
+                text_layer_bytes,
                 folder='references-text',
                 content_type='image/png'
             )
