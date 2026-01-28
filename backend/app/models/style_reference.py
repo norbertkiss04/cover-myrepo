@@ -12,6 +12,8 @@ class StyleReference:
     layout: Optional[str] = None
     illustration_rules: Optional[str] = None
     typography: Optional[str] = None
+    clean_image_path: Optional[str] = None
+    text_layer_path: Optional[str] = None
     created_at: Optional[str] = None
 
     @classmethod
@@ -26,6 +28,8 @@ class StyleReference:
             layout=row.get('layout'),
             illustration_rules=row.get('illustration_rules'),
             typography=row.get('typography'),
+            clean_image_path=row.get('clean_image_path'),
+            text_layer_path=row.get('text_layer_path'),
             created_at=row.get('created_at'),
         )
 
@@ -38,10 +42,22 @@ class StyleReference:
             'layout': self.layout,
             'illustration_rules': self.illustration_rules,
             'typography': self.typography,
+            'clean_image_url': None,
+            'text_layer_url': None,
             'created_at': self.created_at,
         }
 
-    def get_style_analysis(self) -> dict:
+    def get_style_analysis(self, mode: str = 'both') -> dict:
+        if mode == 'text':
+            return {
+                'typography': self.typography or '',
+            }
+        elif mode == 'background':
+            return {
+                'feeling': self.feeling or '',
+                'layout': self.layout or '',
+                'illustration_rules': self.illustration_rules or '',
+            }
         return {
             'feeling': self.feeling or '',
             'layout': self.layout or '',

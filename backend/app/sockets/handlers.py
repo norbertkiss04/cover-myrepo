@@ -25,6 +25,9 @@ from app.utils.validation import sanitize_generation_data
 logger = logging.getLogger(__name__)
 
 
+VALID_REFERENCE_MODES = ('both', 'background', 'text')
+
+
 def _launch_generation(generation, user, credit_result):
     emit('generation_started', {
         'generation_id': generation.id,
@@ -42,6 +45,7 @@ def _launch_generation(generation, user, credit_result):
         generation.use_style_image,
         generation.aspect_ratio,
         generation.base_image_only,
+        generation.reference_mode,
     )
 
 
@@ -149,6 +153,10 @@ def handle_start_generation(data):
     if not credit_result:
         return
 
+    reference_mode = data.get('reference_mode', 'both')
+    if reference_mode not in VALID_REFERENCE_MODES:
+        reference_mode = 'both'
+
     gen_data = {
         'user_id': user.id,
         'book_title': sanitized.get('book_title', '') or ('Untitled' if base_image_only else ''),
@@ -164,6 +172,7 @@ def handle_start_generation(data):
         'style_reference_id': data.get('style_reference_id'),
         'use_style_image': bool(data.get('use_style_image', False)),
         'base_image_only': base_image_only,
+        'reference_mode': reference_mode,
         'status': 'generating',
     }
 
@@ -252,6 +261,7 @@ def handle_start_regeneration(data):
         'style_reference_id': original.style_reference_id,
         'use_style_image': original.use_style_image,
         'base_image_only': original.base_image_only,
+        'reference_mode': original.reference_mode,
         'status': 'generating',
     }
 

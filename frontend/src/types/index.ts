@@ -20,10 +20,14 @@ export interface AspectRatioInfo {
   name: string;
 }
 
+export type ReferenceMode = 'both' | 'background' | 'text';
+
 export interface StyleReference {
   id: number;
   title: string;
   image_url: string;
+  clean_image_url: string | null;
+  text_layer_url: string | null;
   created_at: string;
 }
 
@@ -42,6 +46,7 @@ export interface Generation {
   style_reference_id: number | null;
   use_style_image: boolean;
   base_image_only: boolean;
+  reference_mode: ReferenceMode;
   aspect_ratio: string;
   aspect_ratio_info: AspectRatioInfo | null;
   base_prompt: string | null;
@@ -65,6 +70,7 @@ export interface GenerationInput {
   style_reference_id?: number;
   use_style_image?: boolean;
   base_image_only?: boolean;
+  reference_mode?: ReferenceMode;
 }
 
 export interface PaginatedResponse<T> {

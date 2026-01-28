@@ -150,6 +150,8 @@ def test_style_reference_to_dict():
     assert d['illustration_rules'] == 'Oil painting style'
     assert d['typography'] == 'Bold serif'
     assert d['created_at'] == '2025-06-01T00:00:00Z'
+    assert d['clean_image_url'] is None
+    assert d['text_layer_url'] is None
     assert 'image_path' not in d
 
 
@@ -170,6 +172,44 @@ def test_style_reference_get_style_analysis():
     assert analysis['feeling'] == 'Dark and mysterious'
     assert analysis['layout'] == 'Central symmetry'
     assert analysis['illustration_rules'] == 'Oil painting style'
+    assert analysis['typography'] == 'Bold serif'
+
+
+def test_style_reference_get_style_analysis_mode_background():
+    ref = StyleReference(
+        id=5,
+        user_id=1,
+        image_url='https://example.com/img.png',
+        image_path='references/img.png',
+        feeling='Dark and mysterious',
+        layout='Central symmetry',
+        illustration_rules='Oil painting style',
+        typography='Bold serif',
+    )
+    analysis = ref.get_style_analysis(mode='background')
+
+    assert analysis['feeling'] == 'Dark and mysterious'
+    assert analysis['layout'] == 'Central symmetry'
+    assert analysis['illustration_rules'] == 'Oil painting style'
+    assert 'typography' not in analysis
+
+
+def test_style_reference_get_style_analysis_mode_text():
+    ref = StyleReference(
+        id=5,
+        user_id=1,
+        image_url='https://example.com/img.png',
+        image_path='references/img.png',
+        feeling='Dark and mysterious',
+        layout='Central symmetry',
+        illustration_rules='Oil painting style',
+        typography='Bold serif',
+    )
+    analysis = ref.get_style_analysis(mode='text')
+
+    assert 'feeling' not in analysis
+    assert 'layout' not in analysis
+    assert 'illustration_rules' not in analysis
     assert analysis['typography'] == 'Bold serif'
 
 
@@ -205,7 +245,7 @@ def test_generation_to_dict_includes_all_keys():
         'genres', 'mood', 'color_preference', 'character_description',
         'keywords', 'style_analysis',
         'style_reference_id', 'use_style_image',
-        'base_image_only', 'aspect_ratio', 'aspect_ratio_info',
+        'base_image_only', 'reference_mode', 'aspect_ratio', 'aspect_ratio_info',
         'base_prompt', 'text_prompt', 'base_image_url', 'final_image_url',
         'current_step', 'total_steps', 'step_message', 'status',
         'error_message', 'created_at', 'completed_at',

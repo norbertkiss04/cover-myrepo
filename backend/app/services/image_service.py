@@ -190,4 +190,57 @@ class ImageService:
         image_url = self._poll(job_id)
         return {'image_url': image_url}
 
+    def generate_clean_background(self, image_url, aspect_ratio='2:3'):
+        self._get_config()
+
+        size = self._get_size_string(aspect_ratio)
+
+        prompt = (
+            "Remove all text, titles, words, logos, symbols, and typography from this image. "
+            "Keep only the background artwork, textures, colors, and visual elements. "
+            "Output a clean image without any text or lettering."
+        )
+
+        payload = {
+            'prompt': prompt,
+            'images': [image_url],
+            'size': size,
+            'enable_base64_output': False,
+            'enable_sync_mode': False,
+        }
+
+        job_id = self._submit(
+            f'{self.base_url}/bytedance/seedream-v4.5/edit',
+            payload
+        )
+        result_url = self._poll(job_id)
+        return {'image_url': result_url}
+
+    def generate_text_layer(self, image_url, aspect_ratio='2:3'):
+        self._get_config()
+
+        size = self._get_size_string(aspect_ratio)
+
+        prompt = (
+            "Extract only the text, titles, and typography from this image. "
+            "Remove all background imagery, illustrations, and photos. "
+            "Place the extracted text on a solid neutral background that provides good contrast. "
+            "Keep the original font style, size, and arrangement of the text."
+        )
+
+        payload = {
+            'prompt': prompt,
+            'images': [image_url],
+            'size': size,
+            'enable_base64_output': False,
+            'enable_sync_mode': False,
+        }
+
+        job_id = self._submit(
+            f'{self.base_url}/bytedance/seedream-v4.5/edit',
+            payload
+        )
+        result_url = self._poll(job_id)
+        return {'image_url': result_url}
+
 image_service = ImageService()

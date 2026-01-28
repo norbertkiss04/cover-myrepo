@@ -1,10 +1,11 @@
 import { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from 'react';
-import type { GenerationInput } from '../types';
+import type { GenerationInput, ReferenceMode } from '../types';
 
 interface GenerationFormState {
   formData: GenerationInput;
   selectedRefId: number | null;
   baseImageOnly: boolean;
+  referenceMode: ReferenceMode;
   tempFields: Set<string>;
 }
 
@@ -12,6 +13,7 @@ interface GenerationFormContextType extends GenerationFormState {
   setFormData: (data: GenerationInput | ((prev: GenerationInput) => GenerationInput)) => void;
   setSelectedRefId: (id: number | null) => void;
   setBaseImageOnly: (value: boolean) => void;
+  setReferenceMode: (mode: ReferenceMode) => void;
   setTempFields: (fields: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
   clearForm: () => void;
 }
@@ -30,9 +32,17 @@ const GenerationFormContext = createContext<GenerationFormContextType | undefine
 
 export function GenerationFormProvider({ children }: { children: ReactNode }) {
   const [formData, setFormDataRaw] = useState<GenerationInput>({ ...defaultFormData });
-  const [selectedRefId, setSelectedRefId] = useState<number | null>(null);
+  const [selectedRefId, setSelectedRefIdRaw] = useState<number | null>(null);
   const [baseImageOnly, setBaseImageOnly] = useState(false);
+  const [referenceMode, setReferenceMode] = useState<ReferenceMode>('both');
   const [tempFields, setTempFieldsRaw] = useState<Set<string>>(new Set());
+
+  const setSelectedRefId = useCallback((id: number | null) => {
+    setSelectedRefIdRaw(id);
+    if (id === null) {
+      setReferenceMode('both');
+    }
+  }, []);
 
   const setFormData = useCallback((data: GenerationInput | ((prev: GenerationInput) => GenerationInput)) => {
     setFormDataRaw(data);
@@ -44,8 +54,9 @@ export function GenerationFormProvider({ children }: { children: ReactNode }) {
 
   const clearForm = useCallback(() => {
     setFormDataRaw({ ...defaultFormData });
-    setSelectedRefId(null);
+    setSelectedRefIdRaw(null);
     setBaseImageOnly(false);
+    setReferenceMode('both');
     setTempFieldsRaw(new Set());
   }, []);
 
@@ -53,20 +64,24 @@ export function GenerationFormProvider({ children }: { children: ReactNode }) {
     formData,
     selectedRefId,
     baseImageOnly,
+    referenceMode,
     tempFields,
     setFormData,
     setSelectedRefId,
     setBaseImageOnly,
+    setReferenceMode,
     setTempFields,
     clearForm,
   }), [
     formData,
     selectedRefId,
     baseImageOnly,
+    referenceMode,
     tempFields,
     setFormData,
     setSelectedRefId,
     setBaseImageOnly,
+    setReferenceMode,
     setTempFields,
     clearForm,
   ]);

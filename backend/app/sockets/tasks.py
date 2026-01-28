@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 _running_tasks = set()
 
 
-def _run_generation_task(app, generation, user_id, style_reference_id, use_style_image, aspect_ratio, base_image_only=False):
+def _run_generation_task(app, generation, user_id, style_reference_id, use_style_image, aspect_ratio, base_image_only=False, reference_mode='both'):
     with app.app_context():
         gen_id = generation.id
         room = _room_for(user_id)
@@ -61,6 +61,7 @@ def _run_generation_task(app, generation, user_id, style_reference_id, use_style
                     style_reference_id, aspect_ratio, user_id,
                     on_progress=on_progress,
                     base_image_only=base_image_only,
+                    reference_mode=reference_mode,
                 )
             else:
                 final_gen = run_standard_pipeline(

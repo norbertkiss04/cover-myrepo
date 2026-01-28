@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useGeneration } from '../context/GenerationContext';
 import { useGenerationForm } from '../context/GenerationFormContext';
 import { useGenres, useAspectRatios, useStyleReferences } from '../hooks/useApiQueries';
-import { Toggle, PlaceholderPanel, ProgressPanel, ResultPanel } from '../components/Generate';
+import { Toggle, ReferenceModeToggle, PlaceholderPanel, ProgressPanel, ResultPanel } from '../components/Generate';
 import type { Generation, GenerationInput } from '../types';
 
 const OPTIONAL_FIELD_DEFS = [
@@ -64,6 +64,9 @@ export default function GeneratePage() {
     if (fieldsToShow.size > 0) form.setTempFields(fieldsToShow);
 
     form.setBaseImageOnly(Boolean(gen.base_image_only));
+    if (gen.reference_mode) {
+      form.setReferenceMode(gen.reference_mode);
+    }
 
     navigate(location.pathname, { replace: true, state: {} });
   }, []);
@@ -76,6 +79,9 @@ export default function GeneratePage() {
       const matchingRef = styleReferences.find((r) => r.id === gen.style_reference_id);
       if (matchingRef) {
         form.setSelectedRefId(matchingRef.id);
+        if (gen.reference_mode) {
+          form.setReferenceMode(gen.reference_mode);
+        }
       }
     }
 
@@ -124,6 +130,7 @@ export default function GeneratePage() {
       if (ref) {
         payload.style_reference_id = ref.id;
         payload.use_style_image = true;
+        payload.reference_mode = form.referenceMode;
       }
     }
 
@@ -408,6 +415,24 @@ export default function GeneratePage() {
                 )}
               </div>
             </div>
+
+            {form.selectedRefId !== null && (
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-1.5">
+                  Reference Mode
+                </label>
+                <ReferenceModeToggle
+                  value={form.referenceMode}
+                  onChange={form.setReferenceMode}
+                  disabled={isGenerating}
+                />
+                <p className="mt-1 text-xs text-text-muted">
+                  {form.referenceMode === 'both' && 'Use the full reference image as style guide.'}
+                  {form.referenceMode === 'background' && 'Use only the background/artwork style (text removed).'}
+                  {form.referenceMode === 'text' && 'Use only the typography/text style.'}
+                </p>
+              </div>
+            )}
 
             {visibleOptionalFields.length > 0 && (
               <div className="border-t border-border pt-3.5 space-y-3.5">

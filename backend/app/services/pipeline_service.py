@@ -11,6 +11,8 @@ from app.utils.db import get_supabase
 
 logger = logging.getLogger(__name__)
 
+VALID_REFERENCE_MODES = ('both', 'background', 'text')
+
 
 class GenerationCancelled(Exception):
     pass
@@ -40,6 +42,47 @@ def _check_cancelled(gen_id):
     result = get_supabase().table('generations').select('status').eq('id', gen_id).execute()
     if result.data and result.data[0]['status'] != 'generating':
         raise GenerationCancelled(f"Generation #{gen_id} was cancelled")
+
+
+def ensure_reference_variant(style_ref, variant_type, user_id):
+    if variant_type == 'clean':
+        if style_ref.clean_image_path:
+            logger.info("Using cached clean background image for ref #%s", style_ref.id)
+            return storage_service.get_signed_url(style_ref.clean_image_path, expires_in=600)
+
+        logger.info("Generating clean background image for ref #%s", style_ref.id)
+        signed_original = storage_service.get_signed_url(style_ref.image_path, expires_in=600)
+        result = image_service.generate_clean_background(signed_original)
+        variant_url = result['image_url']
+
+        upload = storage_service.upload_from_url(variant_url, folder='references')
+        get_supabase().table('style_references').update({
+            'clean_image_path': upload['path']
+        }).eq('id', style_ref.id).eq('user_id', user_id).execute()
+
+        logger.info("Clean background image cached for ref #%s", style_ref.id)
+        return storage_service.get_signed_url(upload['path'], expires_in=600)
+
+    elif variant_type == 'text':
+        if style_ref.text_layer_path:
+            logger.info("Using cached text layer image for ref #%s", style_ref.id)
+            return storage_service.get_signed_url(style_ref.text_layer_path, expires_in=600)
+
+        logger.info("Generating text layer image for ref #%s", style_ref.id)
+        signed_original = storage_service.get_signed_url(style_ref.image_path, expires_in=600)
+        result = image_service.generate_text_layer(signed_original)
+        variant_url = result['image_url']
+
+        upload = storage_service.upload_from_url(variant_url, folder='references')
+        get_supabase().table('style_references').update({
+            'text_layer_path': upload['path']
+        }).eq('id', style_ref.id).eq('user_id', user_id).execute()
+
+        logger.info("Text layer image cached for ref #%s", style_ref.id)
+        return storage_service.get_signed_url(upload['path'], expires_in=600)
+
+    else:
+        raise ValueError(f"Invalid variant type: {variant_type}")
 
 
 def run_standard_pipeline(gen_id, generation, book_data, aspect_ratio, on_progress=None, base_image_only=False):
@@ -119,8 +162,13 @@ def run_standard_pipeline(gen_id, generation, book_data, aspect_ratio, on_progre
 def run_style_ref_pipeline(
     gen_id, generation, book_data,
     style_reference_id, aspect_ratio, user_id, on_progress=None,
-    base_image_only=False,
+    base_image_only=False, reference_mode='both',
 ):
+    if reference_mode not in VALID_REFERENCE_MODES:
+        reference_mode = 'both'
+
+    total_steps = 3 if reference_mode in ('background', 'text') else 2
+
     def progress(step, total_steps, message):
         _check_cancelled(gen_id)
         if on_progress:
@@ -135,21 +183,34 @@ def run_style_ref_pipeline(
 
     style_ref = StyleReference.from_row(ref_result.data[0])
 
-    style_analysis = style_ref.get_style_analysis() if style_ref.has_analysis() else None
+    style_analysis = style_ref.get_style_analysis(mode=reference_mode) if style_ref.has_analysis() else None
 
-    progress(1, 2, "Generating image prompt...")
+    current_step = 1
+
+    if reference_mode == 'background':
+        progress(current_step, total_steps, "Preparing background reference...")
+        signed_ref_url = ensure_reference_variant(style_ref, 'clean', user_id)
+        current_step += 1
+    elif reference_mode == 'text':
+        progress(current_step, total_steps, "Preparing text reference...")
+        signed_ref_url = ensure_reference_variant(style_ref, 'text', user_id)
+        current_step += 1
+    else:
+        signed_ref_url = storage_service.get_signed_url(style_ref.image_path, expires_in=600)
+
+    progress(current_step, total_steps, "Generating image prompt...")
     if base_image_only:
         unified_prompt = llm_service.generate_style_referenced_prompt_no_text(book_data, style_analysis=style_analysis)
     else:
         unified_prompt = llm_service.generate_style_referenced_prompt(book_data, style_analysis=style_analysis)
 
-    logger.info("Gen #%s Step 1/2 done. Prompt length: %d chars", gen_id, len(unified_prompt))
+    logger.info("Gen #%s Step %d/%d done. Prompt length: %d chars", gen_id, current_step, total_steps, len(unified_prompt))
     get_supabase().table('generations').update(
         {'base_prompt': unified_prompt}
     ).eq('id', generation.id).execute()
+    current_step += 1
 
-    progress(2, 2, "Generating final cover...")
-    signed_ref_url = storage_service.get_signed_url(style_ref.image_path, expires_in=600)
+    progress(current_step, total_steps, "Generating final cover...")
 
     final_result = image_service.generate_image_with_text(
         [signed_ref_url],
@@ -169,5 +230,5 @@ def run_style_ref_pipeline(
     }).eq('id', generation.id).execute()
 
     final_gen = Generation.from_row(update_result.data[0])
-    logger.info("Gen #%s COMPLETED successfully (style-referenced)", gen_id)
+    logger.info("Gen #%s COMPLETED successfully (style-referenced, mode=%s)", gen_id, reference_mode)
     return final_gen
