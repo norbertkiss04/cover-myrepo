@@ -9,6 +9,7 @@ export interface User {
   picture: string | null;
   preferences: UserPreferences | null;
   credits: number;
+  is_admin: boolean;
   unlimited_credits: boolean;
   created_at: string;
 }
@@ -113,4 +114,12 @@ export interface GenerationState {
   stepMessage: string;
   result: Generation | null;
   error: string | null;
+}
+
+export interface Invite {
+  id: number;
+  code: string;
+  created_at: string;
+  expires_at: string;
+  used_at: string | null;
 }

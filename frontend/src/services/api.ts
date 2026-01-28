@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { AxiosRequestConfig } from 'axios';
 import { supabase, getAccessToken, setCurrentSession } from '../lib/supabase';
-import type { User, UserPreferences, Generation, PaginatedResponse, AspectRatioInfo, StyleReference } from '../types';
+import type { User, UserPreferences, Generation, PaginatedResponse, AspectRatioInfo, StyleReference, Invite } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -98,6 +98,16 @@ export const authApi = {
 
   updatePreferences: async (preferences: UserPreferences): Promise<User> => {
     const response = await api.put('/auth/preferences', preferences);
+    return response.data;
+  },
+
+  createInvite: async (): Promise<{ code: string; invite_url: string; expires_at: string }> => {
+    const response = await api.post('/auth/invites');
+    return response.data;
+  },
+
+  getInvites: async (): Promise<{ invites: Invite[] }> => {
+    const response = await api.get('/auth/invites');
     return response.data;
   },
 

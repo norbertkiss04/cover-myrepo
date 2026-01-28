@@ -4,6 +4,7 @@ import { useTheme } from '../../hooks/useTheme';
 import { useAuth } from '../../context/AuthContext';
 import { validatePassword, getPasswordRules } from '../../utils/passwordValidation';
 import { authApi } from '../../services/api';
+import type { Invite } from '../../types';
 
 const OPTIONAL_FIELDS = [
   { key: 'description', label: 'Book Description' },
@@ -40,6 +41,8 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [inviteStatus, setInviteStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteData, setInviteData] = useState<{ code: string; invite_url: string; expires_at: string } | null>(null);
+  const [inviteList, setInviteList] = useState<Invite[]>([]);
+  const [inviteListLoading, setInviteListLoading] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -60,8 +63,27 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       setInviteStatus(null);
       setInviteData(null);
       setActiveTab('account');
+      setInviteList([]);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !user?.is_admin) return;
+    
+    const fetchInvites = async () => {
+      setInviteListLoading(true);
+      try {
+        const data = await authApi.getInvites();
+        setInviteList(data.invites);
+      } catch {
+        setInviteList([]);
+      } finally {
+        setInviteListLoading(false);
+      }
+    };
+    
+    fetchInvites();
+  }, [isOpen, user?.is_admin]);
 
   const handleEmailChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,6 +139,8 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       const data = await authApi.createInvite();
       setInviteData(data);
       setInviteStatus({ type: 'success', message: 'Invite link generated.' });
+      const listData = await authApi.getInvites();
+      setInviteList(listData.invites);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to create invite link';
       setInviteStatus({ type: 'error', message });
@@ -303,6 +327,90 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               </div>
             </div>
           )}
+
+          <div className="mt-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-medium text-text-secondary">Your Invites</span>
+              {inviteListLoading && (
+                <span className="text-xs text-text-muted">Loading...</span>
+              )}
+            </div>
+            {inviteList.length === 0 && !inviteListLoading ? (
+              <p className="text-xs text-text-muted">No invites generated yet.</p>
+            ) : (
+              <div className="border border-border rounded-lg overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-surface-alt/50">
+                      <th className="text-left px-3 py-2 font-medium text-text-secondary">Code</th>
+                      <th className="text-left px-3 py-2 font-medium text-text-secondary">Status</th>
+                      <th className="text-left px-3 py-2 font-medium text-text-secondary">Created</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {inviteList.map((invite) => {
+                      const now = new Date();
+                      const expiresAt = new Date(invite.expires_at);
+                      const isUsed = invite.used_at !== null;
+                      const isExpired = !isUsed && expiresAt < now;
+                      const isActive = !isUsed && !isExpired;
+
+                      const frontendUrl = window.location.origin;
+                      const inviteUrl = `${frontendUrl}/login?invite=${invite.code}`;
+
+                      const handleCopyCode = async () => {
+                        try {
+                          await navigator.clipboard.writeText(inviteUrl);
+                          setInviteStatus({ type: 'success', message: 'Invite link copied.' });
+                        } catch {
+                          setInviteStatus({ type: 'error', message: 'Failed to copy.' });
+                        }
+                      };
+
+                      const formatDate = (dateStr: string) => {
+                        const date = new Date(dateStr);
+                        return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                      };
+
+                      return (
+                        <tr key={invite.id} className="hover:bg-surface-alt/30">
+                          <td className="px-3 py-2">
+                            <button
+                              onClick={handleCopyCode}
+                              className="font-mono text-text hover:text-accent transition-colors"
+                              title="Click to copy invite link"
+                            >
+                              {invite.code.slice(0, 8)}...
+                            </button>
+                          </td>
+                          <td className="px-3 py-2">
+                            {isUsed && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-info-bg text-info border border-info-border">
+                                Used
+                              </span>
+                            )}
+                            {isExpired && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-surface-alt text-text-muted border border-border">
+                                Expired
+                              </span>
+                            )}
+                            {isActive && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-success-bg text-success border border-success-border">
+                                Active
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-text-muted">
+                            {formatDate(invite.created_at)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

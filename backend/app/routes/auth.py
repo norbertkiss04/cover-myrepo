@@ -1,4 +1,7 @@
 import logging
+import re
+import secrets
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 from flask import Blueprint, request, jsonify, current_app
 
@@ -9,6 +12,26 @@ from app import limiter
 logger = logging.getLogger(__name__)
 
 auth_bp = Blueprint('auth', __name__)
+
+INVITE_CODE_PATTERN = re.compile(r'^[A-Za-z0-9_-]{8,64}$')
+INVITE_CODE_BYTES = 16
+INVITE_EXPIRY_DAYS = 7
+MAX_INVITE_CODE_LENGTH = 64
+
+
+def sanitize_invite_code(value):
+    if value is None:
+        return None
+    code = str(value).strip()
+    if len(code) > MAX_INVITE_CODE_LENGTH:
+        return None
+    if not INVITE_CODE_PATTERN.fullmatch(code):
+        return None
+    return code
+
+
+def generate_invite_code():
+    return secrets.token_urlsafe(INVITE_CODE_BYTES).rstrip('=')
 
 def get_user_from_token(token):
     try:
@@ -57,6 +80,29 @@ def token_required(f):
         else:
             logger.info("User not found in DB, creating new user (supabase_id=%s)", supabase_user_id)
             metadata = supabase_user.user_metadata or {}
+            raw_invite = metadata.get('invite_code') or metadata.get('inviteCode')
+            if raw_invite is None:
+                logger.warning("Missing invite code for supabase_id=%s", supabase_user_id)
+                return jsonify({'error': 'Invite code required'}), 403
+
+            invite_code = sanitize_invite_code(raw_invite)
+            if not invite_code:
+                logger.warning("Invalid invite code for supabase_id=%s", supabase_user_id)
+                return jsonify({'error': 'Invite code invalid or expired'}), 403
+
+            try:
+                consume_result = sb.rpc('consume_invite', {
+                    'p_code': invite_code,
+                    'p_google_id': supabase_user_id,
+                }).execute()
+            except Exception as e:
+                logger.error("Invite consume failed for supabase_id=%s: %s", supabase_user_id, e)
+                return jsonify({'error': 'Failed to validate invite'}), 500
+
+            if not consume_result.data:
+                logger.warning("Invalid invite code for supabase_id=%s", supabase_user_id)
+                return jsonify({'error': 'Invite code invalid or expired'}), 403
+
             new_user_data = {
                 'google_id': supabase_user_id,
                 'email': email,
@@ -135,6 +181,69 @@ def sync_user(current_user):
         logger.info("Sync called for user id=%s, nothing to update", current_user.id)
 
     return jsonify(current_user.to_dict())
+
+
+@auth_bp.route('/invites', methods=['POST'])
+@token_required
+def create_invite(current_user):
+    if not current_user.is_admin:
+        return jsonify({'error': 'Forbidden'}), 403
+
+    now = datetime.now(timezone.utc)
+    expires_at = now + timedelta(days=INVITE_EXPIRY_DAYS)
+    sb = current_app.supabase
+
+    invite_code = None
+    insert_result = None
+    for _ in range(5):
+        code = generate_invite_code()
+        try:
+            insert_result = sb.table('invites').insert({
+                'code': code,
+                'created_by': current_user.id,
+                'expires_at': expires_at.isoformat(),
+            }).execute()
+        except Exception as e:
+            logger.warning("Invite insert failed for user id=%s: %s", current_user.id, e)
+            insert_result = None
+        if insert_result and insert_result.data:
+            invite_code = code
+            break
+
+    if not invite_code:
+        return jsonify({'error': 'Failed to create invite'}), 500
+
+    frontend_url = current_app.config.get('FRONTEND_URL', '').rstrip('/')
+    invite_url = f"{frontend_url}/login?invite={invite_code}" if frontend_url else f"/login?invite={invite_code}"
+
+    return jsonify({
+        'code': invite_code,
+        'invite_url': invite_url,
+        'expires_at': expires_at.isoformat(),
+    })
+
+
+@auth_bp.route('/invites', methods=['GET'])
+@token_required
+def list_invites(current_user):
+    if not current_user.is_admin:
+        return jsonify({'error': 'Forbidden'}), 403
+
+    sb = current_app.supabase
+    try:
+        result = sb.table('invites').select(
+            'id, code, created_at, expires_at, used_at'
+        ).eq(
+            'created_by', current_user.id
+        ).order(
+            'created_at', desc=True
+        ).limit(50).execute()
+    except Exception as e:
+        logger.error("Failed to fetch invites for user id=%s: %s", current_user.id, e)
+        return jsonify({'error': 'Failed to fetch invites'}), 500
+
+    return jsonify({'invites': result.data or []})
+
 
 ALLOWED_VISIBLE_FIELDS = {
     'description', 'genres', 'mood', 'color_preference',
