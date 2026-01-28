@@ -8,7 +8,7 @@ from app.models.generation import Generation, ASPECT_RATIOS
 from app.models.style_reference import StyleReference
 from app.routes.auth import token_required
 from app.services.llm_service import llm_service
-from app.services.image_service import image_service
+from app.services.image_service import image_service, get_contrasting_background, remove_background_color
 from app.services.storage_service import storage_service
 from app.services.credit_service import deduct_credits
 from app.config import ANALYSIS_COST
@@ -113,6 +113,46 @@ def analyze_style(current_user):
         except Exception as e:
             logger.warning("Text removal failed: %s", e)
 
+        text_layer_url = None
+        text_layer_path = None
+        try:
+            logger.info("Extracting text layer...")
+            background_color = get_contrasting_background(image_bytes)
+
+            text_layer_result = image_service.isolate_text_layer(image_data_url, background_color)
+            text_layer_temp_url = text_layer_result['image_url']
+
+            response = http_requests.get(text_layer_temp_url, timeout=60)
+            response.raise_for_status()
+            text_layer_bytes = response.content
+
+            text_layer_data_url = f"data:image/png;base64,{base64.b64encode(text_layer_bytes).decode()}"
+            cleanup_analysis = llm_service.analyze_text_layer(text_layer_data_url)
+
+            if cleanup_analysis.get('needs_cleanup') and cleanup_analysis.get('removal_prompt'):
+                logger.info("Text layer needs cleanup: %s", cleanup_analysis['removal_prompt'])
+                cleanup_result = image_service.cleanup_text_layer(
+                    text_layer_temp_url,
+                    cleanup_analysis['removal_prompt'],
+                    background_color
+                )
+                text_layer_temp_url = cleanup_result['image_url']
+                response = http_requests.get(text_layer_temp_url, timeout=60)
+                response.raise_for_status()
+                text_layer_bytes = response.content
+
+            transparent_bytes = remove_background_color(text_layer_bytes, background_color)
+            text_layer_upload = storage_service.upload_bytes(
+                transparent_bytes,
+                folder='references-text',
+                content_type='image/png'
+            )
+            text_layer_url = text_layer_upload['public_url']
+            text_layer_path = text_layer_upload['path']
+            logger.info("Text layer created: %s", text_layer_path)
+        except Exception as e:
+            logger.warning("Text layer extraction failed: %s", e)
+
         logger.info("Calling Gemini vision for style analysis...")
         analysis = llm_service.analyze_style_reference(image_data_url)
         logger.info("Style analysis complete")
@@ -124,6 +164,8 @@ def analyze_style(current_user):
             'image_path': image_path,
             'clean_image_url': clean_image_url,
             'clean_image_path': clean_image_path,
+            'text_layer_url': text_layer_url,
+            'text_layer_path': text_layer_path,
             'title': user_title or analysis.get('title') or 'Untitled Reference',
             'feeling': analysis.get('feeling', ''),
             'layout': analysis.get('layout', ''),

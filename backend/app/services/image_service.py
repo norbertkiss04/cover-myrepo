@@ -1,6 +1,7 @@
 import io
 import time
 import logging
+import colorsys
 import requests
 from flask import current_app
 from PIL import Image
@@ -75,6 +76,67 @@ def detect_and_crop_border(image_bytes, tolerance=30, min_border_size=5):
 
     output = io.BytesIO()
     cropped.save(output, format='PNG')
+    return output.getvalue()
+
+
+def get_dominant_color(image_bytes):
+    img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
+    img = img.resize((100, 100))
+
+    colors = img.getcolors(maxcolors=10000)
+    if not colors:
+        return (128, 128, 128)
+
+    sorted_colors = sorted(colors, key=lambda x: x[0], reverse=True)
+
+    for count, color in sorted_colors:
+        r, g, b = color
+        if 20 < r < 235 or 20 < g < 235 or 20 < b < 235:
+            return color
+
+    return sorted_colors[0][1]
+
+
+def get_complementary_color(rgb):
+    r, g, b = [x / 255.0 for x in rgb]
+    h, l, s = colorsys.rgb_to_hls(r, g, b)
+    h = (h + 0.5) % 1.0
+    r, g, b = colorsys.hls_to_rgb(h, l, s)
+    return (int(r * 255), int(g * 255), int(b * 255))
+
+
+def rgb_to_hex(rgb):
+    return '#{:02x}{:02x}{:02x}'.format(*rgb)
+
+
+def get_contrasting_background(image_bytes):
+    dominant = get_dominant_color(image_bytes)
+    complement = get_complementary_color(dominant)
+    hex_color = rgb_to_hex(complement)
+    logger.info("Dominant color: %s, complement: %s", dominant, hex_color)
+    return hex_color
+
+
+def remove_background_color(image_bytes, background_hex_color, tolerance=45):
+    img = Image.open(io.BytesIO(image_bytes)).convert('RGBA')
+
+    bg_r = int(background_hex_color[1:3], 16)
+    bg_g = int(background_hex_color[3:5], 16)
+    bg_b = int(background_hex_color[5:7], 16)
+
+    pixels = img.load()
+    width, height = img.size
+
+    for y in range(height):
+        for x in range(width):
+            r, g, b, a = pixels[x, y]
+            if (abs(r - bg_r) <= tolerance and
+                abs(g - bg_g) <= tolerance and
+                abs(b - bg_b) <= tolerance):
+                pixels[x, y] = (r, g, b, 0)
+
+    output = io.BytesIO()
+    img.save(output, format='PNG')
     return output.getvalue()
 
 
@@ -213,6 +275,58 @@ class ImageService:
         )
         image_url = self._poll(job_id)
         logger.info("Text removal complete")
+        return {'image_url': image_url}
+
+    def isolate_text_layer(self, image_url, background_color):
+        self._get_config()
+
+        payload = {
+            'prompt': (
+                f'Create an image with ONLY the text and typography from this book cover. '
+                f'Remove ALL illustrations, photos, artwork, people, objects, and backgrounds. '
+                f'Keep ONLY: title, author name, subtitles, and any other text/letters. '
+                f'Fill the ENTIRE background with solid flat {background_color} color. '
+                f'Text must remain in its original position, font style, and color. '
+                f'Nothing else should be visible except text on solid {background_color}.'
+            ),
+            'images': [image_url],
+            'enable_base64_output': False,
+            'enable_sync_mode': False,
+        }
+
+        logger.info("Submitting text layer isolation job (bg=%s)", background_color)
+        job_id = self._submit(
+            f'{self.base_url}/bytedance/seedream-v4.5/edit',
+            payload
+        )
+        image_url = self._poll(job_id)
+        logger.info("Text layer isolation complete")
+        return {'image_url': image_url}
+
+    def cleanup_text_layer(self, image_url, removal_prompt, background_color):
+        self._get_config()
+
+        payload = {
+            'prompt': (
+                f'{removal_prompt} '
+                f'Replace all removed elements with solid flat {background_color} background. '
+                f'Keep only the main book title, author name, and subtitle text intact. '
+                f'CRITICAL: Do NOT move, reposition, or shift the text in any way — the text must remain at its EXACT original pixel location. '
+                f'Maintain the exact font style, size, and color of the kept text. '
+                f'The background must remain solid {background_color} with no artifacts or remnants.'
+            ),
+            'images': [image_url],
+            'enable_base64_output': False,
+            'enable_sync_mode': False,
+        }
+
+        logger.info("Submitting text layer cleanup job")
+        job_id = self._submit(
+            f'{self.base_url}/bytedance/seedream-v4.5/edit',
+            payload
+        )
+        image_url = self._poll(job_id)
+        logger.info("Text layer cleanup complete")
         return {'image_url': image_url}
 
 image_service = ImageService()
