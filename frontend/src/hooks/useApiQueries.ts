@@ -137,3 +137,23 @@ export function useUpdateStyleReference() {
     },
   });
 }
+
+export type RegeneratePart = 'clean' | 'text_layer' | 'feeling' | 'layout' | 'illustration_rules' | 'typography';
+
+export function useRegenerateStyleReferencePart() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, part }: { id: number; part: RegeneratePart }) =>
+      generationApi.regenerateStyleReferencePart(id, part),
+    onSuccess: (updated) => {
+      queryClient.setQueryData<StyleReference[]>(
+        queryKeys.styleReferences,
+        (old) => old?.map((r) => (r.id === updated.id ? updated : r)) ?? []
+      );
+    },
+    onError: () => {
+      toast.error('Failed to regenerate. Please try again.');
+    },
+  });
+}

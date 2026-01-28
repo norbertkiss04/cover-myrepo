@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { XMarkIcon, PencilIcon, TrashIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, PencilIcon, TrashIcon, CheckIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 import type { StyleReference } from '../../types';
-import { useUpdateStyleReference } from '../../hooks/useApiQueries';
+import { useUpdateStyleReference, useRegenerateStyleReferencePart, type RegeneratePart } from '../../hooks/useApiQueries';
+import { useAuth } from '../../context/AuthContext';
 
 type ImageVariant = 'original' | 'clean' | 'text_layer';
 
@@ -24,8 +25,11 @@ export default function StyleReferenceModal({
   const [selectedVariant, setSelectedVariant] = useState<ImageVariant>('original');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState('');
+  const [regeneratingPart, setRegeneratingPart] = useState<RegeneratePart | null>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const updateMutation = useUpdateStyleReference();
+  const regenerateMutation = useRegenerateStyleReferencePart();
+  const { user, updateCredits } = useAuth();
 
   useEffect(() => {
     if (styleRef) {
@@ -100,12 +104,41 @@ export default function StyleReferenceModal({
     }
   };
 
-  const analysisFields = [
-    { label: 'Feeling', value: styleRef.feeling },
-    { label: 'Layout', value: styleRef.layout },
-    { label: 'Typography', value: styleRef.typography },
-    { label: 'Illustration Rules', value: styleRef.illustration_rules },
-  ].filter((f) => f.value);
+  const handleRegenerate = (part: RegeneratePart) => {
+    if (regeneratingPart) return;
+    if (!user?.unlimited_credits && (user?.credits ?? 0) < 1) return;
+
+    setRegeneratingPart(part);
+    regenerateMutation.mutate(
+      { id: styleRef.id, part },
+      {
+        onSuccess: (updated) => {
+          onUpdate(styleRef.id, {
+            feeling: updated.feeling ?? undefined,
+            layout: updated.layout ?? undefined,
+            illustration_rules: updated.illustration_rules ?? undefined,
+            typography: updated.typography ?? undefined,
+          });
+          if (updated.remaining_credits !== undefined) {
+            updateCredits(updated.remaining_credits);
+          }
+          setRegeneratingPart(null);
+        },
+        onError: () => {
+          setRegeneratingPart(null);
+        },
+      }
+    );
+  };
+
+  const canRegenerate = user?.unlimited_credits || (user?.credits ?? 0) >= 1;
+
+  const analysisFields: { label: string; value: string | null; part: RegeneratePart }[] = [
+    { label: 'Feeling', value: styleRef.feeling, part: 'feeling' },
+    { label: 'Layout', value: styleRef.layout, part: 'layout' },
+    { label: 'Typography', value: styleRef.typography, part: 'typography' },
+    { label: 'Illustration Rules', value: styleRef.illustration_rules, part: 'illustration_rules' },
+  ];
 
   return (
     <Transition appear show={isOpen} as={Fragment}>
@@ -155,17 +188,28 @@ export default function StyleReferenceModal({
                     {availableVariants.length > 1 && (
                       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 bg-black/50 backdrop-blur-sm rounded-full p-1.5">
                         {availableVariants.map((variant) => (
-                          <button
-                            key={variant}
-                            onClick={() => setSelectedVariant(variant)}
-                            className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
-                              selectedVariant === variant
-                                ? 'bg-white text-black'
-                                : 'text-white/80 hover:text-white hover:bg-white/10'
-                            }`}
-                          >
-                            {getVariantLabel(variant)}
-                          </button>
+                          <div key={variant} className="flex items-center gap-1">
+                            <button
+                              onClick={() => setSelectedVariant(variant)}
+                              className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
+                                selectedVariant === variant
+                                  ? 'bg-white text-black'
+                                  : 'text-white/80 hover:text-white hover:bg-white/10'
+                              }`}
+                            >
+                              {getVariantLabel(variant)}
+                            </button>
+                            {variant !== 'original' && canRegenerate && (
+                              <button
+                                onClick={() => handleRegenerate(variant === 'clean' ? 'clean' : 'text_layer')}
+                                disabled={regeneratingPart !== null}
+                                title="Regenerate (1 credit)"
+                                className="p-1 text-white/60 hover:text-white hover:bg-white/10 rounded-full transition-colors disabled:opacity-50"
+                              >
+                                <ArrowPathIcon className={`w-3.5 h-3.5 ${regeneratingPart === (variant === 'clean' ? 'clean' : 'text_layer') ? 'animate-spin' : ''}`} />
+                              </button>
+                            )}
+                          </div>
                         ))}
                       </div>
                     )}
@@ -215,25 +259,35 @@ export default function StyleReferenceModal({
                       </button>
                     </div>
 
-                    {analysisFields.length > 0 && (
-                      <div className="space-y-4">
-                        <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
-                          Style Analysis
-                        </h3>
-                        {analysisFields.map((field) => (
-                          <div key={field.label}>
-                            <h4 className="text-sm font-medium text-text mb-1">{field.label}</h4>
-                            <p className="text-sm text-text-secondary leading-relaxed">{field.value}</p>
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wider">
+                        Style Analysis
+                      </h3>
+                      {analysisFields.map((field) => (
+                        <div key={field.label}>
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="text-sm font-medium text-text">{field.label}</h4>
+                            {canRegenerate && (
+                              <button
+                                onClick={() => handleRegenerate(field.part)}
+                                disabled={regeneratingPart !== null}
+                                title="Regenerate (1 credit)"
+                                className="p-1 text-text-muted hover:text-accent hover:bg-accent/10 rounded transition-colors disabled:opacity-50"
+                              >
+                                <ArrowPathIcon className={`w-3.5 h-3.5 ${regeneratingPart === field.part ? 'animate-spin' : ''}`} />
+                              </button>
+                            )}
                           </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {analysisFields.length === 0 && (
-                      <p className="text-text-secondary text-sm">
-                        No style analysis available for this reference.
-                      </p>
-                    )}
+                          {regeneratingPart === field.part ? (
+                            <p className="text-sm text-text-muted italic">Regenerating...</p>
+                          ) : field.value ? (
+                            <p className="text-sm text-text-secondary leading-relaxed">{field.value}</p>
+                          ) : (
+                            <p className="text-sm text-text-muted italic">Not analyzed yet</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </Dialog.Panel>

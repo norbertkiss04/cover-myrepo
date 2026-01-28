@@ -176,6 +176,14 @@ export const generationApi = {
   deleteStyleReference: async (id: number): Promise<void> => {
     await api.delete(`/api/style-references/${id}`);
   },
+
+  regenerateStyleReferencePart: async (
+    id: number,
+    part: 'clean' | 'text_layer' | 'feeling' | 'layout' | 'illustration_rules' | 'typography',
+  ): Promise<StyleReference & { remaining_credits: number }> => {
+    const response = await api.post(`/api/style-references/${id}/regenerate`, { part });
+    return response.data;
+  },
 };
 
 export default api;

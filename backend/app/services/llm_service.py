@@ -67,6 +67,111 @@ TEXT_LAYER_ANALYSIS_SCHEMA = {
     },
 }
 
+SINGLE_FIELD_PROMPTS = {
+    'feeling': """Act as an expert Senior Art Director and Book Cover Designer. Analyze the visual style of the provided image.
+
+Focus ONLY on the Feeling & Atmosphere:
+Describe the emotional resonance and atmosphere. What is the psychological hook? (e.g., whimsical, terrifying, authoritative, romantic). Who is the target audience and what promise does the cover make to them?
+
+Ignore the specific subject matter (e.g., do not describe "a dog" or "a mermaid"); instead, describe the emotional impact so it can be applied to a completely different subject.
+
+Return your analysis as a JSON object with a single "feeling" field containing your analysis.""",
+
+    'layout': """Act as an expert Senior Art Director and Book Cover Designer. Analyze the visual style of the provided image.
+
+Focus ONLY on the Layout & Composition:
+How is the space divided (e.g., rule of thirds, central symmetry, top-heavy)? Where is the negative space? How does the text interact with the imagery (framed by it, overlapping it, isolated from it)?
+
+IMPORTANT: Do NOT use percentages, pixel values, or specific numbers. Use only relative descriptive terms.
+
+Return your analysis as a JSON object with a single "layout" field containing your analysis.""",
+
+    'illustration_rules': """Act as an expert Senior Art Director and Book Cover Designer. Analyze the visual style of the provided image.
+
+Focus ONLY on the Illustration Rules / Visual Style:
+Describe the medium and artistic technique. If illustrated: Analyze the line work (clean vs. sketchy), shading (cel-shaded, gradient, cross-hatched), and texture (grainy, paper, smooth digital). If photographic: Describe the lighting (soft, harsh, cinematic), depth of field, and color grading. Color Palette: Describe the dominant colors, saturation levels, and contrast.
+
+Ignore the specific subject matter; describe the artistic techniques so they can be applied to a completely different subject.
+
+Return your analysis as a JSON object with a single "illustration_rules" field containing your analysis.""",
+
+    'typography': """Act as an expert Senior Art Director and Book Cover Designer. Analyze the typography of the provided image.
+
+Focus ONLY on Typography specifications using ONLY relative terms (NO percentages, pixels, or numbers):
+
+TITLE TEXT:
+- Font category (Serif, Sans-Serif, Slab Serif, Display, Script, Handwritten, Blackletter)
+- Weight (Thin, Light, Regular, Medium, Bold, Black, Ultra Black)
+- Case (ALL CAPS, Title Case, lowercase)
+- Color with approximate hex code (e.g., "neon mint green ~#50FFB0")
+- Size relative to cover (small, medium, large, dominant)
+- Vertical position (top, upper-third, middle, lower-third, bottom)
+- Horizontal alignment (left, center, right)
+- Letter spacing (tight, normal, wide)
+- Effects (drop shadow with direction, glow, outline/stroke, emboss, gradient, distressed, metallic)
+
+AUTHOR NAME:
+- Same categories as title
+- Size relative to title (much smaller, smaller, similar)
+- Position relative to title (above title, below title with gap, at opposite end of cover)
+
+SUBTITLE (if present, otherwise state "No subtitle"):
+- Same categories as above
+
+Return your analysis as a JSON object with a single "typography" field containing your analysis.""",
+}
+
+SINGLE_FIELD_SCHEMAS = {
+    'feeling': {
+        "name": "feeling_analysis",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "feeling": {"type": "string"},
+            },
+            "required": ["feeling"],
+            "additionalProperties": False,
+        },
+    },
+    'layout': {
+        "name": "layout_analysis",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "layout": {"type": "string"},
+            },
+            "required": ["layout"],
+            "additionalProperties": False,
+        },
+    },
+    'illustration_rules': {
+        "name": "illustration_rules_analysis",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "illustration_rules": {"type": "string"},
+            },
+            "required": ["illustration_rules"],
+            "additionalProperties": False,
+        },
+    },
+    'typography': {
+        "name": "typography_analysis",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "typography": {"type": "string"},
+            },
+            "required": ["typography"],
+            "additionalProperties": False,
+        },
+    },
+}
+
 TEXT_LAYER_ANALYSIS_PROMPT = """Analyze this isolated text layer image from a book cover.
 
 The image should contain ONLY the book title and author name on a solid colored background.
@@ -474,5 +579,40 @@ Use the reference image for style only — do NOT copy its subject matter."""
 
     def generate_style_referenced_prompt_no_text(self, book_data, style_analysis):
         return self.generate_style_referenced_prompt(book_data, style_analysis, include_text=False)
+
+    def regenerate_single_analysis_field(self, image_data_url, field_name):
+        if field_name not in SINGLE_FIELD_PROMPTS:
+            raise ValueError(f"Unknown analysis field: {field_name}")
+
+        logger.info("Regenerating single analysis field '%s' via Gemini vision", field_name)
+
+        messages = [
+            {
+                'role': 'user',
+                'content': [
+                    {
+                        'type': 'image_url',
+                        'image_url': {
+                            'url': image_data_url,
+                        },
+                    },
+                    {
+                        'type': 'text',
+                        'text': SINGLE_FIELD_PROMPTS[field_name],
+                    },
+                ],
+            }
+        ]
+
+        result = self._make_request(
+            messages,
+            schema=SINGLE_FIELD_SCHEMAS[field_name],
+            model='google/gemini-3-flash-preview',
+        )
+
+        logger.info("Single field '%s' regeneration complete (%d chars)",
+                    field_name, len(result.get(field_name, '')))
+
+        return result[field_name]
 
 llm_service = LLMService()

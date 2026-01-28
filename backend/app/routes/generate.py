@@ -11,7 +11,7 @@ from app.services.llm_service import llm_service
 from app.services.image_service import image_service, get_contrasting_background, remove_background_color
 from app.services.storage_service import storage_service
 from app.services.credit_service import deduct_credits
-from app.config import ANALYSIS_COST
+from app.config import ANALYSIS_COST, REGENERATION_COST
 from app.utils.db import get_supabase
 from app.utils.validation import sanitize_text, MAX_SHORT_TEXT_LENGTH, MAX_LONG_TEXT_LENGTH
 from app import limiter
@@ -276,6 +276,130 @@ def update_style_reference(current_user, ref_id):
     logger.info("Style reference #%d updated", ref_id)
 
     return jsonify(storage_service.sign_style_ref_dict(style_ref.to_dict(), style_ref))
+
+
+VALID_REGENERATE_PARTS = {'clean', 'text_layer', 'feeling', 'layout', 'illustration_rules', 'typography'}
+
+@generate_bp.route('/style-references/<int:ref_id>/regenerate', methods=['POST'])
+@limiter.limit("10 per minute")
+@token_required
+def regenerate_style_reference_part(current_user, ref_id):
+    data = request.get_json()
+    part = data.get('part')
+
+    if not part or part not in VALID_REGENERATE_PARTS:
+        return jsonify({'error': f'Invalid part. Must be one of: {", ".join(sorted(VALID_REGENERATE_PARTS))}'}), 400
+
+    logger.info(
+        "Regenerate '%s' request for style reference #%d from user id=%s",
+        part, ref_id, current_user.id,
+    )
+
+    result = get_supabase().table('style_references').select('*').eq(
+        'id', ref_id
+    ).eq('user_id', current_user.id).execute()
+
+    if not result.data:
+        logger.warning(
+            "Style reference #%d not found for user id=%s",
+            ref_id, current_user.id,
+        )
+        return jsonify({'error': 'Style reference not found'}), 404
+
+    style_ref = StyleReference.from_row(result.data[0])
+
+    credit_result = deduct_credits(current_user, REGENERATION_COST)
+    if not credit_result['success']:
+        return jsonify({
+            'error': 'Not enough credits to regenerate.',
+        }), 403
+
+    try:
+        updates = {}
+
+        if part == 'clean':
+            logger.info("Regenerating clean image for style reference #%d", ref_id)
+            response = http_requests.get(style_ref.image_url, timeout=60)
+            response.raise_for_status()
+            image_bytes = response.content
+            image_data_url = f"data:image/png;base64,{base64.b64encode(image_bytes).decode()}"
+
+            clean_result = image_service.remove_text_from_image(image_data_url)
+            clean_upload = storage_service.upload_from_url(
+                clean_result['image_url'],
+                folder='references-clean'
+            )
+            updates['clean_image_url'] = clean_upload['public_url']
+            updates['clean_image_path'] = clean_upload['path']
+            logger.info("Clean image regenerated: %s", updates['clean_image_path'])
+
+        elif part == 'text_layer':
+            logger.info("Regenerating text layer for style reference #%d", ref_id)
+            response = http_requests.get(style_ref.image_url, timeout=60)
+            response.raise_for_status()
+            image_bytes = response.content
+            image_data_url = f"data:image/png;base64,{base64.b64encode(image_bytes).decode()}"
+
+            background_color = get_contrasting_background(image_bytes)
+            text_layer_result = image_service.isolate_text_layer(image_data_url, background_color)
+            text_layer_temp_url = text_layer_result['image_url']
+
+            response = http_requests.get(text_layer_temp_url, timeout=60)
+            response.raise_for_status()
+            text_layer_bytes = response.content
+
+            text_layer_data_url = f"data:image/png;base64,{base64.b64encode(text_layer_bytes).decode()}"
+            cleanup_analysis = llm_service.analyze_text_layer(text_layer_data_url)
+
+            if cleanup_analysis.get('needs_cleanup') and cleanup_analysis.get('removal_prompt'):
+                logger.info("Text layer needs cleanup: %s", cleanup_analysis['removal_prompt'])
+                cleanup_result = image_service.cleanup_text_layer(
+                    text_layer_temp_url,
+                    cleanup_analysis['removal_prompt'],
+                    background_color
+                )
+                text_layer_temp_url = cleanup_result['image_url']
+                response = http_requests.get(text_layer_temp_url, timeout=60)
+                response.raise_for_status()
+                text_layer_bytes = response.content
+
+            transparent_bytes = remove_background_color(text_layer_bytes, background_color)
+            text_layer_upload = storage_service.upload_bytes(
+                transparent_bytes,
+                folder='references-text',
+                content_type='image/png'
+            )
+            updates['text_layer_url'] = text_layer_upload['public_url']
+            updates['text_layer_path'] = text_layer_upload['path']
+            logger.info("Text layer regenerated: %s", updates['text_layer_path'])
+
+        else:
+            logger.info("Regenerating analysis field '%s' for style reference #%d", part, ref_id)
+            response = http_requests.get(style_ref.image_url, timeout=60)
+            response.raise_for_status()
+            image_bytes = response.content
+            image_data_url = f"data:image/png;base64,{base64.b64encode(image_bytes).decode()}"
+
+            new_value = llm_service.regenerate_single_analysis_field(image_data_url, part)
+            updates[part] = new_value
+            logger.info("Analysis field '%s' regenerated (%d chars)", part, len(new_value))
+
+        updated = get_supabase().table('style_references').update(updates).eq(
+            'id', ref_id
+        ).eq('user_id', current_user.id).execute()
+
+        style_ref = StyleReference.from_row(updated.data[0])
+        logger.info("Style reference #%d part '%s' regenerated", ref_id, part)
+
+        response_data = storage_service.sign_style_ref_dict(style_ref.to_dict(), style_ref)
+        response_data['remaining_credits'] = credit_result['remaining']
+        return jsonify(response_data)
+
+    except Exception as e:
+        logger.error("Regeneration failed for style reference #%d: %s", ref_id, e, exc_info=True)
+        from app.services.credit_service import refund_credits
+        refund_credits(current_user, REGENERATION_COST)
+        return jsonify({'error': 'Regeneration failed. Please try again.'}), 500
 
 
 @generate_bp.route('/generations', methods=['GET'])
