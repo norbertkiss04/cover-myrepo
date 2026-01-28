@@ -1,6 +1,7 @@
 import io
 import time
 import logging
+import colorsys
 import requests
 from flask import current_app
 from PIL import Image
@@ -8,19 +9,42 @@ from PIL import Image
 logger = logging.getLogger(__name__)
 
 
-def get_average_luminance(image_bytes):
+def get_dominant_color(image_bytes):
     img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
-    img = img.resize((50, 50))
-    pixels = list(img.getdata())
-    avg_r = sum(p[0] for p in pixels) / len(pixels)
-    avg_g = sum(p[1] for p in pixels) / len(pixels)
-    avg_b = sum(p[2] for p in pixels) / len(pixels)
-    luminance = (0.299 * avg_r + 0.587 * avg_g + 0.114 * avg_b) / 255
-    return luminance
+    img = img.resize((100, 100))
+
+    colors = img.getcolors(maxcolors=10000)
+    if not colors:
+        return (128, 128, 128)
+
+    sorted_colors = sorted(colors, key=lambda x: x[0], reverse=True)
+
+    for count, color in sorted_colors:
+        r, g, b = color
+        if 20 < r < 235 or 20 < g < 235 or 20 < b < 235:
+            return color
+
+    return sorted_colors[0][1]
 
 
-def choose_contrasting_background(luminance):
-    return '#f5f5f5' if luminance < 0.5 else '#1a1a2e'
+def get_complementary_color(rgb):
+    r, g, b = [x / 255.0 for x in rgb]
+    h, l, s = colorsys.rgb_to_hls(r, g, b)
+    h = (h + 0.5) % 1.0
+    r, g, b = colorsys.hls_to_rgb(h, l, s)
+    return (int(r * 255), int(g * 255), int(b * 255))
+
+
+def rgb_to_hex(rgb):
+    return '#{:02x}{:02x}{:02x}'.format(*rgb)
+
+
+def get_contrasting_background(image_bytes):
+    dominant = get_dominant_color(image_bytes)
+    complement = get_complementary_color(dominant)
+    hex_color = rgb_to_hex(complement)
+    logger.info("Dominant color: %s, complement: %s", dominant, hex_color)
+    return hex_color
 
 class ImageService:
 

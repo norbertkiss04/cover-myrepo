@@ -8,7 +8,7 @@ from app.models.generation import Generation, ASPECT_RATIOS
 from app.models.style_reference import StyleReference
 from app.routes.auth import token_required
 from app.services.llm_service import llm_service
-from app.services.image_service import image_service, get_average_luminance, choose_contrasting_background
+from app.services.image_service import image_service, get_contrasting_background
 from app.services.storage_service import storage_service
 from app.services.credit_service import deduct_credits
 from app.config import ANALYSIS_COST
@@ -122,9 +122,8 @@ def analyze_style(current_user):
             clean_response.raise_for_status()
             clean_bytes = clean_response.content
 
-            luminance = get_average_luminance(clean_bytes)
-            bg_color = choose_contrasting_background(luminance)
-            logger.info("Clean image luminance: %.2f, using background: %s", luminance, bg_color)
+            bg_color = get_contrasting_background(clean_bytes)
+            logger.info("Using contrasting background: %s", bg_color)
 
             text_layer_result = image_service.isolate_text_layer(image_data_url, bg_color)
             text_layer_upload = storage_service.upload_from_url(
