@@ -81,15 +81,44 @@ class StorageService:
         logger.info("File upload complete: %s", unique_filename)
         return public_url
     
+    def extract_path(self, public_url: str):
+        """Extract the storage path from a full public URL. Returns None if not matched."""
+        bucket = current_app.config['SUPABASE_STORAGE_BUCKET']
+        marker = f"/public/{bucket}/"
+        if marker in public_url:
+            return public_url.split(marker)[-1]
+        return None
+
+    def sign_url(self, public_url: str, expires_in: int = 3600) -> str:
+        """Return a signed URL for a public URL. Falls back to the original URL on failure."""
+        path = self.extract_path(public_url)
+        if not path:
+            return public_url
+        signed = self.get_signed_url(path, expires_in=expires_in)
+        return signed or public_url
+
+    def sign_generation_dict(self, gen_dict: dict) -> dict:
+        """Sign base_image_url and final_image_url in a generation dict in-place."""
+        if gen_dict.get('base_image_url'):
+            gen_dict['base_image_url'] = self.sign_url(gen_dict['base_image_url'])
+        if gen_dict.get('final_image_url'):
+            gen_dict['final_image_url'] = self.sign_url(gen_dict['final_image_url'])
+        return gen_dict
+
+    def sign_style_ref_dict(self, ref_dict: dict, style_ref) -> dict:
+        """Sign the image_url in a style reference dict using image_path."""
+        if style_ref.image_path:
+            signed = self.get_signed_url(style_ref.image_path, expires_in=3600)
+            if signed:
+                ref_dict['image_url'] = signed
+        return ref_dict
+
     def delete_file(self, file_url: str) -> bool:
         client = self._get_client()
-        
+
         try:
-            bucket = current_app.config['SUPABASE_STORAGE_BUCKET']
-            marker = f"/public/{bucket}/"
-            
-            if marker in file_url:
-                path = file_url.split(marker)[-1]
+            path = self.extract_path(file_url)
+            if path:
                 logger.info("Deleting file from storage: %s", path)
                 client.storage.from_(self._bucket).remove([path])
                 logger.info("File deleted: %s", path)
@@ -99,7 +128,7 @@ class StorageService:
         except Exception as e:
             logger.error("Failed to delete file: %s", e)
             return False
-    
+
     def get_signed_url(self, path: str, expires_in: int = 3600) -> str:
         client = self._get_client()
         

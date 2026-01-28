@@ -1,6 +1,5 @@
 import logging
 import os
-import sys
 import time
 
 from flask import Flask, request, g, jsonify
@@ -18,14 +17,6 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 socketio = SocketIO()
-
-_app_start_time = time.time()
-_metrics = {
-    'requests_total': 0,
-    'errors_total': 0,
-    'requests_by_method': {},
-    'requests_by_status': {},
-}
 
 
 def create_app(config_name=None):
@@ -107,15 +98,6 @@ def create_app(config_name=None):
             "<-- %s %s %s (%.0fms)",
             request.method, request.path, response.status_code, duration_ms,
         )
-
-        _metrics['requests_total'] += 1
-        method = request.method
-        _metrics['requests_by_method'][method] = _metrics['requests_by_method'].get(method, 0) + 1
-        status_group = f"{response.status_code // 100}xx"
-        _metrics['requests_by_status'][status_group] = _metrics['requests_by_status'].get(status_group, 0) + 1
-        if response.status_code >= 500:
-            _metrics['errors_total'] += 1
-
         return response
 
     @app.route('/health')

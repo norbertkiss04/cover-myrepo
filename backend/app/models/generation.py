@@ -23,7 +23,6 @@ class Generation:
     color_preference: Optional[str] = None
     character_description: Optional[str] = None
     keywords: Optional[list] = None
-    reference_image_description: Optional[str] = None
     style_analysis: Optional[dict] = None
     style_reference_id: Optional[int] = None
     use_style_image: bool = False
@@ -58,7 +57,6 @@ class Generation:
             color_preference=row.get('color_preference'),
             character_description=row.get('character_description'),
             keywords=row.get('keywords'),
-            reference_image_description=row.get('reference_image_description'),
             style_analysis=row.get('style_analysis'),
             style_reference_id=row.get('style_reference_id'),
             use_style_image=row.get('use_style_image', False),
@@ -90,7 +88,6 @@ class Generation:
             'color_preference': self.color_preference,
             'character_description': self.character_description,
             'keywords': self.keywords,
-            'reference_image_description': self.reference_image_description,
             'style_analysis': self.style_analysis,
             'style_reference_id': self.style_reference_id,
             'use_style_image': self.use_style_image,

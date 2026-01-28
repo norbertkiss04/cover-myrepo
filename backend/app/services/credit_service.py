@@ -1,12 +1,11 @@
 import logging
-from flask import current_app
+from app.utils.db import get_supabase
 
 logger = logging.getLogger(__name__)
 
 
 def is_owner(user) -> bool:
-    owner_email = current_app.config.get('OWNER_EMAIL', '')
-    return bool(owner_email and user.email == owner_email)
+    return user.is_owner()
 
 
 def deduct_credits(user, amount: int) -> dict:
@@ -14,7 +13,7 @@ def deduct_credits(user, amount: int) -> dict:
         logger.info("Owner user id=%s: skipping credit deduction (%d)", user.id, amount)
         return {'success': True, 'remaining': user.credits}
 
-    sb = current_app.supabase
+    sb = get_supabase()
     result = sb.rpc('deduct_credits', {
         'p_user_id': user.id,
         'p_amount': amount,
@@ -33,7 +32,7 @@ def refund_credits(user, amount: int) -> int:
     if is_owner(user):
         return user.credits
 
-    sb = current_app.supabase
+    sb = get_supabase()
     result = sb.table('users').update(
         {'credits': user.credits + amount}
     ).eq('id', user.id).execute()

@@ -108,7 +108,7 @@ class TestSocketDisconnect:
 
 class TestStartGeneration:
 
-    @patch('app.sockets.socketio')
+    @patch('app.sockets.handlers.socketio')
     def test_missing_title_returns_error(self, mock_sio, socket_client, socket_app):
         socket_client.emit('start_generation', {
             'author_name': 'Author',
@@ -120,7 +120,7 @@ class TestStartGeneration:
         assert len(error_events) > 0
         assert 'missing' in error_events[0]['args'][0]['error'].lower() or 'required' in error_events[0]['args'][0]['error'].lower()
 
-    @patch('app.sockets.socketio')
+    @patch('app.sockets.handlers.socketio')
     def test_invalid_aspect_ratio_returns_error(self, mock_sio, socket_client, socket_app):
         socket_client.emit('start_generation', {
             'book_title': 'Test',
@@ -133,7 +133,7 @@ class TestStartGeneration:
         assert len(error_events) > 0
         assert 'aspect_ratio' in error_events[0]['args'][0]['error'].lower() or 'invalid' in error_events[0]['args'][0]['error'].lower()
 
-    @patch('app.sockets.socketio')
+    @patch('app.sockets.handlers.socketio')
     def test_genres_must_be_array(self, mock_sio, socket_client, socket_app):
         socket_client.emit('start_generation', {
             'book_title': 'Test',
@@ -146,7 +146,7 @@ class TestStartGeneration:
         assert len(error_events) > 0
         assert 'array' in error_events[0]['args'][0]['error'].lower()
 
-    @patch('app.sockets.socketio')
+    @patch('app.sockets.handlers.socketio')
     def test_active_generation_blocks_new_one(self, mock_sio, socket_client, socket_app):
         socket_app._test_store.setdefault('generations', []).append({
             'id': 1,
@@ -168,7 +168,7 @@ class TestStartGeneration:
         assert len(error_events) > 0
         assert 'already' in error_events[0]['args'][0]['error'].lower()
 
-    @patch('app.sockets.socketio')
+    @patch('app.sockets.handlers.socketio')
     def test_base_image_only_does_not_require_title(self, mock_sio, socket_client, socket_app):
         mock_sio.start_background_task = MagicMock()
         mock_sio.emit = MagicMock()
@@ -186,7 +186,7 @@ class TestStartGeneration:
 
 class TestCancelGeneration:
 
-    @patch('app.sockets.socketio')
+    @patch('app.sockets.handlers.socketio')
     def test_no_active_generation_returns_error(self, mock_sio, socket_client, socket_app):
         socket_client.emit('cancel_generation')
 
@@ -195,7 +195,7 @@ class TestCancelGeneration:
         assert len(error_events) > 0
         assert 'no active' in error_events[0]['args'][0]['error'].lower()
 
-    @patch('app.sockets.socketio')
+    @patch('app.sockets.handlers.socketio')
     def test_cancel_marks_generation_as_failed(self, mock_sio, socket_client, socket_app):
         socket_app._test_store.setdefault('generations', []).append({
             'id': 50,
@@ -218,7 +218,7 @@ class TestCancelGeneration:
 
 class TestStartRegeneration:
 
-    @patch('app.sockets.socketio')
+    @patch('app.sockets.handlers.socketio')
     def test_missing_generation_id_returns_error(self, mock_sio, socket_client, socket_app):
         socket_client.emit('start_regeneration', {})
 
@@ -227,7 +227,7 @@ class TestStartRegeneration:
         assert len(error_events) > 0
         assert 'generation_id' in error_events[0]['args'][0]['error'].lower()
 
-    @patch('app.sockets.socketio')
+    @patch('app.sockets.handlers.socketio')
     def test_generation_not_found_returns_error(self, mock_sio, socket_client, socket_app):
         socket_client.emit('start_regeneration', {'generation_id': 999})
 
@@ -236,7 +236,7 @@ class TestStartRegeneration:
         assert len(error_events) > 0
         assert 'not found' in error_events[0]['args'][0]['error'].lower()
 
-    @patch('app.sockets.socketio')
+    @patch('app.sockets.handlers.socketio')
     def test_active_generation_blocks_regeneration(self, mock_sio, socket_client, socket_app):
         socket_app._test_store.setdefault('generations', []).extend([
             {
@@ -266,7 +266,7 @@ class TestStartRegeneration:
         assert len(error_events) > 0
         assert 'already' in error_events[0]['args'][0]['error'].lower()
 
-    @patch('app.sockets.socketio')
+    @patch('app.sockets.handlers.socketio')
     def test_regeneration_creates_new_generation(self, mock_sio, socket_client, socket_app):
         mock_sio.start_background_task = MagicMock()
         mock_sio.emit = MagicMock()

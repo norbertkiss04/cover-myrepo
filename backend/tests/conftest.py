@@ -222,7 +222,6 @@ def test_generation(app, test_user):
         'color_preference': None,
         'character_description': None,
         'keywords': None,
-        'reference_image_description': None,
         'base_prompt': None,
         'text_prompt': None,
         'error_message': None,
