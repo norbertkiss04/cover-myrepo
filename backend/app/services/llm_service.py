@@ -53,6 +53,32 @@ STYLE_ANALYSIS_SCHEMA = {
     },
 }
 
+BORDER_DETECTION_SCHEMA = {
+    "name": "border_detection",
+    "strict": True,
+    "schema": {
+        "type": "object",
+        "properties": {
+            "has_border": {
+                "type": "boolean",
+            },
+        },
+        "required": ["has_border"],
+        "additionalProperties": False,
+    },
+}
+
+BORDER_DETECTION_PROMPT = """Analyze this image and determine if it has any borders, margins, or empty space around the edges.
+
+Look for:
+- White borders or margins on any edge (top, bottom, left, right)
+- Colored borders or frames that are not part of the artwork
+- Empty/blank space that looks like padding or letterboxing
+- The image not filling the entire canvas edge-to-edge
+
+If the image content fills the entire canvas with no visible borders or margins, set has_border to false.
+If there are ANY borders, margins, or empty space around the edges, set has_border to true."""
+
 STYLE_ANALYSIS_PROMPT = """Act as an expert Senior Art Director and Book Cover Designer. Analyze the visual style of the provided image to create a transferable design brief. 
 
 Ignore the specific subject matter (e.g., do not describe "a dog" or "a mermaid"); instead, describe the artistic techniques and design choices so they can be applied to a completely different subject.
