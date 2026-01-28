@@ -93,14 +93,7 @@ Provide your analysis for these areas:
 
 1. Feeling: Describe the emotional resonance and atmosphere. What is the psychological hook? (e.g., whimsical, terrifying, authoritative, romantic). Who is the target audience and what promise does the cover make to them?
 
-2. Layout & Subject Focus: Analyze the composition and what the image emphasizes:
-   - Composition structure (rule of thirds, central symmetry, diagonal, top-heavy, bottom-heavy)
-   - Primary subject type (single figure, couple, group of people, object, environment/landscape, abstract pattern)
-   - Subject prominence (fills most of frame, medium presence, small element in larger scene)
-   - Subject placement (centered, off-center left/right, rule-of-thirds intersection, full bleed edge-to-edge)
-   - Figure-ground relationship (subject dominates over background, balanced with background, background-dominant)
-   - Negative space location and amount (minimal, moderate, abundant; where located)
-   - How text interacts with imagery (framed by it, overlapping it, isolated in negative space)
+2. Layout: Analyze the composition structure. How is the space divided (e.g., rule of thirds, central symmetry, top-heavy)? Where is the negative space? How does the text interact with the imagery (framed by it, overlapping it, isolated from it)?
 
 3. Illustration Rules (or Visual Style): Describe the medium and artistic technique. If illustrated: Analyze the line work (clean vs. sketchy), shading (cel-shaded, gradient, cross-hatched), and texture (grainy, paper, smooth digital). If photographic: Describe the lighting (soft, harsh, cinematic), depth of field, and color grading. Color Palette: Describe the dominant colors, saturation levels, and contrast.
 
