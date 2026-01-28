@@ -13,6 +13,7 @@ class User:
     picture: Optional[str] = None
     preferences: Optional[dict] = None
     credits: int = INITIAL_CREDITS
+    is_admin: bool = False
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
@@ -26,17 +27,10 @@ class User:
             picture=row.get('picture'),
             preferences=row.get('preferences') or {},
             credits=row.get('credits', INITIAL_CREDITS),
+            is_admin=bool(row.get('is_admin', False)),
             created_at=row.get('created_at'),
             updated_at=row.get('updated_at'),
         )
-
-    def is_owner(self) -> bool:
-        try:
-            from flask import current_app
-            owner_email = current_app.config.get('OWNER_EMAIL', '')
-            return bool(owner_email and self.email == owner_email)
-        except RuntimeError:
-            return False
 
     def to_dict(self) -> dict:
         return {
@@ -46,7 +40,8 @@ class User:
             'picture': self.picture,
             'preferences': self.preferences or {},
             'credits': self.credits,
-            'unlimited_credits': self.is_owner(),
+            'is_admin': self.is_admin,
+            'unlimited_credits': self.is_admin,
             'created_at': self.created_at,
         }
 

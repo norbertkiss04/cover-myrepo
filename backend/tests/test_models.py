@@ -44,6 +44,7 @@ def test_user_to_dict():
         email='dict@example.com',
         name='Dict User',
         credits=15,
+        is_admin=True,
     )
     user_dict = user.to_dict()
 
@@ -51,7 +52,8 @@ def test_user_to_dict():
     assert user_dict['email'] == 'dict@example.com'
     assert user_dict['name'] == 'Dict User'
     assert user_dict['credits'] == 15
-    assert 'unlimited_credits' in user_dict
+    assert user_dict['is_admin'] is True
+    assert user_dict['unlimited_credits'] is True
     assert 'google_id' not in user_dict
 
 
@@ -174,22 +176,6 @@ def test_generation_to_dict_includes_all_keys():
     assert set(d.keys()) == expected_keys
 
 
-def test_user_is_owner_true(app):
-    with app.app_context():
-        app.config['OWNER_EMAIL'] = 'owner@example.com'
-        user = User(google_id='g1', email='owner@example.com', name='Owner')
-        assert user.is_owner() is True
-
-
-def test_user_is_owner_false(app):
-    with app.app_context():
-        app.config['OWNER_EMAIL'] = 'owner@example.com'
-        user = User(google_id='g1', email='user@example.com', name='User')
-        assert user.is_owner() is False
-
-
-def test_user_is_owner_no_config(app):
-    with app.app_context():
-        app.config['OWNER_EMAIL'] = ''
-        user = User(google_id='g1', email='anyone@example.com', name='Anyone')
-        assert user.is_owner() is False
+def test_user_is_admin_default_false():
+    user = User(google_id='g1', email='user@example.com', name='User')
+    assert user.is_admin is False

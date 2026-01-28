@@ -1,7 +1,7 @@
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from app.models.user import User
-from app.services.credit_service import deduct_credits, refund_credits, is_owner
+from app.services.credit_service import deduct_credits, refund_credits, is_admin
 from app.services.llm_service import LLMService
 
 
@@ -38,10 +38,9 @@ class TestCreditService:
             assert result['success'] is False
             assert result['remaining'] == 1
 
-    def test_deduct_credits_owner_bypass(self, app):
+    def test_deduct_credits_admin_bypass(self, app):
         with app.app_context():
-            app.config['OWNER_EMAIL'] = 'owner@example.com'
-            user = User(google_id='g1', email='owner@example.com', name='Owner', id=1, credits=5)
+            user = User(google_id='g1', email='owner@example.com', name='Owner', id=1, credits=5, is_admin=True)
 
             result = deduct_credits(user, 3)
 
@@ -65,35 +64,25 @@ class TestCreditService:
             assert result == 13
             assert app._test_store['users'][0]['credits'] == 13
 
-    def test_refund_credits_owner_bypass(self, app):
+    def test_refund_credits_admin_bypass(self, app):
         with app.app_context():
-            app.config['OWNER_EMAIL'] = 'owner@example.com'
-            user = User(google_id='g1', email='owner@example.com', name='Owner', id=1, credits=5)
+            user = User(google_id='g1', email='owner@example.com', name='Owner', id=1, credits=5, is_admin=True)
 
             result = refund_credits(user, 3)
 
             assert result == 5
 
-    def test_is_owner_match(self, app):
+    def test_is_admin_true(self, app):
         with app.app_context():
-            app.config['OWNER_EMAIL'] = 'owner@example.com'
-            user = User(google_id='g1', email='owner@example.com', name='Owner')
+            user = User(google_id='g1', email='owner@example.com', name='Owner', is_admin=True)
 
-            assert is_owner(user) is True
+            assert is_admin(user) is True
 
-    def test_is_owner_no_match(self, app):
+    def test_is_admin_false(self, app):
         with app.app_context():
-            app.config['OWNER_EMAIL'] = 'owner@example.com'
             user = User(google_id='g1', email='user@example.com', name='User')
 
-            assert is_owner(user) is False
-
-    def test_is_owner_no_config(self, app):
-        with app.app_context():
-            app.config['OWNER_EMAIL'] = ''
-            user = User(google_id='g1', email='anyone@example.com', name='Anyone')
-
-            assert is_owner(user) is False
+            assert is_admin(user) is False
 
 
 class TestLLMServiceParseJson:

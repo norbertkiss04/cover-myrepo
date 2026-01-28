@@ -12,7 +12,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isRecoveryMode: boolean;
   signInWithEmail: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, name: string) => Promise<{ needsConfirmation: boolean }>;
+  signUp: (email: string, password: string, name: string, inviteCode: string) => Promise<{ needsConfirmation: boolean }>;
   signInWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   updatePreferences: (preferences: UserPreferences) => Promise<void>;
@@ -55,12 +55,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  const clearAuthState = () => {
+    setUser(null);
+    setSupabaseUser(null);
+    setSession(null);
+  };
+
+  const requiresSignOut = (error: unknown) => {
+    const status = (error as { response?: { status?: number } })?.response?.status;
+    return status === 401 || status === 403;
+  };
+
   const syncUser = async (session: Session) => {
     try {
       const userData = await authApi.getCurrentUser();
       setUser(userData);
-    } catch {
-
+    } catch (error) {
+      if (requiresSignOut(error)) {
+        try {
+          await supabase.auth.signOut();
+        } finally {
+          clearAuthState();
+        }
+        setIsLoading(false);
+        return;
+      }
       try {
         const meta = session.user.user_metadata;
         const userData = await authApi.syncUser({
@@ -69,7 +88,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         setUser(userData);
       } catch (syncError) {
-        console.error('Failed to sync user:', syncError);
+        if (requiresSignOut(syncError)) {
+          try {
+            await supabase.auth.signOut();
+          } finally {
+            clearAuthState();
+          }
+        } else {
+          console.error('Failed to sync user:', syncError);
+        }
       }
     } finally {
       setIsLoading(false);
@@ -84,15 +111,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
-  const signUp = async (email: string, password: string, name: string) => {
+  const signUp = async (email: string, password: string, name: string, inviteCode: string) => {
+    const trimmedInvite = inviteCode.trim();
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { full_name: name },
+        data: { full_name: name, invite_code: trimmedInvite },
       },
     });
     if (error) throw error;
+
+    if (data.user?.identities?.length === 0) {
+      throw new Error('An account with this email already exists. Please log in or reset your password.');
+    }
 
     const needsConfirmation = !data.session;
     return { needsConfirmation };

@@ -26,13 +26,43 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const invite = params.get('invite') || params.get('code');
+    if (invite) {
+      setInviteCode(invite);
+      setIsRegister(true);
+    }
+  }, [location.search]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
 
+    const trimmedEmail = email.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
     if (isRegister) {
+      const trimmedInvite = inviteCode.trim();
+      if (!trimmedInvite) {
+        setError('Invite code is required.');
+        return;
+      }
+      if (trimmedInvite.length > 64) {
+        setError('Invite code is too long.');
+        return;
+      }
+      if (trimmedInvite.length < 8) {
+        setError('Invite code is too short.');
+        return;
+      }
       const passwordErrors = validatePassword(password);
       if (passwordErrors.length > 0) {
         setError('Please meet all password requirements.');
@@ -49,7 +79,7 @@ export default function LoginPage() {
 
     try {
       if (isRegister) {
-        const { needsConfirmation } = await signUp(email, password, name);
+        const { needsConfirmation } = await signUp(email, password, name, inviteCode.trim());
         if (needsConfirmation) {
           setSuccess('Check your email for a confirmation link!');
         }
@@ -135,6 +165,25 @@ export default function LoginPage() {
                 placeholder="you@example.com"
               />
             </div>
+
+            {isRegister && (
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-1.5">
+                  Invite code
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-surface-alt border border-border rounded-xl text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 text-sm"
+                  placeholder="Enter your invite code"
+                  maxLength={64}
+                  pattern="[A-Za-z0-9_-]{8,64}"
+                />
+                <p className="mt-1.5 text-xs text-text-muted">Invite codes expire 7 days after generation.</p>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-text-secondary mb-1.5">

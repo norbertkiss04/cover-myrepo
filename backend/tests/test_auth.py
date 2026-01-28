@@ -1,4 +1,5 @@
 import pytest
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 
 
@@ -102,6 +103,15 @@ def test_update_preferences_empty(client, auth_headers):
 def test_auto_create_user_on_first_login(app, client):
     """When a valid token comes in but the user is not in the DB, a new user is created."""
     supabase_id = 'brand-new-user-id'
+    invite_code = 'invite-123'
+
+    app._test_store.setdefault('invites', []).append({
+        'id': 1,
+        'code': invite_code,
+        'created_by': 1,
+        'expires_at': (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+        'used_at': None,
+    })
 
     mock_supabase_user = MagicMock()
     mock_supabase_user.id = supabase_id
@@ -109,6 +119,7 @@ def test_auto_create_user_on_first_login(app, client):
     mock_supabase_user.user_metadata = {
         'full_name': 'New User',
         'avatar_url': 'https://example.com/new.png',
+        'invite_code': invite_code,
     }
     mock_response = MagicMock()
     mock_response.user = mock_supabase_user

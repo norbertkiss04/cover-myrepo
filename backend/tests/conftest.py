@@ -1,4 +1,5 @@
 import pytest
+from datetime import datetime, timezone
 from unittest.mock import MagicMock
 from app import create_app
 from app.models.user import User
@@ -132,6 +133,13 @@ class MockRpcBuilder:
         self._func_name = func_name
         self._params = params
 
+    def _parse_datetime(self, value):
+        if isinstance(value, datetime):
+            return value
+        if isinstance(value, str):
+            return datetime.fromisoformat(value.replace('Z', '+00:00'))
+        return None
+
     def execute(self):
         result = MagicMock()
         if self._func_name == 'deduct_credits':
@@ -158,6 +166,25 @@ class MockRpcBuilder:
                     result.data = user['credits']
                     return result
             result.data = None
+            return result
+        elif self._func_name == 'consume_invite':
+            code = self._params.get('p_code')
+            google_id = self._params.get('p_google_id')
+            invites = self._store.get('invites', [])
+            now = datetime.now(timezone.utc)
+            for invite in invites:
+                if invite.get('code') != code:
+                    continue
+                if invite.get('used_at'):
+                    continue
+                expires_at = self._parse_datetime(invite.get('expires_at'))
+                if not expires_at or expires_at <= now:
+                    continue
+                invite['used_at'] = now.isoformat()
+                invite['used_by_google_id'] = google_id
+                result.data = True
+                return result
+            result.data = False
             return result
         result.data = None
         return result

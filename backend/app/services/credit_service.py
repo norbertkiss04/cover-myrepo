@@ -4,13 +4,13 @@ from app.utils.db import get_supabase
 logger = logging.getLogger(__name__)
 
 
-def is_owner(user) -> bool:
-    return user.is_owner()
+def is_admin(user) -> bool:
+    return bool(getattr(user, 'is_admin', False))
 
 
 def deduct_credits(user, amount: int) -> dict:
-    if is_owner(user):
-        logger.info("Owner user id=%s: skipping credit deduction (%d)", user.id, amount)
+    if is_admin(user):
+        logger.info("Admin user id=%s: skipping credit deduction (%d)", user.id, amount)
         return {'success': True, 'remaining': user.credits}
 
     sb = get_supabase()
@@ -29,7 +29,7 @@ def deduct_credits(user, amount: int) -> dict:
 
 
 def refund_credits(user, amount: int) -> int:
-    if is_owner(user):
+    if is_admin(user):
         return user.credits
 
     sb = get_supabase()
