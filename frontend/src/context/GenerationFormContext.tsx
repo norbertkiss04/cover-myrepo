@@ -38,19 +38,11 @@ export function GenerationFormProvider({ children }: { children: ReactNode }) {
   const [tempFields, setTempFieldsRaw] = useState<Set<string>>(new Set());
 
   const setFormData = useCallback((data: GenerationInput | ((prev: GenerationInput) => GenerationInput)) => {
-    if (typeof data === 'function') {
-      setFormDataRaw(data);
-    } else {
-      setFormDataRaw(data);
-    }
+    setFormDataRaw(data);
   }, []);
 
   const setTempFields = useCallback((fields: Set<string> | ((prev: Set<string>) => Set<string>)) => {
-    if (typeof fields === 'function') {
-      setTempFieldsRaw(fields);
-    } else {
-      setTempFieldsRaw(fields);
-    }
+    setTempFieldsRaw(fields);
   }, []);
 
   const clearForm = useCallback(() => {
