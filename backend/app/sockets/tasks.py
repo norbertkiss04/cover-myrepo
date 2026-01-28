@@ -8,11 +8,24 @@ from app.utils.db import get_supabase
 
 logger = logging.getLogger(__name__)
 
+_running_tasks = set()
+
 
 def _run_generation_task(app, generation, user_id, style_analysis, style_reference_id, use_style_image, aspect_ratio, base_image_only=False):
     with app.app_context():
         gen_id = generation.id
         room = _room_for(user_id)
+
+        if gen_id in _running_tasks:
+            logger.warning("Gen #%s task already running, aborting duplicate", gen_id)
+            return
+
+        status_check = get_supabase().table('generations').select('status').eq('id', gen_id).execute()
+        if not status_check.data or status_check.data[0]['status'] != 'generating':
+            logger.warning("Gen #%s not in 'generating' status, aborting task", gen_id)
+            return
+
+        _running_tasks.add(gen_id)
 
         def on_progress(step, total, message):
             get_supabase().table('generations').update({
@@ -90,3 +103,6 @@ def _run_generation_task(app, generation, user_id, style_analysis, style_referen
                 'error': 'Generation failed. Please try again.',
                 'remaining_credits': remaining,
             }, room=room)
+
+        finally:
+            _running_tasks.discard(gen_id)

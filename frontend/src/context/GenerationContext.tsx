@@ -126,6 +126,9 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
 
     socket.on('generation_error', (data: { error: string; generation_id?: number }) => {
       setError(data.error);
+      if (!data.generation_id) {
+        setStatus('idle');
+      }
     });
 
     return () => {
@@ -142,6 +145,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
       return;
     }
     setError(null);
+    setStatus('generating');
     socket.emit('start_generation', data);
   }, []);
 
@@ -152,6 +156,7 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
       return;
     }
     setError(null);
+    setStatus('generating');
     socket.emit('start_regeneration', { generation_id: id });
   }, []);
 
