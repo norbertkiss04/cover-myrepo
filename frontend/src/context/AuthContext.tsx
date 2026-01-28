@@ -10,6 +10,7 @@ interface AuthContextType {
   session: Session | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  isRecoveryMode: boolean;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<{ needsConfirmation: boolean }>;
   signInWithGoogle: () => Promise<void>;
@@ -28,11 +29,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRecoveryMode, setIsRecoveryMode] = useState(false);
 
   useEffect(() => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      async (event, session) => {
+        if (event === 'PASSWORD_RECOVERY') {
+          setIsRecoveryMode(true);
+        }
+
         setCurrentSession(session);
         setSession(session);
         setSupabaseUser(session?.user ?? null);
@@ -126,6 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const updatePassword = async (newPassword: string) => {
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) throw error;
+    setIsRecoveryMode(false);
   };
 
   const updateEmail = async (newEmail: string) => {
@@ -152,6 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         isLoading,
         isAuthenticated: !!session,
+        isRecoveryMode,
         signInWithEmail,
         signUp,
         signInWithGoogle,

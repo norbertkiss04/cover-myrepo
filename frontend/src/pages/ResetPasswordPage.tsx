@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { validatePassword, getPasswordRules } from '../utils/passwordValidation';
 
 export default function ResetPasswordPage() {
-  const { updatePassword, isAuthenticated } = useAuth();
+  const { updatePassword, isAuthenticated, isLoading: authLoading, isRecoveryMode } = useAuth();
   const navigate = useNavigate();
 
   const [password, setPassword] = useState('');
@@ -12,17 +13,20 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
+  const passwordErrors = validatePassword(password);
+  const rules = getPasswordRules(password);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+    if (passwordErrors.length > 0) {
+      setError('Please meet all password requirements.');
       return;
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters.');
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
       return;
     }
 
@@ -40,7 +44,7 @@ export default function ResetPasswordPage() {
     }
   };
 
-  if (!isAuthenticated) {
+  if (authLoading || (!isAuthenticated && !isRecoveryMode)) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center">
         <div className="max-w-md w-full text-center">
@@ -98,12 +102,34 @@ export default function ResetPasswordPage() {
                 <input
                   type="password"
                   required
-                  minLength={6}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-surface-alt border border-border rounded-xl text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 text-sm"
-                  placeholder="Min 6 characters"
+                  placeholder="Enter your new password"
                 />
+                {password.length > 0 && (
+                  <ul className="mt-2 space-y-1">
+                    {rules.map((rule) => (
+                      <li
+                        key={rule.label}
+                        className={`flex items-center gap-1.5 text-xs ${
+                          rule.met ? 'text-success' : 'text-text-muted'
+                        }`}
+                      >
+                        {rule.met ? (
+                          <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                          </svg>
+                        ) : (
+                          <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                          </svg>
+                        )}
+                        {rule.label}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
               <div>
@@ -113,17 +139,19 @@ export default function ResetPasswordPage() {
                 <input
                   type="password"
                   required
-                  minLength={6}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-surface-alt border border-border rounded-xl text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 text-sm"
                   placeholder="Repeat your new password"
                 />
+                {confirmPassword.length > 0 && password !== confirmPassword && (
+                  <p className="mt-1.5 text-xs text-error">Passwords do not match.</p>
+                )}
               </div>
 
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || passwordErrors.length > 0 || password !== confirmPassword || !confirmPassword}
                 className="w-full bg-accent text-white py-2 px-4 rounded-lg font-medium hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors mt-2 text-sm"
               >
                 {isLoading ? 'Updating...' : 'Update Password'}

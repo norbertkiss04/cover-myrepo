@@ -37,7 +37,7 @@ function CreditIcon({ className }: { className?: string }) {
 }
 
 export default function Navbar() {
-  const { user, supabaseUser, isAuthenticated, isLoading, logout } = useAuth();
+  const { user, supabaseUser, isAuthenticated, isLoading, isRecoveryMode, logout } = useAuth();
   const { effective, toggle } = useTheme();
   const location = useLocation();
 
@@ -90,7 +90,7 @@ export default function Navbar() {
               </Link>
             </div>
 
-            {!isLoading && isAuthenticated && (
+            {!isLoading && isAuthenticated && !isRecoveryMode && (
               <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-0.5 bg-surface-alt/60 rounded-lg p-0.5">
                 <Link
                   to="/generate"
@@ -129,6 +129,18 @@ export default function Navbar() {
             <div className="flex items-center gap-3">
               {isLoading ? (
                 <div className="w-8 h-8 rounded-full bg-surface-alt animate-pulse" />
+              ) : isRecoveryMode ? (
+                <button
+                  onClick={toggle}
+                  className="p-2 rounded-lg text-text-secondary hover:text-text hover:bg-surface-alt transition-colors"
+                  aria-label={`Switch to ${effective === 'dark' ? 'light' : 'dark'} mode`}
+                >
+                  {effective === 'dark' ? (
+                    <SunIcon className="w-5 h-5" />
+                  ) : (
+                    <MoonIcon className="w-5 h-5" />
+                  )}
+                </button>
               ) : isAuthenticated ? (
 
                 <div className="flex items-center gap-3">

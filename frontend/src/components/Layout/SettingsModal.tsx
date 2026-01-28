@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuth } from '../../context/AuthContext';
+import { validatePassword, getPasswordRules } from '../../utils/passwordValidation';
 
 const OPTIONAL_FIELDS = [
   { key: 'description', label: 'Book Description' },
@@ -71,13 +72,14 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     e.preventDefault();
     setPasswordStatus(null);
 
-    if (newPassword !== confirmPassword) {
-      setPasswordStatus({ type: 'error', message: 'Passwords do not match.' });
+    const passwordErrors = validatePassword(newPassword);
+    if (passwordErrors.length > 0) {
+      setPasswordStatus({ type: 'error', message: 'Please meet all password requirements.' });
       return;
     }
 
-    if (newPassword.length < 6) {
-      setPasswordStatus({ type: 'error', message: 'Password must be at least 6 characters.' });
+    if (newPassword !== confirmPassword) {
+      setPasswordStatus({ type: 'error', message: 'Passwords do not match.' });
       return;
     }
 
@@ -187,7 +189,6 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     <input
                       type="password"
                       required
-                      minLength={6}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       className="flex-1 px-3 py-2 bg-surface-alt border border-border rounded-lg text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 text-sm"
@@ -196,16 +197,41 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     <input
                       type="password"
                       required
-                      minLength={6}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       className="flex-1 px-3 py-2 bg-surface-alt border border-border rounded-lg text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 text-sm"
                       placeholder="Confirm password"
                     />
                   </div>
+                  {newPassword.length > 0 && (
+                    <ul className="space-y-0.5">
+                      {getPasswordRules(newPassword).map((rule) => (
+                        <li
+                          key={rule.label}
+                          className={`flex items-center gap-1.5 text-xs ${
+                            rule.met ? 'text-success' : 'text-text-muted'
+                          }`}
+                        >
+                          {rule.met ? (
+                            <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                            </svg>
+                          ) : (
+                            <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                            </svg>
+                          )}
+                          {rule.label}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {confirmPassword.length > 0 && newPassword !== confirmPassword && (
+                    <p className="text-xs text-error">Passwords do not match.</p>
+                  )}
                   <button
                     type="submit"
-                    disabled={passwordLoading || !newPassword || !confirmPassword}
+                    disabled={passwordLoading || !newPassword || !confirmPassword || validatePassword(newPassword).length > 0 || newPassword !== confirmPassword}
                     className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
                     {passwordLoading ? 'Updating...' : 'Update Password'}

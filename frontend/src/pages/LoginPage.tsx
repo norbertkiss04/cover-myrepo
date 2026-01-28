@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { validatePassword, getPasswordRules } from '../utils/passwordValidation';
 
 const GOOGLE_AUTH_ENABLED = false;
 
@@ -23,13 +24,28 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setError(null);
     setSuccess(null);
+
+    if (isRegister) {
+      const passwordErrors = validatePassword(password);
+      if (passwordErrors.length > 0) {
+        setError('Please meet all password requirements.');
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        setError('Passwords do not match.');
+        return;
+      }
+    }
+
+    setIsLoading(true);
 
     try {
       if (isRegister) {
@@ -127,13 +143,54 @@ export default function LoginPage() {
               <input
                 type="password"
                 required
-                minLength={6}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-3.5 py-2.5 bg-surface-alt border border-border rounded-xl text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 text-sm"
-                placeholder={isRegister ? 'Min 6 characters' : 'Your password'}
+                placeholder={isRegister ? 'Create a strong password' : 'Your password'}
               />
+              {isRegister && password.length > 0 && (
+                <ul className="mt-2 space-y-1">
+                  {getPasswordRules(password).map((rule) => (
+                    <li
+                      key={rule.label}
+                      className={`flex items-center gap-1.5 text-xs ${
+                        rule.met ? 'text-success' : 'text-text-muted'
+                      }`}
+                    >
+                      {rule.met ? (
+                        <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                        </svg>
+                      ) : (
+                        <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                        </svg>
+                      )}
+                      {rule.label}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
+
+            {isRegister && (
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-1.5">
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-surface-alt border border-border rounded-xl text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 text-sm"
+                  placeholder="Repeat your password"
+                />
+                {confirmPassword.length > 0 && password !== confirmPassword && (
+                  <p className="mt-1.5 text-xs text-error">Passwords do not match.</p>
+                )}
+              </div>
+            )}
 
             {!isRegister && (
               <div className="flex justify-end -mt-1">
@@ -192,6 +249,7 @@ export default function LoginPage() {
                 setIsRegister(!isRegister);
                 setError(null);
                 setSuccess(null);
+                setConfirmPassword('');
               }}
               className="text-accent hover:text-accent-hover font-medium transition-colors"
             >
