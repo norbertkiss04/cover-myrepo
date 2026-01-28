@@ -650,7 +650,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             <div className="border-t border-border p-4 flex justify-end">
               <button
                 type="button"
-                onClick={logout}
+                onClick={() => { logout(); onClose(); }}
                 className="text-sm text-text-muted hover:text-accent transition-colors"
               >
                 Log out
