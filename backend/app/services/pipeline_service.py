@@ -132,7 +132,8 @@ def run_style_ref_pipeline(
     ).eq('id', generation.id).execute()
 
     progress(2, 2, "Generating final cover...")
-    signed_ref_url = storage_service.get_signed_url(style_ref.image_path, expires_in=600)
+    ref_image_path = style_ref.clean_image_path or style_ref.image_path
+    signed_ref_url = storage_service.get_signed_url(ref_image_path, expires_in=600)
     final_result = image_service.generate_image_with_text(
         signed_ref_url,
         unified_prompt,

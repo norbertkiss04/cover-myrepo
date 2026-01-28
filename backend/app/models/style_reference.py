@@ -7,6 +7,8 @@ class StyleReference:
     image_url: str
     image_path: str
     id: Optional[int] = None
+    clean_image_url: Optional[str] = None
+    clean_image_path: Optional[str] = None
     title: Optional[str] = None
     feeling: Optional[str] = None
     layout: Optional[str] = None
@@ -21,6 +23,8 @@ class StyleReference:
             user_id=row.get('user_id'),
             image_url=row.get('image_url', ''),
             image_path=row.get('image_path', ''),
+            clean_image_url=row.get('clean_image_url'),
+            clean_image_path=row.get('clean_image_path'),
             title=row.get('title'),
             feeling=row.get('feeling'),
             layout=row.get('layout'),
@@ -34,6 +38,7 @@ class StyleReference:
             'id': self.id,
             'title': self.title,
             'image_url': self.image_url,
+            'clean_image_url': self.clean_image_url,
             'feeling': self.feeling,
             'layout': self.layout,
             'illustration_rules': self.illustration_rules,

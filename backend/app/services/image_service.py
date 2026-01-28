@@ -114,4 +114,29 @@ class ImageService:
         image_url = self._poll(job_id)
         return {'image_url': image_url}
 
+    def remove_text_from_image(self, image_url):
+        self._get_config()
+
+        payload = {
+            'prompt': (
+                'Remove all text, words, letters, typography, titles, author names, '
+                'subtitles, taglines, and decorative borders from this image. '
+                'Fill the removed areas naturally with the surrounding background and imagery. '
+                'Keep only the illustration, artwork, and visual elements. '
+                'The result should look like a complete image that never had any text.'
+            ),
+            'images': [image_url],
+            'enable_base64_output': False,
+            'enable_sync_mode': False,
+        }
+
+        logger.info("Submitting text removal job to WaveSpeed")
+        job_id = self._submit(
+            f'{self.base_url}/bytedance/seedream-v4.5/edit',
+            payload
+        )
+        image_url = self._poll(job_id)
+        logger.info("Text removal complete")
+        return {'image_url': image_url}
+
 image_service = ImageService()
