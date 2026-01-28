@@ -285,13 +285,14 @@ VALID_REGENERATE_PARTS = {'clean', 'text_layer', 'feeling', 'layout', 'illustrat
 def regenerate_style_reference_part(current_user, ref_id):
     data = request.get_json()
     part = data.get('part')
+    note = data.get('note', '').strip() if data.get('note') else ''
 
     if not part or part not in VALID_REGENERATE_PARTS:
         return jsonify({'error': f'Invalid part. Must be one of: {", ".join(sorted(VALID_REGENERATE_PARTS))}'}), 400
 
     logger.info(
-        "Regenerate '%s' request for style reference #%d from user id=%s",
-        part, ref_id, current_user.id,
+        "Regenerate '%s' request for style reference #%d from user id=%s (note=%s)",
+        part, ref_id, current_user.id, bool(note),
     )
 
     result = get_supabase().table('style_references').select('*').eq(
@@ -347,20 +348,32 @@ def regenerate_style_reference_part(current_user, ref_id):
             response.raise_for_status()
             text_layer_bytes = response.content
 
-            text_layer_data_url = f"data:image/png;base64,{base64.b64encode(text_layer_bytes).decode()}"
-            cleanup_analysis = llm_service.analyze_text_layer(text_layer_data_url)
-
-            if cleanup_analysis.get('needs_cleanup') and cleanup_analysis.get('removal_prompt'):
-                logger.info("Text layer needs cleanup: %s", cleanup_analysis['removal_prompt'])
+            if note:
+                logger.info("Using user-provided note for cleanup: %s", note)
                 cleanup_result = image_service.cleanup_text_layer(
                     text_layer_temp_url,
-                    cleanup_analysis['removal_prompt'],
+                    note,
                     background_color
                 )
                 text_layer_temp_url = cleanup_result['image_url']
                 response = http_requests.get(text_layer_temp_url, timeout=60)
                 response.raise_for_status()
                 text_layer_bytes = response.content
+            else:
+                text_layer_data_url = f"data:image/png;base64,{base64.b64encode(text_layer_bytes).decode()}"
+                cleanup_analysis = llm_service.analyze_text_layer(text_layer_data_url)
+
+                if cleanup_analysis.get('needs_cleanup') and cleanup_analysis.get('removal_prompt'):
+                    logger.info("Text layer needs cleanup: %s", cleanup_analysis['removal_prompt'])
+                    cleanup_result = image_service.cleanup_text_layer(
+                        text_layer_temp_url,
+                        cleanup_analysis['removal_prompt'],
+                        background_color
+                    )
+                    text_layer_temp_url = cleanup_result['image_url']
+                    response = http_requests.get(text_layer_temp_url, timeout=60)
+                    response.raise_for_status()
+                    text_layer_bytes = response.content
 
             text_layer_upload = storage_service.upload_bytes(
                 text_layer_bytes,

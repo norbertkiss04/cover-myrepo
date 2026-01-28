@@ -144,8 +144,8 @@ export function useRegenerateStyleReferencePart() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, part }: { id: number; part: RegeneratePart }) =>
-      generationApi.regenerateStyleReferencePart(id, part),
+    mutationFn: ({ id, part, note }: { id: number; part: RegeneratePart; note?: string }) =>
+      generationApi.regenerateStyleReferencePart(id, part, note),
     onSuccess: (updated) => {
       queryClient.setQueryData<StyleReference[]>(
         queryKeys.styleReferences,
