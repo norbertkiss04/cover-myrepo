@@ -1,6 +1,8 @@
 from app.models.user import User
 from app.models.generation import Generation, ASPECT_RATIOS
+from app.models.style_reference import StyleReference
 from app.config import INITIAL_CREDITS
+
 
 def test_user_creation():
     row = {
@@ -22,6 +24,7 @@ def test_user_creation():
     assert user.credits == 25
     assert user.created_at is not None
 
+
 def test_user_creation_default_credits():
     row = {
         'id': 2,
@@ -32,6 +35,7 @@ def test_user_creation_default_credits():
     user = User.from_row(row)
 
     assert user.credits == INITIAL_CREDITS
+
 
 def test_user_to_dict():
     user = User(
@@ -49,6 +53,7 @@ def test_user_to_dict():
     assert user_dict['credits'] == 15
     assert 'unlimited_credits' in user_dict
     assert 'google_id' not in user_dict
+
 
 def test_generation_creation():
     row = {
@@ -69,6 +74,7 @@ def test_generation_creation():
     assert generation.cover_ideas == 'A magical forest with glowing elements'
     assert generation.genres == ['Fantasy', 'Romance']
 
+
 def test_generation_aspect_ratio_info():
     generation = Generation(
         user_id=1,
@@ -85,8 +91,105 @@ def test_generation_aspect_ratio_info():
     assert gen_dict['aspect_ratio_info']['width'] == 1600
     assert gen_dict['aspect_ratio_info']['height'] == 2400
 
+
 def test_aspect_ratios_constant():
     assert '2:3' in ASPECT_RATIOS
     assert '1:1' in ASPECT_RATIOS
     assert '16:9' in ASPECT_RATIOS
     assert ASPECT_RATIOS['2:3']['name'] == 'Kindle Standard'
+
+
+# --- StyleReference model tests ---
+
+def test_style_reference_from_row():
+    row = {
+        'id': 5,
+        'user_id': 1,
+        'image_url': 'https://example.com/img.png',
+        'image_path': 'references/img.png',
+        'title': 'Gothic',
+        'feeling': 'dark',
+        'layout': 'centered',
+        'illustration_rules': 'sketchy',
+        'typography': 'serif',
+        'created_at': '2025-06-01T00:00:00Z',
+    }
+    ref = StyleReference.from_row(row)
+
+    assert ref.id == 5
+    assert ref.user_id == 1
+    assert ref.image_url == 'https://example.com/img.png'
+    assert ref.image_path == 'references/img.png'
+    assert ref.title == 'Gothic'
+    assert ref.feeling == 'dark'
+
+
+def test_style_reference_to_dict():
+    ref = StyleReference(
+        id=5,
+        user_id=1,
+        image_url='https://example.com/img.png',
+        image_path='references/img.png',
+        title='Gothic',
+        feeling='dark',
+        layout='centered',
+        illustration_rules='sketchy',
+        typography='serif',
+        created_at='2025-06-01T00:00:00Z',
+    )
+    d = ref.to_dict()
+
+    assert d['id'] == 5
+    assert d['title'] == 'Gothic'
+    assert d['image_url'] == 'https://example.com/img.png'
+    assert d['feeling'] == 'dark'
+    assert d['layout'] == 'centered'
+    assert d['illustration_rules'] == 'sketchy'
+    assert d['typography'] == 'serif'
+    assert d['created_at'] == '2025-06-01T00:00:00Z'
+    # image_path should not be exposed in to_dict
+    assert 'image_path' not in d
+
+
+def test_generation_to_dict_includes_all_keys():
+    gen = Generation(
+        id=1,
+        user_id=1,
+        book_title='Title',
+        author_name='Author',
+        aspect_ratio='1:1',
+    )
+    d = gen.to_dict()
+
+    expected_keys = {
+        'id', 'book_title', 'author_name', 'cover_ideas', 'description',
+        'genres', 'mood', 'color_preference', 'character_description',
+        'keywords', 'style_analysis',
+        'style_reference_id', 'use_style_image', 'cover_style_image',
+        'base_image_only', 'aspect_ratio', 'aspect_ratio_info',
+        'base_prompt', 'text_prompt', 'base_image_url', 'final_image_url',
+        'current_step', 'total_steps', 'step_message', 'status',
+        'error_message', 'created_at', 'completed_at',
+    }
+    assert set(d.keys()) == expected_keys
+
+
+def test_user_is_owner_true(app):
+    with app.app_context():
+        app.config['OWNER_EMAIL'] = 'owner@example.com'
+        user = User(google_id='g1', email='owner@example.com', name='Owner')
+        assert user.is_owner() is True
+
+
+def test_user_is_owner_false(app):
+    with app.app_context():
+        app.config['OWNER_EMAIL'] = 'owner@example.com'
+        user = User(google_id='g1', email='user@example.com', name='User')
+        assert user.is_owner() is False
+
+
+def test_user_is_owner_no_config(app):
+    with app.app_context():
+        app.config['OWNER_EMAIL'] = ''
+        user = User(google_id='g1', email='anyone@example.com', name='Anyone')
+        assert user.is_owner() is False
