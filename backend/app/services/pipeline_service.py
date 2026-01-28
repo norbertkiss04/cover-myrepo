@@ -135,25 +135,9 @@ def run_style_ref_pipeline(
     ref_image_path = style_ref.clean_image_path or style_ref.image_path
     signed_ref_url = storage_service.get_signed_url(ref_image_path, expires_in=600)
 
-    image_urls = [signed_ref_url]
-    prompt_prefix = ""
-
-    if style_ref.text_layer_path:
-        signed_text_layer_url = storage_service.get_signed_url(style_ref.text_layer_path, expires_in=600)
-        if signed_text_layer_url:
-            image_urls.append(signed_text_layer_url)
-            prompt_prefix = (
-                "You are given TWO reference images. "
-                "IMAGE 1 is a STYLE reference - match its visual style, colors, mood, and illustration approach. "
-                "IMAGE 2 is a TYPOGRAPHY reference - match its text layout, font styles, and positioning. "
-                "Create a NEW book cover that combines the style from IMAGE 1 with typography inspired by IMAGE 2.\n\n"
-            )
-            logger.info("Gen #%s: Using both style and typography references", gen_id)
-
-    final_prompt = prompt_prefix + unified_prompt
     final_result = image_service.generate_image_with_text(
-        image_urls,
-        final_prompt,
+        [signed_ref_url],
+        unified_prompt,
         aspect_ratio,
     )
     final_image_url = final_result['image_url']

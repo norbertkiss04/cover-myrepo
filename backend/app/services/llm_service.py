@@ -53,55 +53,11 @@ STYLE_ANALYSIS_SCHEMA = {
     },
 }
 
-TEXT_LAYER_ANALYSIS_SCHEMA = {
-    "name": "text_layer_analysis",
-    "strict": True,
-    "schema": {
-        "type": "object",
-        "properties": {
-            "needs_cleanup": {
-                "type": "boolean",
-            },
-            "removal_prompt": {
-                "type": ["string", "null"],
-            },
-        },
-        "required": ["needs_cleanup", "removal_prompt"],
-        "additionalProperties": False,
-    },
-}
-
-TEXT_LAYER_ANALYSIS_PROMPT = """Analyze this text layer extracted from a book cover.
-
-The text layer SHOULD contain ONLY:
-- The book's main TITLE
-- The AUTHOR NAME  
-- A SUBTITLE (if one exists)
-
-The text layer should NOT contain:
-- Any illustrations, characters, people, objects, or artwork remnants
-- Volume numbers (e.g., "Vol. 1", "Book 2", "#1")
-- Series numbers or series names
-- Award mentions ("Award Winner", "Bestseller", "NYT Bestseller", "#1 New York Times")
-- Publisher names or logos
-- Quotes or endorsements ("Praise for...", review quotes)
-- Generic labels like "A Novel", "A Thriller", "A Memoir"
-- Any decorative non-text elements or visual artifacts
-
-Examine the image carefully and determine:
-1. Does it contain ANY elements that should be removed (non-text elements OR irrelevant text)?
-2. If yes, describe SPECIFICALLY what needs to be removed.
-
-If cleanup is needed, provide a removal_prompt that clearly describes what to remove.
-Example: "Remove the small figure silhouette in the bottom left corner and the 'Award Winner' badge text."
-
-If the text layer is already clean (contains only title, author name, and optional subtitle with no other elements), set needs_cleanup to false and removal_prompt to null."""
-
 STYLE_ANALYSIS_PROMPT = """Act as an expert Senior Art Director and Book Cover Designer. Analyze the visual style of the provided image to create a transferable design brief. 
 
 Ignore the specific subject matter (e.g., do not describe "a dog" or "a mermaid"); instead, describe the artistic techniques and design choices so they can be applied to a completely different subject.
 
-Provide your analysis for these four areas:
+Provide your analysis for these areas:
 
 1. Feeling: Describe the emotional resonance and atmosphere. What is the psychological hook? (e.g., whimsical, terrifying, authoritative, romantic). Who is the target audience and what promise does the cover make to them?
 
@@ -109,7 +65,25 @@ Provide your analysis for these four areas:
 
 3. Illustration Rules (or Visual Style): Describe the medium and artistic technique. If illustrated: Analyze the line work (clean vs. sketchy), shading (cel-shaded, gradient, cross-hatched), and texture (grainy, paper, smooth digital). If photographic: Describe the lighting (soft, harsh, cinematic), depth of field, and color grading. Color Palette: Describe the dominant colors, saturation levels, and contrast.
 
-4. Typography: Analyze the font choices and hierarchy. Describe the Title font (Serif, Sans-Serif, Display, Handwritten, Grunge). Describe the treatments (embossing, drop shadows, distressing, glowing, interlocking letters). How does the Author Name compare to the Title in size and weight?
+4. Typography: Provide detailed, actionable typography specifications that can be replicated:
+
+   TITLE TEXT:
+   - Font category and style (Serif, Sans-Serif, Slab Serif, Display, Script, Handwritten, Blackletter, etc.)
+   - Weight (Thin, Light, Regular, Medium, Bold, Black, Ultra Black)
+   - Case (ALL CAPS, Title Case, lowercase)
+   - Color description and approximate hex code (e.g., "deep gold metallic, ~#C9A227")
+   - Size relative to cover (e.g., "dominant, ~40% of cover height" or "moderate, ~15% of cover height")
+   - Position (e.g., "centered horizontally, positioned in top 20%" or "left-aligned, bottom third")
+   - Letter spacing (tight/compressed, normal, wide/tracked out)
+   - Effects (drop shadow - describe direction and intensity, outer glow, inner glow, emboss/deboss, outline/stroke, gradient fill, texture overlay, distressed/worn, 3D effect, metallic/foil)
+
+   AUTHOR NAME:
+   - Same categories as above
+   - Size relative to title (e.g., "~25% of title size")
+   - Position relative to title (e.g., "directly below title with small gap" or "at bottom of cover, separated from title")
+
+   SUBTITLE (if present, otherwise state "No subtitle"):
+   - Same categories as above
 
 5. Title: Provide a short title (maximum 2 words) that captures the core visual style or mood of this cover design. Examples: "Gothic Horror", "Pastel Romance", "Noir Thriller", "Vintage Western", "Minimalist Sci-Fi"."""
 
@@ -305,39 +279,6 @@ class LLMService:
                      len(result.get('layout', '')),
                      len(result.get('illustration_rules', '')),
                      len(result.get('typography', '')))
-
-        return result
-
-    def analyze_text_layer(self, text_layer_image_url):
-        logger.info("Analyzing text layer for cleanup via Gemini vision")
-
-        messages = [
-            {
-                'role': 'user',
-                'content': [
-                    {
-                        'type': 'image_url',
-                        'image_url': {
-                            'url': text_layer_image_url,
-                        },
-                    },
-                    {
-                        'type': 'text',
-                        'text': TEXT_LAYER_ANALYSIS_PROMPT,
-                    },
-                ],
-            }
-        ]
-
-        result = self._make_request(
-            messages,
-            schema=TEXT_LAYER_ANALYSIS_SCHEMA,
-            model='google/gemini-3-flash-preview',
-        )
-
-        logger.info("Text layer analysis complete (needs_cleanup=%s)", result.get('needs_cleanup'))
-        if result.get('removal_prompt'):
-            logger.info("Removal prompt: %s", result.get('removal_prompt', '')[:100])
 
         return result
 

@@ -8,7 +8,7 @@ from app.models.generation import Generation, ASPECT_RATIOS
 from app.models.style_reference import StyleReference
 from app.routes.auth import token_required
 from app.services.llm_service import llm_service
-from app.services.image_service import image_service, get_contrasting_background, remove_background_color
+from app.services.image_service import image_service
 from app.services.storage_service import storage_service
 from app.services.credit_service import deduct_credits
 from app.config import ANALYSIS_COST
@@ -113,77 +113,6 @@ def analyze_style(current_user):
         except Exception as e:
             logger.warning("Text removal failed: %s", e)
 
-        text_layer_url = None
-        text_layer_path = None
-        try:
-            logger.info("Creating text layer...")
-            clean_signed_url = storage_service.get_signed_url(clean_image_path, expires_in=600)
-            clean_response = http_requests.get(clean_signed_url, timeout=60)
-            clean_response.raise_for_status()
-            clean_bytes = clean_response.content
-
-            bg_color = get_contrasting_background(clean_bytes)
-            logger.info("Using contrasting background: %s", bg_color)
-
-            text_layer_result = image_service.isolate_text_layer(image_data_url, bg_color)
-            text_layer_upload = storage_service.upload_from_url(
-                text_layer_result['image_url'],
-                folder='references-text'
-            )
-            text_layer_url = text_layer_upload['public_url']
-            text_layer_path = text_layer_upload['path']
-            logger.info("Initial text layer created: %s", text_layer_path)
-
-            try:
-                logger.info("Analyzing text layer for cleanup...")
-                signed_text_layer_url = storage_service.get_signed_url(text_layer_path, expires_in=600)
-                text_layer_response = http_requests.get(signed_text_layer_url, timeout=60)
-                text_layer_response.raise_for_status()
-                text_layer_b64 = base64.b64encode(text_layer_response.content).decode()
-                text_layer_data_url = f"data:image/png;base64,{text_layer_b64}"
-
-                cleanup_analysis = llm_service.analyze_text_layer(text_layer_data_url)
-
-                if cleanup_analysis.get('needs_cleanup') and cleanup_analysis.get('removal_prompt'):
-                    logger.info("Text layer needs cleanup, running cleanup phase...")
-                    cleanup_result = image_service.cleanup_text_layer(
-                        text_layer_data_url,
-                        cleanup_analysis['removal_prompt'],
-                        bg_color
-                    )
-                    cleanup_upload = storage_service.upload_from_url(
-                        cleanup_result['image_url'],
-                        folder='references-text'
-                    )
-                    text_layer_url = cleanup_upload['public_url']
-                    text_layer_path = cleanup_upload['path']
-                    logger.info("Cleaned text layer saved: %s", text_layer_path)
-                else:
-                    logger.info("Text layer is clean, no cleanup needed")
-            except Exception as cleanup_error:
-                logger.warning("Text layer cleanup failed, using initial version: %s", cleanup_error)
-
-            try:
-                logger.info("Converting text layer to transparent background...")
-                signed_url = storage_service.get_signed_url(text_layer_path, expires_in=600)
-                response = http_requests.get(signed_url, timeout=60)
-                response.raise_for_status()
-
-                transparent_bytes = remove_background_color(response.content, bg_color)
-                transparent_upload = storage_service.upload_bytes(
-                    transparent_bytes,
-                    folder='references-text',
-                    content_type='image/png'
-                )
-                text_layer_url = transparent_upload['public_url']
-                text_layer_path = transparent_upload['path']
-                logger.info("Transparent text layer saved: %s", text_layer_path)
-            except Exception as transparent_error:
-                logger.warning("Transparent conversion failed, using previous version: %s", transparent_error)
-
-        except Exception as e:
-            logger.warning("Text layer creation failed, continuing without it: %s", e)
-
         logger.info("Calling Gemini vision for style analysis...")
         analysis = llm_service.analyze_style_reference(image_data_url)
         logger.info("Style analysis complete")
@@ -195,8 +124,6 @@ def analyze_style(current_user):
             'image_path': image_path,
             'clean_image_url': clean_image_url,
             'clean_image_path': clean_image_path,
-            'text_layer_url': text_layer_url,
-            'text_layer_path': text_layer_path,
             'title': user_title or analysis.get('title') or 'Untitled Reference',
             'feeling': analysis.get('feeling', ''),
             'layout': analysis.get('layout', ''),

@@ -81,25 +81,6 @@ class StorageService:
         logger.info("File upload complete: %s", unique_filename)
         return public_url
 
-    def upload_bytes(self, data: bytes, folder: str = 'uploads', content_type: str = 'image/png') -> dict:
-        client = self._get_client()
-
-        ext = 'png' if 'png' in content_type else 'jpg'
-        filename = f"{folder}/{uuid.uuid4()}.{ext}"
-
-        size_kb = len(data) / 1024
-        logger.info("Uploading bytes to storage: %s (%.1f KB)", filename, size_kb)
-
-        client.storage.from_(self._bucket).upload(
-            path=filename,
-            file=data,
-            file_options={"content-type": content_type}
-        )
-
-        public_url = self._get_public_url(filename)
-        logger.info("Bytes upload complete: %s", filename)
-        return {'public_url': public_url, 'path': filename}
-
     def extract_path(self, public_url: str):
         """Extract the storage path from a full public URL. Returns None if not matched."""
         bucket = current_app.config['SUPABASE_STORAGE_BUCKET']
@@ -125,7 +106,7 @@ class StorageService:
         return gen_dict
 
     def sign_style_ref_dict(self, ref_dict: dict, style_ref) -> dict:
-        """Sign the image_url, clean_image_url, and text_layer_url in a style reference dict."""
+        """Sign the image_url and clean_image_url in a style reference dict."""
         if style_ref.image_path:
             signed = self.get_signed_url(style_ref.image_path, expires_in=3600)
             if signed:
@@ -134,10 +115,6 @@ class StorageService:
             signed = self.get_signed_url(style_ref.clean_image_path, expires_in=3600)
             if signed:
                 ref_dict['clean_image_url'] = signed
-        if style_ref.text_layer_path:
-            signed = self.get_signed_url(style_ref.text_layer_path, expires_in=3600)
-            if signed:
-                ref_dict['text_layer_url'] = signed
         return ref_dict
 
     def delete_file(self, file_url: str) -> bool:
