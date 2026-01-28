@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { GenerationProvider } from './context/GenerationContext';
 import { GenerationFormProvider } from './context/GenerationFormContext';
@@ -81,6 +82,23 @@ function App() {
         </GenerationFormProvider>
         </GenerationProvider>
       </AuthProvider>
+      <Toaster
+        position="bottom-center"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: 'var(--color-surface)',
+            color: 'var(--color-text)',
+            border: '1px solid var(--color-border)',
+          },
+          error: {
+            iconTheme: {
+              primary: 'var(--color-error)',
+              secondary: 'var(--color-surface)',
+            },
+          },
+        }}
+      />
     </QueryClientProvider>
   );
 }

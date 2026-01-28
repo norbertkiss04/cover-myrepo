@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import Masonry from 'react-masonry-css';
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { generationApi } from '../services/api';
-import { useStyleReferences, queryKeys } from '../hooks/useApiQueries';
+import { useStyleReferences, useDeleteStyleReference, useUpdateStyleReference, queryKeys } from '../hooks/useApiQueries';
 import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import ErrorState from '../components/common/ErrorState';
@@ -46,18 +46,16 @@ function InlineTitle({
   refId,
   title,
   isEditing,
-  onSaved,
   onStopEdit,
 }: {
   refId: number;
   title: string;
   isEditing: boolean;
-  onSaved: (updated: StyleReference) => void;
   onStopEdit: () => void;
 }) {
   const [value, setValue] = useState(title);
-  const [isSaving, setIsSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const updateMutation = useUpdateStyleReference();
 
   useEffect(() => {
     setValue(title);
@@ -70,24 +68,15 @@ function InlineTitle({
     }
   }, [isEditing]);
 
-  const save = async () => {
+  const save = () => {
     const trimmed = value.trim();
     if (!trimmed || trimmed === title) {
       setValue(title);
       onStopEdit();
       return;
     }
-    setIsSaving(true);
-    try {
-      const updated = await generationApi.updateStyleReference(refId, { title: trimmed });
-      onSaved(updated);
-      onStopEdit();
-    } catch {
-      setValue(title);
-      onStopEdit();
-    } finally {
-      setIsSaving(false);
-    }
+    updateMutation.mutate({ id: refId, data: { title: trimmed } });
+    onStopEdit();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -110,7 +99,6 @@ function InlineTitle({
         onChange={(e) => setValue(e.target.value)}
         onBlur={save}
         onKeyDown={handleKeyDown}
-        disabled={isSaving}
         onClick={(e) => e.stopPropagation()}
         className="w-full font-medium text-white bg-white/20 border border-white/40 rounded px-1.5 py-0.5 text-sm focus:outline-none focus:ring-2 focus:ring-white/50 placeholder-white/50 backdrop-blur-sm"
         placeholder="Give this style a name..."
@@ -128,6 +116,8 @@ function InlineTitle({
 export default function StyleReferencesPage() {
   const queryClient = useQueryClient();
   const { data: refs = [], isLoading, error, refetch } = useStyleReferences();
+  const deleteMutation = useDeleteStyleReference();
+  const updateMutation = useUpdateStyleReference();
 
   const [renamingId, setRenamingId] = useState<number | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -214,21 +204,8 @@ export default function StyleReferencesPage() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleTitleSaved = (updated: StyleReference) => {
-    queryClient.setQueryData<StyleReference[]>(queryKeys.styleReferences, (old) =>
-      old ? old.map((r) => (r.id === updated.id ? updated : r)) : []
-    );
-  };
-
-  const handleDelete = async (id: number) => {
-    try {
-      await generationApi.deleteStyleReference(id);
-      queryClient.setQueryData<StyleReference[]>(queryKeys.styleReferences, (old) =>
-        old ? old.filter((r) => r.id !== id) : []
-      );
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to delete');
-    }
+  const handleDelete = (id: number) => {
+    deleteMutation.mutate(id);
   };
 
   const handleCardClick = (ref: StyleReference) => {
@@ -240,13 +217,15 @@ export default function StyleReferencesPage() {
     setIsModalOpen(false);
   };
 
-  const handleModalUpdate = (updated: StyleReference) => {
-    handleTitleSaved(updated);
-    setSelectedRef(updated);
+  const handleModalUpdate = (id: number, data: Partial<Pick<StyleReference, 'title' | 'feeling' | 'layout' | 'illustration_rules' | 'typography'>>) => {
+    updateMutation.mutate({ id, data });
+    if (selectedRef && selectedRef.id === id) {
+      setSelectedRef({ ...selectedRef, ...data });
+    }
   };
 
   const handleModalDelete = (id: number) => {
-    handleDelete(id);
+    deleteMutation.mutate(id);
   };
 
   if (isLoading) return <LoadingSpinner />;
@@ -356,7 +335,6 @@ export default function StyleReferencesPage() {
                       refId={ref.id}
                       title={ref.title || 'Untitled Reference'}
                       isEditing={renamingId === ref.id}
-                      onSaved={handleTitleSaved}
                       onStopEdit={() => setRenamingId(null)}
                     />
                     {renamingId !== ref.id && (

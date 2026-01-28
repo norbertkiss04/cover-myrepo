@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Masonry from 'react-masonry-css';
 import { ArrowDownTrayIcon, TrashIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
-import { generationApi } from '../services/api';
-import { useGenerations, useStyleReferences, useInvalidateGenerations } from '../hooks/useApiQueries';
+import { useGenerations, useStyleReferences, useDeleteGeneration } from '../hooks/useApiQueries';
 import GenerationSettingsModal from '../components/GenerationSettingsModal';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import ErrorState from '../components/common/ErrorState';
@@ -17,20 +16,14 @@ export default function HistoryPage() {
 
   const { data: generationsData, isLoading, error, refetch } = useGenerations(page);
   const { data: styleReferences = [] } = useStyleReferences();
-  const invalidateGenerations = useInvalidateGenerations();
+  const deleteGeneration = useDeleteGeneration();
 
   const generations = generationsData?.generations ?? [];
   const totalPages = generationsData?.pages ?? 1;
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = (id: number) => {
     if (!confirm('Are you sure you want to delete this generation?')) return;
-
-    try {
-      await generationApi.delete(id);
-      invalidateGenerations();
-    } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to delete');
-    }
+    deleteGeneration.mutate(id);
   };
 
   if (isLoading) return <LoadingSpinner />;

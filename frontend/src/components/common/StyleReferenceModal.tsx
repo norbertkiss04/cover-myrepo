@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon, PencilIcon, TrashIcon, CheckIcon } from '@heroicons/react/24/outline';
 import type { StyleReference } from '../../types';
-import { generationApi } from '../../services/api';
+import { useUpdateStyleReference } from '../../hooks/useApiQueries';
 
 type ImageVariant = 'original' | 'clean' | 'text_layer';
 
@@ -10,7 +10,7 @@ interface StyleReferenceModalProps {
   styleRef: StyleReference | null;
   isOpen: boolean;
   onClose: () => void;
-  onUpdate: (updated: StyleReference) => void;
+  onUpdate: (id: number, data: Partial<Pick<StyleReference, 'title' | 'feeling' | 'layout' | 'illustration_rules' | 'typography'>>) => void;
   onDelete: (id: number) => void;
 }
 
@@ -24,8 +24,8 @@ export default function StyleReferenceModal({
   const [selectedVariant, setSelectedVariant] = useState<ImageVariant>('original');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const updateMutation = useUpdateStyleReference();
 
   useEffect(() => {
     if (styleRef) {
@@ -70,24 +70,16 @@ export default function StyleReferenceModal({
   if (styleRef.clean_image_url) availableVariants.push('clean');
   if (styleRef.text_layer_url) availableVariants.push('text_layer');
 
-  const handleSaveTitle = async () => {
+  const handleSaveTitle = () => {
     const trimmed = titleValue.trim();
     if (!trimmed || trimmed === styleRef.title) {
       setTitleValue(styleRef.title || 'Untitled Reference');
       setIsEditingTitle(false);
       return;
     }
-    setIsSaving(true);
-    try {
-      const updated = await generationApi.updateStyleReference(styleRef.id, { title: trimmed });
-      onUpdate(updated);
-      setIsEditingTitle(false);
-    } catch {
-      setTitleValue(styleRef.title || 'Untitled Reference');
-      setIsEditingTitle(false);
-    } finally {
-      setIsSaving(false);
-    }
+    updateMutation.mutate({ id: styleRef.id, data: { title: trimmed } });
+    onUpdate(styleRef.id, { title: trimmed });
+    setIsEditingTitle(false);
   };
 
   const handleTitleKeyDown = (e: React.KeyboardEvent) => {
@@ -189,7 +181,6 @@ export default function StyleReferenceModal({
                           onChange={(e) => setTitleValue(e.target.value)}
                           onBlur={handleSaveTitle}
                           onKeyDown={handleTitleKeyDown}
-                          disabled={isSaving}
                           className="flex-1 text-xl font-heading font-bold text-text bg-surface-alt border border-border rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-accent"
                         />
                       ) : (
@@ -201,7 +192,6 @@ export default function StyleReferenceModal({
                       {isEditingTitle ? (
                         <button
                           onClick={handleSaveTitle}
-                          disabled={isSaving}
                           className="p-2 bg-accent hover:bg-accent-hover text-white rounded-lg transition-colors"
                         >
                           <CheckIcon className="w-5 h-5" />

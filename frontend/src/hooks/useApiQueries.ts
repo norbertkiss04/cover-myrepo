@@ -1,4 +1,5 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import { generationApi } from '../services/api';
 import type { Generation, PaginatedResponse, AspectRatioInfo, StyleReference } from '../types';
 
@@ -47,4 +48,92 @@ export function useInvalidateStyleReferences() {
 export function useInvalidateGenerations() {
   const queryClient = useQueryClient();
   return () => queryClient.invalidateQueries({ queryKey: ['generations'] });
+}
+
+export function useDeleteGeneration() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: number) => generationApi.delete(id),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['generations'] });
+
+      const previousQueries = queryClient.getQueriesData<PaginatedResponse<Generation>>({ queryKey: ['generations'] });
+
+      queryClient.setQueriesData<PaginatedResponse<Generation>>(
+        { queryKey: ['generations'] },
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            generations: old.generations.filter((g) => g.id !== id),
+            total: old.total - 1,
+          };
+        }
+      );
+
+      return { previousQueries };
+    },
+    onError: (_err, _id, context) => {
+      context?.previousQueries?.forEach(([queryKey, data]) => {
+        queryClient.setQueryData(queryKey, data);
+      });
+      toast.error('Failed to delete generation');
+    },
+  });
+}
+
+export function useDeleteStyleReference() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: number) => generationApi.deleteStyleReference(id),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.styleReferences });
+
+      const previous = queryClient.getQueryData<StyleReference[]>(queryKeys.styleReferences);
+
+      queryClient.setQueryData<StyleReference[]>(
+        queryKeys.styleReferences,
+        (old) => old?.filter((r) => r.id !== id) ?? []
+      );
+
+      return { previous };
+    },
+    onError: (_err, _id, context) => {
+      queryClient.setQueryData(queryKeys.styleReferences, context?.previous);
+      toast.error('Failed to delete style reference');
+    },
+  });
+}
+
+export function useUpdateStyleReference() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<Pick<StyleReference, 'title' | 'feeling' | 'layout' | 'illustration_rules' | 'typography'>> }) =>
+      generationApi.updateStyleReference(id, data),
+    onMutate: async ({ id, data }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.styleReferences });
+
+      const previous = queryClient.getQueryData<StyleReference[]>(queryKeys.styleReferences);
+
+      queryClient.setQueryData<StyleReference[]>(
+        queryKeys.styleReferences,
+        (old) => old?.map((r) => (r.id === id ? { ...r, ...data } : r)) ?? []
+      );
+
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      queryClient.setQueryData(queryKeys.styleReferences, context?.previous);
+      toast.error('Failed to update style reference');
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData<StyleReference[]>(
+        queryKeys.styleReferences,
+        (old) => old?.map((r) => (r.id === updated.id ? updated : r)) ?? []
+      );
+    },
+  });
 }
