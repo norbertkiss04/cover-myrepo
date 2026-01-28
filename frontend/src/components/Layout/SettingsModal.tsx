@@ -35,15 +35,12 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {}
       <div
         className="absolute inset-0 bg-black/40"
         onClick={onClose}
       />
 
-      {}
-      <div className="relative bg-surface border border-border rounded-2xl shadow-lg w-full max-w-sm mx-4 p-6">
-        {}
+      <div className="relative bg-surface border border-border rounded-2xl shadow-lg w-full max-w-2xl mx-4 p-7 sm:p-8 max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-heading font-semibold text-text tracking-tight">Settings</h2>
           <button
@@ -57,7 +54,6 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           </button>
         </div>
 
-        {}
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-text">Theme</span>
           <div className="flex bg-surface-alt border border-border rounded-lg p-0.5">
@@ -90,7 +86,6 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           </div>
         </div>
 
-        {}
         <div className="mt-6 pt-6 border-t border-border">
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm font-medium text-text">Default Form Fields</span>
@@ -101,36 +96,42 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           <p className="text-xs text-text-muted mb-3">
             Choose which optional fields appear by default on the generation form.
           </p>
-          <div className="space-y-2">
+          <div className="flex flex-wrap gap-2">
             {OPTIONAL_FIELDS.map(({ key, label }) => {
               const visibleFields = user?.preferences?.visible_fields || [];
-              const isChecked = visibleFields.includes(key);
+              const isActive = visibleFields.includes(key);
 
               return (
-                <label
+                <button
                   key={key}
-                  className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-surface-alt transition-colors cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    onChange={async () => {
-                      const newFields = isChecked
-                        ? visibleFields.filter((f) => f !== key)
-                        : [...visibleFields, key];
-                      setSaving(true);
-                      try {
-                        await updatePreferences({ visible_fields: newFields });
-                      } catch {
+                  type="button"
+                  aria-pressed={isActive}
+                  onClick={async () => {
+                    const newFields = isActive
+                      ? visibleFields.filter((f) => f !== key)
+                      : [...visibleFields, key];
+                    setSaving(true);
+                    try {
+                      await updatePreferences({ visible_fields: newFields });
+                    } catch {
 
-                      } finally {
-                        setSaving(false);
-                      }
-                    }}
-                    className="w-4 h-4 rounded border-border text-accent focus:ring-accent/40"
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                  className={`group flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-accent text-white border-accent shadow-sm'
+                      : 'bg-surface-alt text-text-secondary border-border hover:border-accent/40 hover:text-text'
+                  }`}
+                >
+                  <span
+                    className={`h-2 w-2 rounded-full transition-colors ${
+                      isActive ? 'bg-white' : 'bg-border-strong group-hover:bg-accent/40'
+                    }`}
                   />
-                  <span className="text-sm text-text">{label}</span>
-                </label>
+                  {label}
+                </button>
               );
             })}
           </div>
