@@ -31,7 +31,6 @@ class ImageService:
 
     def _submit(self, url, payload):
         logger.info(f"Submitting job to {url}")
-        logger.debug(f"Payload: {payload}")
 
         r = requests.post(url, headers=self._headers(), json=payload, timeout=30)
         if r.status_code != 200:

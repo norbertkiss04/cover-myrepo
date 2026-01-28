@@ -78,8 +78,6 @@ def handle_connect(auth=None):
     token = None
     if auth and isinstance(auth, dict):
         token = auth.get('token')
-    if not token:
-        token = request.args.get('token')
 
     if not token:
         logger.warning("Socket connect rejected: no token (sid=%s)", request.sid)
@@ -166,7 +164,7 @@ def handle_start_generation(data):
     credit_result = deduct_credits(user, GENERATION_COST)
     if not credit_result['success']:
         emit('generation_error', {
-            'error': f'Insufficient credits. You need {GENERATION_COST} credits to generate a cover.',
+            'error': 'Not enough credits to generate a cover.',
         })
         return
 
@@ -286,7 +284,7 @@ def handle_start_regeneration(data):
     credit_result = deduct_credits(user, GENERATION_COST)
     if not credit_result['success']:
         emit('generation_error', {
-            'error': f'Insufficient credits. You need {GENERATION_COST} credits to regenerate a cover.',
+            'error': 'Not enough credits to regenerate a cover.',
         })
         return
 
@@ -409,7 +407,7 @@ def _run_generation_task(app, generation, user_id, style_analysis, style_referen
 
             _sb().table('generations').update({
                 'status': 'failed',
-                'error_message': str(e),
+                'error_message': 'Generation failed. Please try again.',
             }).eq('id', gen_id).execute()
 
             from app.models.user import User
@@ -422,6 +420,6 @@ def _run_generation_task(app, generation, user_id, style_analysis, style_referen
 
             socketio.emit('generation_failed', {
                 'generation_id': gen_id,
-                'error': str(e),
+                'error': 'Generation failed. Please try again.',
                 'remaining_credits': remaining,
             }, room=room)

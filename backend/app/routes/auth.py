@@ -13,10 +13,7 @@ def get_user_from_token(token):
     try:
         logger.debug("Validating token via Supabase...")
         response = current_app.supabase.auth.get_user(token)
-        logger.info(
-            "Token valid for %s (supabase_id=%s)",
-            response.user.email, response.user.id,
-        )
+        logger.info("Token valid (supabase_id=%s)", response.user.id)
         return response.user
     except Exception as e:
         logger.warning("Token validation failed: %s", e)
@@ -55,9 +52,9 @@ def token_required(f):
 
         if result.data:
             user = User.from_row(result.data[0])
-            logger.info("User found in DB (id=%s, email=%s)", user.id, email)
+            logger.info("User found in DB (id=%s)", user.id)
         else:
-            logger.info("User not found in DB, creating new user (email=%s)", email)
+            logger.info("User not found in DB, creating new user (supabase_id=%s)", supabase_user_id)
             metadata = supabase_user.user_metadata or {}
             new_user_data = {
                 'google_id': supabase_user_id,
@@ -76,7 +73,7 @@ def token_required(f):
             try:
                 insert_result = sb.table('users').insert(new_user_data).execute()
                 user = User.from_row(insert_result.data[0])
-                logger.info("User created (id=%s, email=%s, credits=%d)", user.id, email, user.credits)
+                logger.info("User created (id=%s, credits=%d)", user.id, user.credits)
             except Exception as e:
                 logger.warning(
                     "User insert failed (likely race condition), retrying lookup: %s", e
@@ -88,7 +85,7 @@ def token_required(f):
                     user = User.from_row(result.data[0])
                     logger.info("User found on retry (id=%s)", user.id)
                 else:
-                    logger.error("Failed to create or find user (email=%s)", email)
+                    logger.error("Failed to create or find user (supabase_id=%s)", supabase_user_id)
                     return jsonify({'error': 'Failed to create user'}), 500
 
         return f(user, *args, **kwargs)
@@ -133,7 +130,7 @@ def sync_user(current_user):
 @token_required
 def update_preferences(current_user):
     data = request.get_json() or {}
-    logger.info("Updating preferences for user id=%s: %s", current_user.id, data)
+    logger.info("Updating preferences for user id=%s (fields=%s)", current_user.id, list(data.keys()))
 
     sb = current_app.supabase
     result = sb.table('users').update(

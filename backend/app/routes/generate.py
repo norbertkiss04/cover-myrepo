@@ -110,7 +110,7 @@ def analyze_style(current_user):
     credit_result = deduct_credits(current_user, ANALYSIS_COST)
     if not credit_result['success']:
         return jsonify({
-            'error': f'Insufficient credits. You need {ANALYSIS_COST} credit to analyze a style reference.',
+            'error': 'Not enough credits to analyze a style reference.',
         }), 403
 
     logger.info("Style analysis request from user id=%s", current_user.id)
@@ -165,7 +165,7 @@ def analyze_style(current_user):
         logger.error("Style analysis failed: %s", e, exc_info=True)
         from app.services.credit_service import refund_credits
         refund_credits(current_user, ANALYSIS_COST)
-        return jsonify({'error': 'Style analysis failed', 'details': str(e)}), 500
+        return jsonify({'error': 'Style analysis failed. Please try again.'}), 500
 
 @generate_bp.route('/style-references', methods=['GET'])
 @token_required

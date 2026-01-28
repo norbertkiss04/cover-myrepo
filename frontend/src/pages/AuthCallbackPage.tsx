@@ -12,7 +12,7 @@ export default function AuthCallbackPage() {
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
     const errorDescription = hashParams.get('error_description');
     if (errorDescription) {
-      setError(errorDescription);
+      setError('Sign-in failed. Please try again.');
       return;
     }
 

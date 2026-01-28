@@ -30,7 +30,7 @@ _metrics = {
 
 def create_app(config_name=None):
     if config_name is None:
-        config_name = os.getenv('FLASK_ENV', 'development')
+        config_name = os.getenv('FLASK_ENV', 'production')
 
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
@@ -121,24 +121,6 @@ def create_app(config_name=None):
     @app.route('/health')
     def health():
         return {'status': 'healthy', 'service': 'instacover-api'}
-
-    @app.route('/metrics')
-    def metrics():
-        try:
-            import resource
-            mem_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
-        except Exception:
-            mem_mb = None
-
-        return jsonify({
-            'uptime_seconds': round(time.time() - _app_start_time, 1),
-            'requests_total': _metrics['requests_total'],
-            'errors_total': _metrics['errors_total'],
-            'requests_by_method': _metrics['requests_by_method'],
-            'requests_by_status': _metrics['requests_by_status'],
-            'python_version': sys.version,
-            'memory_mb': mem_mb,
-        })
 
     logger.info("App ready (%s)", config_name)
     return app
