@@ -1,4 +1,3 @@
-import base64
 import logging
 import requests as http_requests
 from datetime import datetime, timezone
@@ -6,7 +5,7 @@ from datetime import datetime, timezone
 from app.models.generation import Generation
 from app.models.style_reference import StyleReference
 from app.services.llm_service import llm_service
-from app.services.image_service import image_service
+from app.services.image_service import image_service, detect_and_crop_border
 from app.services.storage_service import storage_service
 from app.utils.db import get_supabase
 
@@ -22,16 +21,13 @@ def _check_and_remove_border(image_url, gen_id):
         logger.info("Gen #%s: Checking for borders...", gen_id)
         response = http_requests.get(image_url, timeout=60)
         response.raise_for_status()
-        image_b64 = base64.b64encode(response.content).decode()
-        image_data_url = f"data:image/png;base64,{image_b64}"
 
-        border_check = llm_service.detect_border(image_data_url)
+        cropped_bytes = detect_and_crop_border(response.content)
 
-        if border_check.get('has_border'):
-            logger.info("Gen #%s: Border detected, running removal pass...", gen_id)
-            removal_result = image_service.remove_border(image_url)
-            logger.info("Gen #%s: Border removal complete", gen_id)
-            return removal_result['image_url']
+        if cropped_bytes is not None:
+            logger.info("Gen #%s: Border detected and cropped", gen_id)
+            upload = storage_service.upload_bytes(cropped_bytes, folder='covers')
+            return upload['public_url']
         else:
             logger.info("Gen #%s: No border detected", gen_id)
             return image_url

@@ -1,9 +1,81 @@
+import io
 import time
 import logging
 import requests
 from flask import current_app
+from PIL import Image
 
 logger = logging.getLogger(__name__)
+
+
+def _colors_similar(c1, c2, tolerance):
+    return (abs(c1[0] - c2[0]) <= tolerance and
+            abs(c1[1] - c2[1]) <= tolerance and
+            abs(c1[2] - c2[2]) <= tolerance)
+
+
+def _is_uniform_row(pixels, width, y, tolerance):
+    first_pixel = pixels[0, y]
+    for x in range(1, width):
+        if not _colors_similar(first_pixel, pixels[x, y], tolerance):
+            return False
+    return True
+
+
+def _is_uniform_column(pixels, height, x, tolerance):
+    first_pixel = pixels[x, 0]
+    for y in range(1, height):
+        if not _colors_similar(first_pixel, pixels[x, y], tolerance):
+            return False
+    return True
+
+
+def _find_content_start_top(pixels, width, height, tolerance, min_border):
+    for y in range(height):
+        if not _is_uniform_row(pixels, width, y, tolerance):
+            return y if y >= min_border else 0
+    return 0
+
+
+def _find_content_start_bottom(pixels, width, height, tolerance, min_border):
+    for y in range(height - 1, -1, -1):
+        if not _is_uniform_row(pixels, width, y, tolerance):
+            return y + 1 if (height - 1 - y) >= min_border else height
+    return height
+
+
+def _find_content_start_left(pixels, width, height, tolerance, min_border):
+    for x in range(width):
+        if not _is_uniform_column(pixels, height, x, tolerance):
+            return x if x >= min_border else 0
+    return 0
+
+
+def _find_content_start_right(pixels, width, height, tolerance, min_border):
+    for x in range(width - 1, -1, -1):
+        if not _is_uniform_column(pixels, height, x, tolerance):
+            return x + 1 if (width - 1 - x) >= min_border else width
+    return width
+
+
+def detect_and_crop_border(image_bytes, tolerance=30, min_border_size=5):
+    img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
+    width, height = img.size
+    pixels = img.load()
+
+    top = _find_content_start_top(pixels, width, height, tolerance, min_border_size)
+    bottom = _find_content_start_bottom(pixels, width, height, tolerance, min_border_size)
+    left = _find_content_start_left(pixels, width, height, tolerance, min_border_size)
+    right = _find_content_start_right(pixels, width, height, tolerance, min_border_size)
+
+    if top == 0 and bottom == height and left == 0 and right == width:
+        return None
+
+    cropped = img.crop((left, top, right, bottom))
+
+    output = io.BytesIO()
+    cropped.save(output, format='PNG')
+    return output.getvalue()
 
 
 class ImageService:
@@ -141,30 +213,6 @@ class ImageService:
         )
         image_url = self._poll(job_id)
         logger.info("Text removal complete")
-        return {'image_url': image_url}
-
-    def remove_border(self, image_url):
-        self._get_config()
-
-        payload = {
-            'prompt': (
-                'Extend this image to fill the entire canvas edge-to-edge. '
-                'Remove all white borders, margins, letterboxing, and empty space around the edges. '
-                'Expand the existing artwork naturally to reach all edges. '
-                'The final image must have NO borders or empty space - content must touch all four edges.'
-            ),
-            'images': [image_url],
-            'enable_base64_output': False,
-            'enable_sync_mode': False,
-        }
-
-        logger.info("Submitting border removal job")
-        job_id = self._submit(
-            f'{self.base_url}/bytedance/seedream-v4.5/edit',
-            payload
-        )
-        image_url = self._poll(job_id)
-        logger.info("Border removal complete")
         return {'image_url': image_url}
 
 image_service = ImageService()
