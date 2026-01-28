@@ -7,3 +7,8 @@
 
 ## Code Style
 - Do NOT write comments in the code. No inline comments, no block comments, no docstrings, no TODO comments. The code should be self-explanatory through clear naming and structure.
+
+## Security
+- Always scope database queries to the authenticated user's ID. Never expose or modify another user's data.
+- Never trust user input — validate types, enforce length limits, and sanitize before storing or passing to external services.
+- Never hardcode or provide defaults for secrets. Serve only signed URLs, never raw storage paths.
