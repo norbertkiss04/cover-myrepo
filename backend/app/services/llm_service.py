@@ -57,30 +57,40 @@ STYLE_ANALYSIS_PROMPT = """Act as an expert Senior Art Director and Book Cover D
 
 Ignore the specific subject matter (e.g., do not describe "a dog" or "a mermaid"); instead, describe the artistic techniques and design choices so they can be applied to a completely different subject.
 
+IMPORTANT: Do NOT use percentages, pixel values, or specific numbers in your analysis. Use only relative descriptive terms.
+
 Provide your analysis for these areas:
 
 1. Feeling: Describe the emotional resonance and atmosphere. What is the psychological hook? (e.g., whimsical, terrifying, authoritative, romantic). Who is the target audience and what promise does the cover make to them?
 
-2. Layout: Analyze the composition structure. How is the space divided (e.g., rule of thirds, central symmetry, top-heavy)? Where is the negative space? How does the text interact with the imagery (framed by it, overlapping it, isolated from it)?
+2. Layout & Subject Focus: Analyze the composition and what the image emphasizes:
+   - Composition structure (rule of thirds, central symmetry, diagonal, top-heavy, bottom-heavy)
+   - Primary subject type (single figure, couple, group of people, object, environment/landscape, abstract pattern)
+   - Subject prominence (fills most of frame, medium presence, small element in larger scene)
+   - Subject placement (centered, off-center left/right, rule-of-thirds intersection, full bleed edge-to-edge)
+   - Figure-ground relationship (subject dominates over background, balanced with background, background-dominant)
+   - Negative space location and amount (minimal, moderate, abundant; where located)
+   - How text interacts with imagery (framed by it, overlapping it, isolated in negative space)
 
 3. Illustration Rules (or Visual Style): Describe the medium and artistic technique. If illustrated: Analyze the line work (clean vs. sketchy), shading (cel-shaded, gradient, cross-hatched), and texture (grainy, paper, smooth digital). If photographic: Describe the lighting (soft, harsh, cinematic), depth of field, and color grading. Color Palette: Describe the dominant colors, saturation levels, and contrast.
 
-4. Typography: Provide detailed, actionable typography specifications that can be replicated:
+4. Typography: Provide typography specifications using ONLY relative terms (NO percentages, pixels, or numbers):
 
    TITLE TEXT:
-   - Font category and style (Serif, Sans-Serif, Slab Serif, Display, Script, Handwritten, Blackletter, etc.)
+   - Font category (Serif, Sans-Serif, Slab Serif, Display, Script, Handwritten, Blackletter)
    - Weight (Thin, Light, Regular, Medium, Bold, Black, Ultra Black)
    - Case (ALL CAPS, Title Case, lowercase)
-   - Color description and approximate hex code (e.g., "deep gold metallic, ~#C9A227")
-   - Size relative to cover (e.g., "dominant, ~40% of cover height" or "moderate, ~15% of cover height")
-   - Position (e.g., "centered horizontally, positioned in top 20%" or "left-aligned, bottom third")
-   - Letter spacing (tight/compressed, normal, wide/tracked out)
-   - Effects (drop shadow - describe direction and intensity, outer glow, inner glow, emboss/deboss, outline/stroke, gradient fill, texture overlay, distressed/worn, 3D effect, metallic/foil)
+   - Color with approximate hex code (e.g., "neon mint green ~#50FFB0")
+   - Size relative to cover (small, medium, large, dominant)
+   - Vertical position (top, upper-third, middle, lower-third, bottom)
+   - Horizontal alignment (left, center, right)
+   - Letter spacing (tight, normal, wide)
+   - Effects (drop shadow with direction, glow, outline/stroke, emboss, gradient, distressed, metallic)
 
    AUTHOR NAME:
-   - Same categories as above
-   - Size relative to title (e.g., "~25% of title size")
-   - Position relative to title (e.g., "directly below title with small gap" or "at bottom of cover, separated from title")
+   - Same categories as title
+   - Size relative to title (much smaller, smaller, similar)
+   - Position relative to title (above title, below title with gap, at opposite end of cover)
 
    SUBTITLE (if present, otherwise state "No subtitle"):
    - Same categories as above
