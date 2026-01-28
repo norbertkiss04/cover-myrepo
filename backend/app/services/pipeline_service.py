@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 
 from app.models.generation import Generation
 from app.models.style_reference import StyleReference
-from app.services.llm_service import llm_service
+from app.services.llm_service import llm_service, get_prompt
 from app.services.image_service import image_service, detect_and_crop_border
 from app.services.storage_service import storage_service
 from app.utils.db import get_supabase
@@ -200,9 +200,9 @@ def run_style_ref_pipeline(
 
     progress(current_step, total_steps, "Generating image prompt...")
     if base_image_only:
-        unified_prompt = llm_service.generate_style_referenced_prompt_no_text(book_data, style_analysis=style_analysis)
+        unified_prompt = llm_service.generate_style_referenced_prompt_no_text(book_data, style_analysis=style_analysis, reference_mode=reference_mode)
     else:
-        unified_prompt = llm_service.generate_style_referenced_prompt(book_data, style_analysis=style_analysis)
+        unified_prompt = llm_service.generate_style_referenced_prompt(book_data, style_analysis=style_analysis, reference_mode=reference_mode)
 
     logger.info("Gen #%s Step %d/%d done. Prompt length: %d chars", gen_id, current_step, total_steps, len(unified_prompt))
     get_supabase().table('generations').update(
@@ -212,9 +212,15 @@ def run_style_ref_pipeline(
 
     progress(current_step, total_steps, "Generating final cover...")
 
+    reference_mode_prefix_key = f'reference_mode_prefix_{reference_mode}'
+    reference_mode_prefix = get_prompt('style_reference', reference_mode_prefix_key)
+    final_prompt_with_prefix = reference_mode_prefix + unified_prompt
+
+    logger.info("Gen #%s Using reference_mode=%s, prefix length=%d chars", gen_id, reference_mode, len(reference_mode_prefix))
+
     final_result = image_service.generate_image_with_text(
         [signed_ref_url],
-        unified_prompt,
+        final_prompt_with_prefix,
         aspect_ratio,
     )
     final_image_url = final_result['image_url']

@@ -51,15 +51,25 @@ def _build_book_details_content(book_data, include_title=True):
     return "\n".join(parts)
 
 
-def _build_style_analysis_section(style_analysis):
+def _build_style_analysis_section(style_analysis, mode='both'):
     if not style_analysis:
         return ""
 
-    has_content = any(style_analysis.get(k) for k in ['feeling', 'layout', 'illustration_rules', 'typography'])
+    if mode == 'text':
+        template_key = 'style_analysis_template_text'
+        required_keys = ['typography']
+    elif mode == 'background':
+        template_key = 'style_analysis_template_background'
+        required_keys = ['feeling', 'layout', 'illustration_rules']
+    else:
+        template_key = 'style_analysis_template_both'
+        required_keys = ['feeling', 'layout', 'illustration_rules', 'typography']
+
+    has_content = any(style_analysis.get(k) for k in required_keys)
     if not has_content:
         return ""
 
-    template = get_prompt('style_reference', 'style_analysis_template')
+    template = get_prompt('style_reference', template_key)
     return template.format(
         feeling=style_analysis.get('feeling', ''),
         layout=style_analysis.get('layout', ''),
@@ -199,7 +209,7 @@ class LLMService:
         result = self._make_request(messages, schema=get_prompt_schema('cover_prompt'))
         return result['prompt']
 
-    def generate_style_referenced_prompt(self, book_data, include_text=True, style_analysis=None):
+    def generate_style_referenced_prompt(self, book_data, include_text=True, style_analysis=None, reference_mode='both'):
         if include_text:
             system_prompt = get_prompt('style_reference', 'system_with_text')
         else:
@@ -224,7 +234,7 @@ class LLMService:
         if extra_details:
             extra_details += "\n"
 
-        style_analysis_section = _build_style_analysis_section(style_analysis)
+        style_analysis_section = _build_style_analysis_section(style_analysis, mode=reference_mode)
 
         if include_text:
             user_content = get_prompt('style_reference', 'user_template_with_text').format(
@@ -247,7 +257,7 @@ class LLMService:
         result = self._make_request(messages, schema=get_prompt_schema('cover_prompt'))
         return result['prompt']
 
-    def generate_style_referenced_prompt_no_text(self, book_data, style_analysis=None):
-        return self.generate_style_referenced_prompt(book_data, include_text=False, style_analysis=style_analysis)
+    def generate_style_referenced_prompt_no_text(self, book_data, style_analysis=None, reference_mode='both'):
+        return self.generate_style_referenced_prompt(book_data, include_text=False, style_analysis=style_analysis, reference_mode=reference_mode)
 
 llm_service = LLMService()
