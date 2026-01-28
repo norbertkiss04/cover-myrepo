@@ -254,18 +254,23 @@ class ImageService:
         logger.info("Text removal complete")
         return {'image_url': image_url}
 
-    def isolate_text_layer(self, image_url, background_color):
+    def isolate_text_layer(self, image_url, background_color, note=None):
         self._get_config()
 
+        base_prompt = (
+            f'Create an image with ONLY the text and typography from this book cover. '
+            f'Remove ALL illustrations, photos, artwork, people, objects, and backgrounds. '
+            f'Keep ONLY: the book title and author name. Remove all other text including subtitles, taglines, quotes, and blurbs. '
+            f'Fill the ENTIRE background with solid flat {background_color} color. '
+            f'Text must remain in its original position, font style, and color. '
+            f'Nothing else should be visible except text on solid {background_color}.'
+        )
+
+        if note:
+            base_prompt += f' Additional instructions: {note}'
+
         payload = {
-            'prompt': (
-                f'Create an image with ONLY the text and typography from this book cover. '
-                f'Remove ALL illustrations, photos, artwork, people, objects, and backgrounds. '
-                f'Keep ONLY: the book title and author name. Remove all other text including subtitles, taglines, quotes, and blurbs. '
-                f'Fill the ENTIRE background with solid flat {background_color} color. '
-                f'Text must remain in its original position, font style, and color. '
-                f'Nothing else should be visible except text on solid {background_color}.'
-            ),
+            'prompt': base_prompt,
             'images': [image_url],
             'enable_base64_output': False,
             'enable_sync_mode': False,

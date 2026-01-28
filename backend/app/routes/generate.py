@@ -269,6 +269,7 @@ VALID_REGENERATE_PARTS = {'clean', 'text_layer', 'feeling', 'layout', 'illustrat
 def regenerate_style_reference_part(current_user, ref_id):
     data = request.get_json()
     part = data.get('part')
+    note = data.get('note', '').strip() if data.get('note') else ''
 
     if not part or part not in VALID_REGENERATE_PARTS:
         return jsonify({'error': f'Invalid part. Must be one of: {", ".join(sorted(VALID_REGENERATE_PARTS))}'}), 400
@@ -324,7 +325,9 @@ def regenerate_style_reference_part(current_user, ref_id):
             image_data_url = f"data:image/png;base64,{base64.b64encode(image_bytes).decode()}"
 
             background_color = get_contrasting_background(image_bytes)
-            text_layer_result = image_service.isolate_text_layer(image_data_url, background_color)
+            text_layer_result = image_service.isolate_text_layer(
+                image_data_url, background_color, note=note if note else None
+            )
 
             response = http_requests.get(text_layer_result['image_url'], timeout=60)
             response.raise_for_status()
