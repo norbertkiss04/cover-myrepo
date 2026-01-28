@@ -284,7 +284,7 @@ class ImageService:
             'prompt': (
                 f'Create an image with ONLY the text and typography from this book cover. '
                 f'Remove ALL illustrations, photos, artwork, people, objects, and backgrounds. '
-                f'Keep ONLY: title, author name, subtitles, and any other text/letters. '
+                f'Keep ONLY: the book title and author name. Remove all other text including subtitles, taglines, quotes, and blurbs. '
                 f'Fill the ENTIRE background with solid flat {background_color} color. '
                 f'Text must remain in its original position, font style, and color. '
                 f'Nothing else should be visible except text on solid {background_color}.'
@@ -310,7 +310,7 @@ class ImageService:
             'prompt': (
                 f'{removal_prompt} '
                 f'Replace all removed elements with solid flat {background_color} background. '
-                f'Keep only the main book title, author name, and subtitle text intact. '
+                f'Keep only the main book title and author name intact. '
                 f'CRITICAL: Do NOT move, reposition, or shift the text in any way — the text must remain at its EXACT original pixel location. '
                 f'Maintain the exact font style, size, and color of the kept text. '
                 f'The background must remain solid {background_color} with no artifacts or remnants.'

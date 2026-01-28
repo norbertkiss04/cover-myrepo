@@ -69,7 +69,7 @@ TEXT_LAYER_ANALYSIS_SCHEMA = {
 
 TEXT_LAYER_ANALYSIS_PROMPT = """Analyze this isolated text layer image from a book cover.
 
-The image should contain ONLY text (title, author name, subtitle) on a solid colored background.
+The image should contain ONLY the book title and author name on a solid colored background.
 
 Check if there are any unwanted elements that need to be removed:
 - Background artifacts or remnants of the original cover
@@ -77,11 +77,11 @@ Check if there are any unwanted elements that need to be removed:
 - Publisher logos or imprints
 - Award badges or stickers
 - Review quotes or blurbs
-- Any non-essential text that isn't the title, author name, or subtitle
+- Subtitles, taglines, or any other text that isn't the title or author name
 
 Respond with:
 1. needs_cleanup: true if there are elements to remove, false if the image is clean
-2. removal_prompt: if needs_cleanup is true, provide a specific prompt describing what to remove (e.g., "Remove the decorative border frame and the 'New York Times Bestseller' badge"). If needs_cleanup is false, set this to null."""
+2. removal_prompt: if needs_cleanup is true, provide a specific prompt describing what to remove (e.g., "Remove the decorative border frame, the subtitle, and the 'New York Times Bestseller' badge"). If needs_cleanup is false, set this to null."""
 
 STYLE_ANALYSIS_PROMPT = """Act as an expert Senior Art Director and Book Cover Designer. Analyze the visual style of the provided image to create a transferable design brief. 
 
