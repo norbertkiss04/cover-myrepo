@@ -133,7 +133,37 @@ def analyze_style(current_user):
             )
             text_layer_url = text_layer_upload['public_url']
             text_layer_path = text_layer_upload['path']
-            logger.info("Text layer created: %s", text_layer_path)
+            logger.info("Initial text layer created: %s", text_layer_path)
+
+            try:
+                logger.info("Analyzing text layer for cleanup...")
+                signed_text_layer_url = storage_service.get_signed_url(text_layer_path, expires_in=600)
+                text_layer_response = http_requests.get(signed_text_layer_url, timeout=60)
+                text_layer_response.raise_for_status()
+                text_layer_b64 = base64.b64encode(text_layer_response.content).decode()
+                text_layer_data_url = f"data:image/png;base64,{text_layer_b64}"
+
+                cleanup_analysis = llm_service.analyze_text_layer(text_layer_data_url)
+
+                if cleanup_analysis.get('needs_cleanup') and cleanup_analysis.get('removal_prompt'):
+                    logger.info("Text layer needs cleanup, running cleanup phase...")
+                    cleanup_result = image_service.cleanup_text_layer(
+                        text_layer_data_url,
+                        cleanup_analysis['removal_prompt'],
+                        bg_color
+                    )
+                    cleanup_upload = storage_service.upload_from_url(
+                        cleanup_result['image_url'],
+                        folder='references-text'
+                    )
+                    text_layer_url = cleanup_upload['public_url']
+                    text_layer_path = cleanup_upload['path']
+                    logger.info("Cleaned text layer saved: %s", text_layer_path)
+                else:
+                    logger.info("Text layer is clean, no cleanup needed")
+            except Exception as cleanup_error:
+                logger.warning("Text layer cleanup failed, using initial version: %s", cleanup_error)
+
         except Exception as e:
             logger.warning("Text layer creation failed, continuing without it: %s", e)
 

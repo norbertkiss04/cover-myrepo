@@ -185,4 +185,29 @@ class ImageService:
         logger.info("Text layer isolation complete")
         return {'image_url': image_url}
 
+    def cleanup_text_layer(self, image_url, removal_prompt, background_color):
+        self._get_config()
+
+        payload = {
+            'prompt': (
+                f'{removal_prompt} '
+                f'Replace all removed elements with solid flat {background_color} background. '
+                f'Keep only the main book title, author name, and subtitle text intact. '
+                f'Maintain the exact position, font style, size, and color of the kept text. '
+                f'The background must remain solid {background_color} with no artifacts or remnants.'
+            ),
+            'images': [image_url],
+            'enable_base64_output': False,
+            'enable_sync_mode': False,
+        }
+
+        logger.info("Submitting text layer cleanup job")
+        job_id = self._submit(
+            f'{self.base_url}/bytedance/seedream-v4.5/edit',
+            payload
+        )
+        image_url = self._poll(job_id)
+        logger.info("Text layer cleanup complete")
+        return {'image_url': image_url}
+
 image_service = ImageService()

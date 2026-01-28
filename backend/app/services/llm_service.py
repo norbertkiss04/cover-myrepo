@@ -53,6 +53,50 @@ STYLE_ANALYSIS_SCHEMA = {
     },
 }
 
+TEXT_LAYER_ANALYSIS_SCHEMA = {
+    "name": "text_layer_analysis",
+    "strict": True,
+    "schema": {
+        "type": "object",
+        "properties": {
+            "needs_cleanup": {
+                "type": "boolean",
+            },
+            "removal_prompt": {
+                "type": ["string", "null"],
+            },
+        },
+        "required": ["needs_cleanup", "removal_prompt"],
+        "additionalProperties": False,
+    },
+}
+
+TEXT_LAYER_ANALYSIS_PROMPT = """Analyze this text layer extracted from a book cover.
+
+The text layer SHOULD contain ONLY:
+- The book's main TITLE
+- The AUTHOR NAME  
+- A SUBTITLE (if one exists)
+
+The text layer should NOT contain:
+- Any illustrations, characters, people, objects, or artwork remnants
+- Volume numbers (e.g., "Vol. 1", "Book 2", "#1")
+- Series numbers or series names
+- Award mentions ("Award Winner", "Bestseller", "NYT Bestseller", "#1 New York Times")
+- Publisher names or logos
+- Quotes or endorsements ("Praise for...", review quotes)
+- Generic labels like "A Novel", "A Thriller", "A Memoir"
+- Any decorative non-text elements or visual artifacts
+
+Examine the image carefully and determine:
+1. Does it contain ANY elements that should be removed (non-text elements OR irrelevant text)?
+2. If yes, describe SPECIFICALLY what needs to be removed.
+
+If cleanup is needed, provide a removal_prompt that clearly describes what to remove.
+Example: "Remove the small figure silhouette in the bottom left corner and the 'Award Winner' badge text."
+
+If the text layer is already clean (contains only title, author name, and optional subtitle with no other elements), set needs_cleanup to false and removal_prompt to null."""
+
 STYLE_ANALYSIS_PROMPT = """Act as an expert Senior Art Director and Book Cover Designer. Analyze the visual style of the provided image to create a transferable design brief. 
 
 Ignore the specific subject matter (e.g., do not describe "a dog" or "a mermaid"); instead, describe the artistic techniques and design choices so they can be applied to a completely different subject.
@@ -261,6 +305,39 @@ class LLMService:
                      len(result.get('layout', '')),
                      len(result.get('illustration_rules', '')),
                      len(result.get('typography', '')))
+
+        return result
+
+    def analyze_text_layer(self, text_layer_image_url):
+        logger.info("Analyzing text layer for cleanup via Gemini vision")
+
+        messages = [
+            {
+                'role': 'user',
+                'content': [
+                    {
+                        'type': 'image_url',
+                        'image_url': {
+                            'url': text_layer_image_url,
+                        },
+                    },
+                    {
+                        'type': 'text',
+                        'text': TEXT_LAYER_ANALYSIS_PROMPT,
+                    },
+                ],
+            }
+        ]
+
+        result = self._make_request(
+            messages,
+            schema=TEXT_LAYER_ANALYSIS_SCHEMA,
+            model='google/gemini-3-flash-preview',
+        )
+
+        logger.info("Text layer analysis complete (needs_cleanup=%s)", result.get('needs_cleanup'))
+        if result.get('removal_prompt'):
+            logger.info("Removal prompt: %s", result.get('removal_prompt', '')[:100])
 
         return result
 
