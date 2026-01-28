@@ -318,6 +318,36 @@ class LLMService:
 
         return result
 
+    def detect_border(self, image_data_url):
+        logger.info("Checking image for borders via Gemini vision")
+
+        messages = [
+            {
+                'role': 'user',
+                'content': [
+                    {
+                        'type': 'image_url',
+                        'image_url': {
+                            'url': image_data_url,
+                        },
+                    },
+                    {
+                        'type': 'text',
+                        'text': BORDER_DETECTION_PROMPT,
+                    },
+                ],
+            }
+        ]
+
+        result = self._make_request(
+            messages,
+            schema=BORDER_DETECTION_SCHEMA,
+            model='google/gemini-3-flash-preview',
+        )
+
+        logger.info("Border detection complete (has_border=%s)", result.get('has_border'))
+        return result
+
     def generate_base_image_prompt(self, book_data, style_analysis=None, base_image_only=False):
         text_rule = _TEXT_RULE_BASE_IMAGE_ONLY if base_image_only else _TEXT_RULE_STANDARD
         system_prompt = _BASE_IMAGE_SYSTEM_PROMPT.format(text_rule=text_rule)

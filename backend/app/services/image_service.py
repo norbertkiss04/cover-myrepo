@@ -143,4 +143,28 @@ class ImageService:
         logger.info("Text removal complete")
         return {'image_url': image_url}
 
+    def remove_border(self, image_url):
+        self._get_config()
+
+        payload = {
+            'prompt': (
+                'Extend this image to fill the entire canvas edge-to-edge. '
+                'Remove all white borders, margins, letterboxing, and empty space around the edges. '
+                'Expand the existing artwork naturally to reach all edges. '
+                'The final image must have NO borders or empty space - content must touch all four edges.'
+            ),
+            'images': [image_url],
+            'enable_base64_output': False,
+            'enable_sync_mode': False,
+        }
+
+        logger.info("Submitting border removal job")
+        job_id = self._submit(
+            f'{self.base_url}/bytedance/seedream-v4.5/edit',
+            payload
+        )
+        image_url = self._poll(job_id)
+        logger.info("Border removal complete")
+        return {'image_url': image_url}
+
 image_service = ImageService()

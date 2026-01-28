@@ -1,4 +1,6 @@
+import base64
 import logging
+import requests as http_requests
 from datetime import datetime, timezone
 
 from app.models.generation import Generation
@@ -13,6 +15,29 @@ logger = logging.getLogger(__name__)
 
 class GenerationCancelled(Exception):
     pass
+
+
+def _check_and_remove_border(image_url, gen_id):
+    try:
+        logger.info("Gen #%s: Checking for borders...", gen_id)
+        response = http_requests.get(image_url, timeout=60)
+        response.raise_for_status()
+        image_b64 = base64.b64encode(response.content).decode()
+        image_data_url = f"data:image/png;base64,{image_b64}"
+
+        border_check = llm_service.detect_border(image_data_url)
+
+        if border_check.get('has_border'):
+            logger.info("Gen #%s: Border detected, running removal pass...", gen_id)
+            removal_result = image_service.remove_border(image_url)
+            logger.info("Gen #%s: Border removal complete", gen_id)
+            return removal_result['image_url']
+        else:
+            logger.info("Gen #%s: No border detected", gen_id)
+            return image_url
+    except Exception as border_error:
+        logger.warning("Gen #%s: Border detection/removal failed, using original: %s", gen_id, border_error)
+        return image_url
 
 
 def _check_cancelled(gen_id):
@@ -44,6 +69,7 @@ def run_standard_pipeline(gen_id, generation, book_data, style_analysis, aspect_
     progress(2, total_steps, "Creating base image...")
     base_result = image_service.generate_base_image(base_prompt, aspect_ratio)
     base_image_url = base_result['image_url']
+    base_image_url = _check_and_remove_border(base_image_url, gen_id)
     logger.info("Gen #%s Step 2/%d done. Base image URL received", gen_id, total_steps)
 
     base_upload = storage_service.upload_from_url(base_image_url, folder='base')
@@ -82,6 +108,7 @@ def run_standard_pipeline(gen_id, generation, book_data, style_analysis, aspect_
         aspect_ratio
     )
     final_image_url = final_result['image_url']
+    final_image_url = _check_and_remove_border(final_image_url, gen_id)
 
     final_upload = storage_service.upload_from_url(final_image_url, folder='covers')
     storage_final_url = final_upload['public_url']
@@ -141,6 +168,7 @@ def run_style_ref_pipeline(
         aspect_ratio,
     )
     final_image_url = final_result['image_url']
+    final_image_url = _check_and_remove_border(final_image_url, gen_id)
 
     final_upload = storage_service.upload_from_url(final_image_url, folder='covers')
     storage_final_url = final_upload['public_url']
