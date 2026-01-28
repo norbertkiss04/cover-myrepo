@@ -40,7 +40,6 @@ def _launch_generation(generation, user, credit_result):
         generation.style_analysis,
         generation.style_reference_id,
         generation.use_style_image,
-        generation.cover_style_image,
         generation.aspect_ratio,
         generation.base_image_only,
     )
@@ -156,7 +155,6 @@ def handle_start_generation(data):
         'style_analysis': data.get('style_analysis'),
         'style_reference_id': data.get('style_reference_id'),
         'use_style_image': bool(data.get('use_style_image', False)),
-        'cover_style_image': bool(data.get('cover_style_image', False)),
         'base_image_only': base_image_only,
         'status': 'generating',
     }
@@ -165,8 +163,8 @@ def handle_start_generation(data):
     generation = Generation.from_row(result.data[0])
 
     logger.info(
-        "Gen #%s created via socket (user id=%s, use_style_image=%s, cover=%s)",
-        generation.id, user.id, generation.use_style_image, generation.cover_style_image,
+        "Gen #%s created via socket (user id=%s, use_style_image=%s)",
+        generation.id, user.id, generation.use_style_image,
     )
 
     _launch_generation(generation, user, credit_result)
@@ -246,7 +244,6 @@ def handle_start_regeneration(data):
         'style_analysis': original.style_analysis,
         'style_reference_id': original.style_reference_id,
         'use_style_image': original.use_style_image,
-        'cover_style_image': original.cover_style_image,
         'base_image_only': original.base_image_only,
         'status': 'generating',
     }

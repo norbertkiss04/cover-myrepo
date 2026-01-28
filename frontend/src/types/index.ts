@@ -53,7 +53,6 @@ export interface Generation {
   style_analysis: StyleAnalysis | null;
   style_reference_id: number | null;
   use_style_image: boolean;
-  cover_style_image: boolean;
   base_image_only: boolean;
   aspect_ratio: string;
   aspect_ratio_info: AspectRatioInfo | null;
@@ -78,7 +77,6 @@ export interface GenerationInput {
   style_analysis?: StyleAnalysis;
   style_reference_id?: number;
   use_style_image?: boolean;
-  cover_style_image?: boolean;
   base_image_only?: boolean;
 }
 

@@ -9,7 +9,7 @@ from app.utils.db import get_supabase
 logger = logging.getLogger(__name__)
 
 
-def _run_generation_task(app, generation, user_id, style_analysis, style_reference_id, use_style_image, cover_style_image, aspect_ratio, base_image_only=False):
+def _run_generation_task(app, generation, user_id, style_analysis, style_reference_id, use_style_image, aspect_ratio, base_image_only=False):
     with app.app_context():
         gen_id = generation.id
         room = _room_for(user_id)
@@ -47,7 +47,6 @@ def _run_generation_task(app, generation, user_id, style_analysis, style_referen
                     gen_id, generation, book_data, style_analysis,
                     style_reference_id, aspect_ratio, user_id,
                     on_progress=on_progress,
-                    cover_style_image=cover_style_image,
                     base_image_only=base_image_only,
                 )
             else:

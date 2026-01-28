@@ -1,5 +1,4 @@
 import logging
-import requests as http_requests
 from datetime import datetime, timezone
 
 from app.models.generation import Generation
@@ -101,7 +100,7 @@ def run_standard_pipeline(gen_id, generation, book_data, style_analysis, aspect_
 def run_style_ref_pipeline(
     gen_id, generation, book_data, style_analysis,
     style_reference_id, aspect_ratio, user_id, on_progress=None,
-    cover_style_image=False, base_image_only=False,
+    base_image_only=False,
 ):
     def progress(step, total_steps, message):
         _check_cancelled(gen_id)
@@ -117,7 +116,7 @@ def run_style_ref_pipeline(
 
     style_ref = StyleReference.from_row(ref_result.data[0])
 
-    progress(1, 3, "Generating image prompt...")
+    progress(1, 2, "Generating image prompt...")
     if base_image_only:
         unified_prompt = llm_service.generate_style_referenced_prompt_no_text(
             book_data, style_analysis
@@ -127,31 +126,15 @@ def run_style_ref_pipeline(
             book_data, style_analysis
         )
     unified_prompt += " The image must fill the entire canvas edge-to-edge with absolutely no white borders, margins, or empty space."
-    logger.info("Gen #%s Step 1/3 done. Prompt length: %d chars", gen_id, len(unified_prompt))
+    logger.info("Gen #%s Step 1/2 done. Prompt length: %d chars", gen_id, len(unified_prompt))
     get_supabase().table('generations').update(
         {'base_prompt': unified_prompt}
     ).eq('id', generation.id).execute()
 
-    progress(2, 3, "Preparing style reference...")
+    progress(2, 2, "Generating final cover...")
     signed_ref_url = storage_service.get_signed_url(style_ref.image_path, expires_in=600)
-    ref_response = http_requests.get(signed_ref_url, timeout=60)
-    ref_response.raise_for_status()
-
-    composite_bytes = image_service.compose_reference_on_canvas(
-        ref_response.content, aspect_ratio, cover=cover_style_image
-    )
-    composite_upload = storage_service.upload_file(
-        file_data=composite_bytes,
-        filename='composite.jpg',
-        content_type='image/jpeg',
-        folder='composites',
-    )
-    composite_path = composite_upload.split('/public/')[-1].split('/', 1)[-1]
-    signed_composite_url = storage_service.get_signed_url(composite_path, expires_in=600)
-
-    progress(3, 3, "Generating final cover...")
     final_result = image_service.generate_image_with_text(
-        signed_composite_url,
+        signed_ref_url,
         unified_prompt,
         aspect_ratio,
     )

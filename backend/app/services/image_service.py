@@ -1,8 +1,6 @@
-import io
 import time
 import logging
 import requests
-from PIL import Image
 from flask import current_app
 
 logger = logging.getLogger(__name__)
@@ -99,9 +97,12 @@ class ImageService:
     def generate_image_with_text(self, base_image_url, text_prompt, aspect_ratio='2:3'):
         self._get_config()
 
+        size = self._get_size_string(aspect_ratio)
+
         payload = {
             'prompt': text_prompt,
             'images': [base_image_url],
+            'size': size,
             'enable_base64_output': False,
             'enable_sync_mode': False,
         }
@@ -112,45 +113,5 @@ class ImageService:
         )
         image_url = self._poll(job_id)
         return {'image_url': image_url}
-
-    def compose_reference_on_canvas(self, image_bytes, aspect_ratio='2:3', cover=False):
-        from app.models.generation import ASPECT_RATIOS
-        ratio_info = ASPECT_RATIOS.get(aspect_ratio, ASPECT_RATIOS['2:3'])
-        canvas_w = ratio_info['width']
-        canvas_h = ratio_info['height']
-
-        mode = "cover" if cover else "fit"
-        logger.info(
-            "Composing reference image onto %dx%d canvas (aspect_ratio=%s, mode=%s)",
-            canvas_w, canvas_h, aspect_ratio, mode,
-        )
-
-        ref_img = Image.open(io.BytesIO(image_bytes))
-        if ref_img.mode != 'RGB':
-            ref_img = ref_img.convert('RGB')
-
-        ref_w, ref_h = ref_img.size
-        if cover:
-            scale = max(canvas_w / ref_w, canvas_h / ref_h)
-        else:
-            scale = min(canvas_w / ref_w, canvas_h / ref_h)
-        new_w = round(ref_w * scale)
-        new_h = round(ref_h * scale)
-
-        ref_img = ref_img.resize((new_w, new_h), Image.LANCZOS)
-
-        canvas = Image.new('RGB', (canvas_w, canvas_h), (255, 255, 255))
-        offset_x = (canvas_w - new_w) // 2
-        offset_y = (canvas_h - new_h) // 2
-        canvas.paste(ref_img, (offset_x, offset_y))
-
-        logger.info(
-            "Reference %dx%d scaled to %dx%d, centered on %dx%d canvas (offset=%d,%d, mode=%s)",
-            ref_w, ref_h, new_w, new_h, canvas_w, canvas_h, offset_x, offset_y, mode,
-        )
-
-        buf = io.BytesIO()
-        canvas.save(buf, format='JPEG', quality=90)
-        return buf.getvalue()
 
 image_service = ImageService()

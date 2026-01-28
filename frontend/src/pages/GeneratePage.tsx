@@ -131,9 +131,6 @@ export default function GeneratePage() {
         };
         payload.style_reference_id = ref.id;
         payload.use_style_image = form.useStyleImage;
-        if (form.useStyleImage) {
-          payload.cover_style_image = true;
-        }
       }
     }
 

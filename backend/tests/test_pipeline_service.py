@@ -1,6 +1,5 @@
 import pytest
-from unittest.mock import patch, MagicMock, call
-from datetime import datetime, timezone
+from unittest.mock import patch
 
 from app.models.generation import Generation
 from app.services.pipeline_service import (
@@ -227,11 +226,10 @@ class TestRunStandardPipeline:
 
 class TestRunStyleRefPipeline:
 
-    @patch('app.services.pipeline_service.http_requests')
     @patch('app.services.pipeline_service.storage_service')
     @patch('app.services.pipeline_service.image_service')
     @patch('app.services.pipeline_service.llm_service')
-    def test_full_3_step_flow(self, mock_llm, mock_image, mock_storage, mock_http, app, mock_generation, book_data, style_analysis):
+    def test_full_2_step_flow(self, mock_llm, mock_image, mock_storage, app, mock_generation, book_data, style_analysis):
         with app.app_context():
             app._test_store.setdefault('generations', []).append({
                 'id': 42,
@@ -248,18 +246,7 @@ class TestRunStyleRefPipeline:
             })
 
             mock_llm.generate_style_referenced_prompt.return_value = 'Style referenced prompt'
-            mock_storage.get_signed_url.side_effect = [
-                'https://signed.com/ref.png',
-                'https://signed.com/composite.png',
-            ]
-
-            mock_ref_response = MagicMock()
-            mock_ref_response.content = b'\x89PNG_fake_data'
-            mock_ref_response.raise_for_status = MagicMock()
-            mock_http.get.return_value = mock_ref_response
-
-            mock_image.compose_reference_on_canvas.return_value = b'\xff\xd8\xff_fake_jpeg'
-            mock_storage.upload_file.return_value = 'https://storage.com/storage/v1/object/public/covers/composites/uuid.jpg'
+            mock_storage.get_signed_url.return_value = 'https://signed.com/ref.png'
 
             mock_image.generate_image_with_text.return_value = {'image_url': 'https://ext.com/final.png'}
             mock_storage.upload_from_url.return_value = {
@@ -282,16 +269,14 @@ class TestRunStyleRefPipeline:
             assert result.final_image_url == 'https://storage.com/final.png'
 
             mock_llm.generate_style_referenced_prompt.assert_called_once()
-            mock_image.compose_reference_on_canvas.assert_called_once()
             mock_image.generate_image_with_text.assert_called_once()
 
-            assert len(progress_calls) == 3
+            assert len(progress_calls) == 2
 
-    @patch('app.services.pipeline_service.http_requests')
     @patch('app.services.pipeline_service.storage_service')
     @patch('app.services.pipeline_service.image_service')
     @patch('app.services.pipeline_service.llm_service')
-    def test_base_image_only_uses_no_text_prompt(self, mock_llm, mock_image, mock_storage, mock_http, app, mock_generation, book_data, style_analysis):
+    def test_base_image_only_uses_no_text_prompt(self, mock_llm, mock_image, mock_storage, app, mock_generation, book_data, style_analysis):
         with app.app_context():
             app._test_store.setdefault('generations', []).append({
                 'id': 42,
@@ -308,18 +293,7 @@ class TestRunStyleRefPipeline:
             })
 
             mock_llm.generate_style_referenced_prompt_no_text.return_value = 'No text prompt'
-            mock_storage.get_signed_url.side_effect = [
-                'https://signed.com/ref.png',
-                'https://signed.com/composite.png',
-            ]
-
-            mock_ref_response = MagicMock()
-            mock_ref_response.content = b'\x89PNG_fake_data'
-            mock_ref_response.raise_for_status = MagicMock()
-            mock_http.get.return_value = mock_ref_response
-
-            mock_image.compose_reference_on_canvas.return_value = b'\xff\xd8\xff_fake_jpeg'
-            mock_storage.upload_file.return_value = 'https://storage.com/storage/v1/object/public/covers/composites/uuid.jpg'
+            mock_storage.get_signed_url.return_value = 'https://signed.com/ref.png'
 
             mock_image.generate_image_with_text.return_value = {'image_url': 'https://ext.com/final.png'}
             mock_storage.upload_from_url.return_value = {
@@ -350,11 +324,10 @@ class TestRunStyleRefPipeline:
                     style_reference_id=999, aspect_ratio='2:3', user_id=1,
                 )
 
-    @patch('app.services.pipeline_service.http_requests')
     @patch('app.services.pipeline_service.storage_service')
     @patch('app.services.pipeline_service.image_service')
     @patch('app.services.pipeline_service.llm_service')
-    def test_cancellation_mid_pipeline(self, mock_llm, mock_image, mock_storage, mock_http, app, mock_generation, book_data, style_analysis):
+    def test_cancellation_mid_pipeline(self, mock_llm, mock_image, mock_storage, app, mock_generation, book_data, style_analysis):
         with app.app_context():
             app._test_store.setdefault('generations', []).append({
                 'id': 42,
@@ -373,52 +346,3 @@ class TestRunStyleRefPipeline:
                     42, mock_generation, book_data, style_analysis,
                     style_reference_id=10, aspect_ratio='2:3', user_id=1,
                 )
-
-    @patch('app.services.pipeline_service.http_requests')
-    @patch('app.services.pipeline_service.storage_service')
-    @patch('app.services.pipeline_service.image_service')
-    @patch('app.services.pipeline_service.llm_service')
-    def test_cover_mode_passes_to_compose(self, mock_llm, mock_image, mock_storage, mock_http, app, mock_generation, book_data, style_analysis):
-        with app.app_context():
-            app._test_store.setdefault('generations', []).append({
-                'id': 42,
-                'user_id': 1,
-                'status': 'generating',
-                'aspect_ratio': '2:3',
-            })
-            app._test_store.setdefault('style_references', []).append({
-                'id': 10,
-                'user_id': 1,
-                'image_url': 'https://storage.com/ref.png',
-                'image_path': 'references/ref.png',
-            })
-
-            mock_llm.generate_style_referenced_prompt.return_value = 'prompt'
-            mock_storage.get_signed_url.side_effect = [
-                'https://signed.com/ref.png',
-                'https://signed.com/composite.png',
-            ]
-
-            mock_ref_response = MagicMock()
-            mock_ref_response.content = b'\x89PNG_fake_data'
-            mock_ref_response.raise_for_status = MagicMock()
-            mock_http.get.return_value = mock_ref_response
-
-            mock_image.compose_reference_on_canvas.return_value = b'\xff\xd8\xff_fake_jpeg'
-            mock_storage.upload_file.return_value = 'https://storage.com/storage/v1/object/public/covers/composites/uuid.jpg'
-
-            mock_image.generate_image_with_text.return_value = {'image_url': 'https://ext.com/final.png'}
-            mock_storage.upload_from_url.return_value = {
-                'public_url': 'https://storage.com/final.png',
-                'path': 'covers/uuid.png',
-            }
-
-            run_style_ref_pipeline(
-                42, mock_generation, book_data, style_analysis,
-                style_reference_id=10, aspect_ratio='2:3', user_id=1,
-                cover_style_image=True,
-            )
-
-            mock_image.compose_reference_on_canvas.assert_called_once_with(
-                b'\x89PNG_fake_data', '2:3', cover=True
-            )
