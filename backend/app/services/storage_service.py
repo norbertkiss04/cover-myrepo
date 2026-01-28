@@ -80,7 +80,26 @@ class StorageService:
         public_url = self._get_public_url(unique_filename)
         logger.info("File upload complete: %s", unique_filename)
         return public_url
-    
+
+    def upload_bytes(self, data: bytes, folder: str = 'uploads', content_type: str = 'image/png') -> dict:
+        client = self._get_client()
+
+        ext = 'png' if 'png' in content_type else 'jpg'
+        filename = f"{folder}/{uuid.uuid4()}.{ext}"
+
+        size_kb = len(data) / 1024
+        logger.info("Uploading bytes to storage: %s (%.1f KB)", filename, size_kb)
+
+        client.storage.from_(self._bucket).upload(
+            path=filename,
+            file=data,
+            file_options={"content-type": content_type}
+        )
+
+        public_url = self._get_public_url(filename)
+        logger.info("Bytes upload complete: %s", filename)
+        return {'public_url': public_url, 'path': filename}
+
     def extract_path(self, public_url: str):
         """Extract the storage path from a full public URL. Returns None if not matched."""
         bucket = current_app.config['SUPABASE_STORAGE_BUCKET']

@@ -8,7 +8,7 @@ from app.models.generation import Generation, ASPECT_RATIOS
 from app.models.style_reference import StyleReference
 from app.routes.auth import token_required
 from app.services.llm_service import llm_service
-from app.services.image_service import image_service, get_contrasting_background
+from app.services.image_service import image_service, get_contrasting_background, remove_background_color
 from app.services.storage_service import storage_service
 from app.services.credit_service import deduct_credits
 from app.config import ANALYSIS_COST
@@ -162,6 +162,24 @@ def analyze_style(current_user):
                     logger.info("Text layer is clean, no cleanup needed")
             except Exception as cleanup_error:
                 logger.warning("Text layer cleanup failed, using initial version: %s", cleanup_error)
+
+            try:
+                logger.info("Converting text layer to transparent background...")
+                signed_url = storage_service.get_signed_url(text_layer_path, expires_in=600)
+                response = http_requests.get(signed_url, timeout=60)
+                response.raise_for_status()
+
+                transparent_bytes = remove_background_color(response.content, bg_color)
+                transparent_upload = storage_service.upload_bytes(
+                    transparent_bytes,
+                    folder='references-text',
+                    content_type='image/png'
+                )
+                text_layer_url = transparent_upload['public_url']
+                text_layer_path = transparent_upload['path']
+                logger.info("Transparent text layer saved: %s", text_layer_path)
+            except Exception as transparent_error:
+                logger.warning("Transparent conversion failed, using previous version: %s", transparent_error)
 
         except Exception as e:
             logger.warning("Text layer creation failed, continuing without it: %s", e)
