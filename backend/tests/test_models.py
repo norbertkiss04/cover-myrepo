@@ -101,8 +101,6 @@ def test_aspect_ratios_constant():
     assert ASPECT_RATIOS['2:3']['name'] == 'Kindle Standard'
 
 
-# --- StyleReference model tests ---
-
 def test_style_reference_from_row():
     row = {
         'id': 5,
@@ -110,10 +108,6 @@ def test_style_reference_from_row():
         'image_url': 'https://example.com/img.png',
         'image_path': 'references/img.png',
         'title': 'Gothic',
-        'feeling': 'dark',
-        'layout': 'centered',
-        'illustration_rules': 'sketchy',
-        'typography': 'serif',
         'created_at': '2025-06-01T00:00:00Z',
     }
     ref = StyleReference.from_row(row)
@@ -123,7 +117,6 @@ def test_style_reference_from_row():
     assert ref.image_url == 'https://example.com/img.png'
     assert ref.image_path == 'references/img.png'
     assert ref.title == 'Gothic'
-    assert ref.feeling == 'dark'
 
 
 def test_style_reference_to_dict():
@@ -133,10 +126,6 @@ def test_style_reference_to_dict():
         image_url='https://example.com/img.png',
         image_path='references/img.png',
         title='Gothic',
-        feeling='dark',
-        layout='centered',
-        illustration_rules='sketchy',
-        typography='serif',
         created_at='2025-06-01T00:00:00Z',
     )
     d = ref.to_dict()
@@ -144,12 +133,7 @@ def test_style_reference_to_dict():
     assert d['id'] == 5
     assert d['title'] == 'Gothic'
     assert d['image_url'] == 'https://example.com/img.png'
-    assert d['feeling'] == 'dark'
-    assert d['layout'] == 'centered'
-    assert d['illustration_rules'] == 'sketchy'
-    assert d['typography'] == 'serif'
     assert d['created_at'] == '2025-06-01T00:00:00Z'
-    # image_path should not be exposed in to_dict
     assert 'image_path' not in d
 
 

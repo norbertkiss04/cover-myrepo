@@ -1,7 +1,6 @@
 import io
 import time
 import logging
-import colorsys
 import requests
 from flask import current_app
 from PIL import Image
@@ -77,44 +76,6 @@ def detect_and_crop_border(image_bytes, tolerance=30, min_border_size=5):
     output = io.BytesIO()
     cropped.save(output, format='PNG')
     return output.getvalue()
-
-
-def get_dominant_color(image_bytes):
-    img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
-    img = img.resize((100, 100))
-
-    colors = img.getcolors(maxcolors=10000)
-    if not colors:
-        return (128, 128, 128)
-
-    sorted_colors = sorted(colors, key=lambda x: x[0], reverse=True)
-
-    for count, color in sorted_colors:
-        r, g, b = color
-        if 20 < r < 235 or 20 < g < 235 or 20 < b < 235:
-            return color
-
-    return sorted_colors[0][1]
-
-
-def get_complementary_color(rgb):
-    r, g, b = [x / 255.0 for x in rgb]
-    h, l, s = colorsys.rgb_to_hls(r, g, b)
-    h = (h + 0.5) % 1.0
-    r, g, b = colorsys.hls_to_rgb(h, l, s)
-    return (int(r * 255), int(g * 255), int(b * 255))
-
-
-def rgb_to_hex(rgb):
-    return '#{:02x}{:02x}{:02x}'.format(*rgb)
-
-
-def get_contrasting_background(image_bytes):
-    dominant = get_dominant_color(image_bytes)
-    complement = get_complementary_color(dominant)
-    hex_color = rgb_to_hex(complement)
-    logger.info("Dominant color: %s, complement: %s", dominant, hex_color)
-    return hex_color
 
 
 class ImageService:
@@ -227,62 +188,6 @@ class ImageService:
             payload
         )
         image_url = self._poll(job_id)
-        return {'image_url': image_url}
-
-    def remove_text_from_image(self, image_url):
-        self._get_config()
-
-        payload = {
-            'prompt': (
-                'Remove all text, words, letters, typography, titles, author names, '
-                'subtitles, taglines, and decorative borders from this image. '
-                'Fill the removed areas naturally with the surrounding background and imagery. '
-                'Keep only the illustration, artwork, and visual elements. '
-                'The result should look like a complete image that never had any text.'
-            ),
-            'images': [image_url],
-            'enable_base64_output': False,
-            'enable_sync_mode': False,
-        }
-
-        logger.info("Submitting text removal job to WaveSpeed")
-        job_id = self._submit(
-            f'{self.base_url}/bytedance/seedream-v4.5/edit',
-            payload
-        )
-        image_url = self._poll(job_id)
-        logger.info("Text removal complete")
-        return {'image_url': image_url}
-
-    def isolate_text_layer(self, image_url, background_color, note=None):
-        self._get_config()
-
-        base_prompt = (
-            f'Create an image with ONLY the text and typography from this book cover. '
-            f'Remove ALL illustrations, photos, artwork, people, objects, and backgrounds. '
-            f'Keep ONLY: the book title and author name. Remove all other text including subtitles, taglines, quotes, and blurbs. '
-            f'Fill the ENTIRE background with solid flat {background_color} color. '
-            f'Text must remain in its original position, font style, and color. '
-            f'Nothing else should be visible except text on solid {background_color}.'
-        )
-
-        if note:
-            base_prompt += f' Additional instructions: {note}'
-
-        payload = {
-            'prompt': base_prompt,
-            'images': [image_url],
-            'enable_base64_output': False,
-            'enable_sync_mode': False,
-        }
-
-        logger.info("Submitting text layer isolation job (bg=%s)", background_color)
-        job_id = self._submit(
-            f'{self.base_url}/bytedance/seedream-v4.5/edit',
-            payload
-        )
-        image_url = self._poll(job_id)
-        logger.info("Text layer isolation complete")
         return {'image_url': image_url}
 
 image_service = ImageService()

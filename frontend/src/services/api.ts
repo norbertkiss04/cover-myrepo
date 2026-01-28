@@ -152,8 +152,8 @@ export const generationApi = {
     await api.delete(`/api/generations/${id}`);
   },
 
-  analyzeStyle: async (imageBase64: string, title?: string): Promise<StyleReference> => {
-    const response = await api.post('/api/analyze-style', {
+  uploadStyleReference: async (imageBase64: string, title?: string): Promise<StyleReference> => {
+    const response = await api.post('/api/upload-style-reference', {
       image: imageBase64,
       ...(title ? { title } : {}),
     });
@@ -167,7 +167,7 @@ export const generationApi = {
 
   updateStyleReference: async (
     id: number,
-    data: Partial<Pick<StyleReference, 'title' | 'feeling' | 'layout' | 'illustration_rules' | 'typography'>>,
+    data: Partial<Pick<StyleReference, 'title'>>,
   ): Promise<StyleReference> => {
     const response = await api.put(`/api/style-references/${id}`, data);
     return response.data;
@@ -175,15 +175,6 @@ export const generationApi = {
 
   deleteStyleReference: async (id: number): Promise<void> => {
     await api.delete(`/api/style-references/${id}`);
-  },
-
-  regenerateStyleReferencePart: async (
-    id: number,
-    part: 'clean' | 'text_layer' | 'feeling' | 'layout' | 'illustration_rules' | 'typography',
-    note?: string,
-  ): Promise<StyleReference & { remaining_credits: number }> => {
-    const response = await api.post(`/api/style-references/${id}/regenerate`, { part, ...(note ? { note } : {}) });
-    return response.data;
   },
 };
 

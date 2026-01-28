@@ -41,17 +41,6 @@ def book_data():
     }
 
 
-@pytest.fixture
-def style_analysis():
-    return {
-        'title': 'Dark Fantasy',
-        'feeling': 'ominous and mysterious',
-        'layout': 'centered composition',
-        'illustration_rules': 'digital painting style',
-        'typography': 'ornate serif fonts',
-    }
-
-
 class TestCheckCancelled:
 
     def test_raises_when_status_is_not_generating(self, app):
@@ -112,7 +101,7 @@ class TestRunStandardPipeline:
                 progress_calls.append((step, total, message))
 
             result = run_standard_pipeline(
-                42, mock_generation, book_data, None, '2:3',
+                42, mock_generation, book_data, '2:3',
                 on_progress=on_progress,
             )
 
@@ -155,7 +144,7 @@ class TestRunStandardPipeline:
                 progress_calls.append((step, total, message))
 
             result = run_standard_pipeline(
-                42, mock_generation, book_data, None, '2:3',
+                42, mock_generation, book_data, '2:3',
                 on_progress=on_progress,
                 base_image_only=True,
             )
@@ -173,41 +162,6 @@ class TestRunStandardPipeline:
     @patch('app.services.pipeline_service.storage_service')
     @patch('app.services.pipeline_service.image_service')
     @patch('app.services.pipeline_service.llm_service')
-    def test_passes_style_analysis_to_llm(self, mock_llm, mock_image, mock_storage, app, mock_generation, book_data, style_analysis):
-        with app.app_context():
-            app._test_store.setdefault('generations', []).append({
-                'id': 42,
-                'user_id': 1,
-                'book_title': 'Test Book',
-                'author_name': 'Test Author',
-                'status': 'generating',
-                'aspect_ratio': '2:3',
-            })
-
-            mock_llm.generate_base_image_prompt.return_value = 'Styled prompt'
-            mock_image.generate_base_image.return_value = {'image_url': 'https://ext.com/base.png'}
-            mock_storage.upload_from_url.side_effect = [
-                {'public_url': 'https://storage.com/base.png', 'path': 'base/uuid.png'},
-                {'public_url': 'https://storage.com/final.png', 'path': 'covers/uuid.png'},
-            ]
-            mock_storage.get_signed_url.return_value = 'https://signed.com/base.png'
-            mock_llm.generate_text_overlay_prompt.return_value = 'Text prompt'
-            mock_image.generate_image_with_text.return_value = {'image_url': 'https://ext.com/final.png'}
-
-            run_standard_pipeline(
-                42, mock_generation, book_data, style_analysis, '2:3',
-            )
-
-            mock_llm.generate_base_image_prompt.assert_called_once_with(
-                book_data, style_analysis=style_analysis, base_image_only=False
-            )
-            mock_llm.generate_text_overlay_prompt.assert_called_once_with(
-                book_data, style_analysis=style_analysis
-            )
-
-    @patch('app.services.pipeline_service.storage_service')
-    @patch('app.services.pipeline_service.image_service')
-    @patch('app.services.pipeline_service.llm_service')
     def test_cancellation_raises(self, mock_llm, mock_image, mock_storage, app, mock_generation, book_data):
         with app.app_context():
             app._test_store.setdefault('generations', []).append({
@@ -220,7 +174,7 @@ class TestRunStandardPipeline:
 
             with pytest.raises(GenerationCancelled):
                 run_standard_pipeline(
-                    42, mock_generation, book_data, None, '2:3',
+                    42, mock_generation, book_data, '2:3',
                 )
 
 
@@ -229,7 +183,7 @@ class TestRunStyleRefPipeline:
     @patch('app.services.pipeline_service.storage_service')
     @patch('app.services.pipeline_service.image_service')
     @patch('app.services.pipeline_service.llm_service')
-    def test_full_2_step_flow(self, mock_llm, mock_image, mock_storage, app, mock_generation, book_data, style_analysis):
+    def test_full_2_step_flow(self, mock_llm, mock_image, mock_storage, app, mock_generation, book_data):
         with app.app_context():
             app._test_store.setdefault('generations', []).append({
                 'id': 42,
@@ -260,8 +214,8 @@ class TestRunStyleRefPipeline:
                 progress_calls.append((step, total, message))
 
             result = run_style_ref_pipeline(
-                42, mock_generation, book_data, style_analysis,
-                style_reference_id=10, aspect_ratio='2:3', user_id=1,
+                42, mock_generation, book_data,
+                10, '2:3', 1,
                 on_progress=on_progress,
             )
 
@@ -276,7 +230,7 @@ class TestRunStyleRefPipeline:
     @patch('app.services.pipeline_service.storage_service')
     @patch('app.services.pipeline_service.image_service')
     @patch('app.services.pipeline_service.llm_service')
-    def test_base_image_only_uses_no_text_prompt(self, mock_llm, mock_image, mock_storage, app, mock_generation, book_data, style_analysis):
+    def test_base_image_only_uses_no_text_prompt(self, mock_llm, mock_image, mock_storage, app, mock_generation, book_data):
         with app.app_context():
             app._test_store.setdefault('generations', []).append({
                 'id': 42,
@@ -302,15 +256,15 @@ class TestRunStyleRefPipeline:
             }
 
             run_style_ref_pipeline(
-                42, mock_generation, book_data, style_analysis,
-                style_reference_id=10, aspect_ratio='2:3', user_id=1,
+                42, mock_generation, book_data,
+                10, '2:3', 1,
                 base_image_only=True,
             )
 
             mock_llm.generate_style_referenced_prompt_no_text.assert_called_once()
             mock_llm.generate_style_referenced_prompt.assert_not_called()
 
-    def test_style_reference_not_found_raises(self, app, mock_generation, book_data, style_analysis):
+    def test_style_reference_not_found_raises(self, app, mock_generation, book_data):
         with app.app_context():
             app._test_store.setdefault('generations', []).append({
                 'id': 42,
@@ -320,14 +274,14 @@ class TestRunStyleRefPipeline:
 
             with pytest.raises(ValueError, match='not found'):
                 run_style_ref_pipeline(
-                    42, mock_generation, book_data, style_analysis,
-                    style_reference_id=999, aspect_ratio='2:3', user_id=1,
+                    42, mock_generation, book_data,
+                    999, '2:3', 1,
                 )
 
     @patch('app.services.pipeline_service.storage_service')
     @patch('app.services.pipeline_service.image_service')
     @patch('app.services.pipeline_service.llm_service')
-    def test_cancellation_mid_pipeline(self, mock_llm, mock_image, mock_storage, app, mock_generation, book_data, style_analysis):
+    def test_cancellation_mid_pipeline(self, mock_llm, mock_image, mock_storage, app, mock_generation, book_data):
         with app.app_context():
             app._test_store.setdefault('generations', []).append({
                 'id': 42,
@@ -343,6 +297,6 @@ class TestRunStyleRefPipeline:
 
             with pytest.raises(GenerationCancelled):
                 run_style_ref_pipeline(
-                    42, mock_generation, book_data, style_analysis,
-                    style_reference_id=10, aspect_ratio='2:3', user_id=1,
+                    42, mock_generation, book_data,
+                    10, '2:3', 1,
                 )

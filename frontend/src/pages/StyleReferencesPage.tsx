@@ -4,7 +4,6 @@ import Masonry from 'react-masonry-css';
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { generationApi } from '../services/api';
 import { useStyleReferences, useDeleteStyleReference, useUpdateStyleReference, queryKeys } from '../hooks/useApiQueries';
-import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import ErrorState from '../components/common/ErrorState';
 import StyleReferenceModal from '../components/common/StyleReferenceModal';
@@ -117,12 +116,10 @@ export default function StyleReferencesPage() {
   const queryClient = useQueryClient();
   const { data: refs = [], isLoading, error, refetch } = useStyleReferences();
   const deleteMutation = useDeleteStyleReference();
-  const updateMutation = useUpdateStyleReference();
 
   const [renamingId, setRenamingId] = useState<number | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
-  const { user, updateCredits } = useAuth();
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedRef, setSelectedRef] = useState<StyleReference | null>(null);
@@ -130,32 +127,25 @@ export default function StyleReferencesPage() {
 
   const handleImageFile = useCallback(async (file: File) => {
     if (!file.type.startsWith('image/')) {
-      setAnalyzeError('Please select an image file.');
+      setUploadError('Please select an image file.');
       return;
     }
-    if (!user?.unlimited_credits && (user?.credits ?? 0) < 3) {
-      setAnalyzeError('Not enough credits. You need 3 credits to upload a style reference.');
-      return;
-    }
-    setAnalyzeError(null);
-    setIsAnalyzing(true);
+    setUploadError(null);
+    setIsUploading(true);
 
     try {
       const dataUrl = await resizeImage(file);
-      const ref = await generationApi.analyzeStyle(dataUrl);
+      const ref = await generationApi.uploadStyleReference(dataUrl);
 
-      if ((ref as any).remaining_credits !== undefined) {
-        updateCredits((ref as any).remaining_credits);
-      }
       queryClient.setQueryData<StyleReference[]>(queryKeys.styleReferences, (old) =>
         old ? [ref, ...old] : [ref]
       );
     } catch (err: any) {
-      setAnalyzeError(err.response?.data?.error || 'Failed to analyze image.');
+      setUploadError(err.response?.data?.error || 'Failed to upload image.');
     } finally {
-      setIsAnalyzing(false);
+      setIsUploading(false);
     }
-  }, [user, updateCredits]);
+  }, [queryClient]);
 
   const handleImageFileRef = useRef(handleImageFile);
   handleImageFileRef.current = handleImageFile;
@@ -217,8 +207,7 @@ export default function StyleReferencesPage() {
     setIsModalOpen(false);
   };
 
-  const handleModalUpdate = (id: number, data: Partial<Pick<StyleReference, 'title' | 'feeling' | 'layout' | 'illustration_rules' | 'typography'>>) => {
-    updateMutation.mutate({ id, data });
+  const handleModalUpdate = (id: number, data: Partial<Pick<StyleReference, 'title'>>) => {
     if (selectedRef && selectedRef.id === id) {
       setSelectedRef({ ...selectedRef, ...data });
     }
@@ -244,7 +233,7 @@ export default function StyleReferencesPage() {
             <svg className="w-12 h-12 text-accent mx-auto mb-3" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
             </svg>
-            <p className="text-lg font-medium text-text">Drop image to analyze</p>
+            <p className="text-lg font-medium text-text">Drop image to upload</p>
           </div>
         </div>
       )}
@@ -255,13 +244,13 @@ export default function StyleReferencesPage() {
         </div>
         <button
           onClick={() => fileInputRef.current?.click()}
-          disabled={isAnalyzing || (!user?.unlimited_credits && (user?.credits ?? 0) < 3)}
+          disabled={isUploading}
           className="flex-shrink-0 flex items-center gap-2 bg-accent text-white px-3.5 py-1.5 rounded-lg font-medium text-sm hover:bg-accent-hover disabled:opacity-40 transition-colors"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
-          Upload Image (3 credits)
+          Upload Image
         </button>
         <input
           ref={fileInputRef}
@@ -272,20 +261,20 @@ export default function StyleReferencesPage() {
         />
       </div>
 
-      {isAnalyzing && (
+      {isUploading && (
         <div className="mb-6 bg-info-bg border border-info-border text-info px-4 py-3 rounded-xl">
           <div className="flex items-center text-sm">
             <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-3"></div>
-            Processing reference image... This may take 30-60 seconds.
+            Uploading image...
           </div>
         </div>
       )}
 
-      {analyzeError && (
+      {uploadError && (
         <div className="mb-6 bg-error-bg border border-error-border text-error px-4 py-3 rounded-xl text-sm">
-          {analyzeError}
+          {uploadError}
           <button
-            onClick={() => setAnalyzeError(null)}
+            onClick={() => setUploadError(null)}
             className="ml-2 underline hover:no-underline"
           >
             Dismiss
@@ -293,7 +282,7 @@ export default function StyleReferencesPage() {
         </div>
       )}
 
-      {refs.length === 0 && !isAnalyzing && (
+      {refs.length === 0 && !isUploading && (
         <div
           onClick={() => fileInputRef.current?.click()}
           className="cursor-pointer border-2 border-dashed border-border rounded-2xl p-16 text-center hover:border-accent/40 hover:bg-surface-alt/50 transition-colors"
@@ -303,7 +292,7 @@ export default function StyleReferencesPage() {
           </svg>
           <h2 className="text-xl font-heading font-semibold text-text tracking-tight">No style references yet</h2>
           <p className="mt-2 text-text-secondary">
-            Drop an image here, click to upload, or paste from clipboard. The AI will analyze its visual style.
+            Drop an image here, click to upload, or paste from clipboard.
           </p>
           <p className="mt-1 text-xs text-text-muted">Max 5MB. JPG, PNG, WebP. Ctrl+V to paste.</p>
         </div>

@@ -1,19 +1,14 @@
 import base64
 import logging
 import math
-import requests as http_requests
 from flask import Blueprint, request, jsonify, make_response
 
 from app.models.generation import Generation, ASPECT_RATIOS
 from app.models.style_reference import StyleReference
 from app.routes.auth import token_required
-from app.services.llm_service import llm_service
-from app.services.image_service import image_service, get_contrasting_background
 from app.services.storage_service import storage_service
-from app.services.credit_service import deduct_credits
-from app.config import ANALYSIS_COST, REGENERATION_COST
 from app.utils.db import get_supabase
-from app.utils.validation import sanitize_text, MAX_SHORT_TEXT_LENGTH, MAX_LONG_TEXT_LENGTH
+from app.utils.validation import sanitize_text, MAX_SHORT_TEXT_LENGTH
 from app import limiter
 
 logger = logging.getLogger(__name__)
@@ -53,12 +48,13 @@ def get_aspect_ratios():
     response.headers['Cache-Control'] = 'public, max-age=3600'
     return response
 
-@generate_bp.route('/analyze-style', methods=['POST'])
-@limiter.limit("5 per minute")
+@generate_bp.route('/upload-style-reference', methods=['POST'])
+@limiter.limit("10 per minute")
 @token_required
-def analyze_style(current_user):
+def upload_style_reference(current_user):
     data = request.get_json()
     image_data_url = data.get('image')
+    title = data.get('title')
 
     if not image_data_url:
         return jsonify({'error': 'Missing required field: image'}), 400
@@ -69,13 +65,7 @@ def analyze_style(current_user):
     if len(image_data_url) > MAX_IMAGE_BASE64_SIZE:
         return jsonify({'error': 'Image too large. Maximum size is 5MB.'}), 400
 
-    credit_result = deduct_credits(current_user, ANALYSIS_COST)
-    if not credit_result['success']:
-        return jsonify({
-            'error': 'Not enough credits to analyze a style reference.',
-        }), 403
-
-    logger.info("Style analysis request from user id=%s", current_user.id)
+    logger.info("Style reference upload from user id=%s", current_user.id)
 
     try:
         header, b64_data = image_data_url.split(',', 1)
@@ -98,62 +88,13 @@ def analyze_style(current_user):
 
         logger.info("Reference image uploaded: %s", image_path)
 
-        clean_image_url = None
-        clean_image_path = None
-        try:
-            logger.info("Creating clean version (removing text)...")
-            clean_result = image_service.remove_text_from_image(image_data_url)
-            clean_upload = storage_service.upload_from_url(
-                clean_result['image_url'],
-                folder='references-clean'
-            )
-            clean_image_url = clean_upload['public_url']
-            clean_image_path = clean_upload['path']
-            logger.info("Clean reference created: %s", clean_image_path)
-        except Exception as e:
-            logger.warning("Text removal failed: %s", e)
+        sanitized_title = sanitize_text(title, max_length=MAX_SHORT_TEXT_LENGTH) if title else 'Untitled Reference'
 
-        text_layer_url = None
-        text_layer_path = None
-        try:
-            logger.info("Extracting text layer...")
-            background_color = get_contrasting_background(image_bytes)
-
-            text_layer_result = image_service.isolate_text_layer(image_data_url, background_color)
-
-            response = http_requests.get(text_layer_result['image_url'], timeout=60)
-            response.raise_for_status()
-            text_layer_bytes = response.content
-
-            text_layer_upload = storage_service.upload_bytes(
-                text_layer_bytes,
-                folder='references-text',
-                content_type='image/png'
-            )
-            text_layer_url = text_layer_upload['public_url']
-            text_layer_path = text_layer_upload['path']
-            logger.info("Text layer created: %s", text_layer_path)
-        except Exception as e:
-            logger.warning("Text layer extraction failed: %s", e)
-
-        logger.info("Calling Gemini vision for style analysis...")
-        analysis = llm_service.analyze_style_reference(image_data_url)
-        logger.info("Style analysis complete")
-
-        user_title = sanitize_text(data.get('title'), max_length=MAX_SHORT_TEXT_LENGTH)
         ref_data = {
             'user_id': current_user.id,
             'image_url': image_url,
             'image_path': image_path,
-            'clean_image_url': clean_image_url,
-            'clean_image_path': clean_image_path,
-            'text_layer_url': text_layer_url,
-            'text_layer_path': text_layer_path,
-            'title': user_title or analysis.get('title') or 'Untitled Reference',
-            'feeling': analysis.get('feeling', ''),
-            'layout': analysis.get('layout', ''),
-            'illustration_rules': analysis.get('illustration_rules', ''),
-            'typography': analysis.get('typography', ''),
+            'title': sanitized_title,
         }
 
         result = get_supabase().table('style_references').insert(ref_data).execute()
@@ -161,14 +102,11 @@ def analyze_style(current_user):
         logger.info("Style reference #%s saved", style_ref.id)
 
         response_data = storage_service.sign_style_ref_dict(style_ref.to_dict(), style_ref)
-        response_data['remaining_credits'] = credit_result['remaining']
         return jsonify(response_data), 201
 
     except Exception as e:
-        logger.error("Style analysis failed: %s", e, exc_info=True)
-        from app.services.credit_service import refund_credits
-        refund_credits(current_user, ANALYSIS_COST)
-        return jsonify({'error': 'Style analysis failed. Please try again.'}), 500
+        logger.error("Style reference upload failed: %s", e, exc_info=True)
+        return jsonify({'error': 'Upload failed. Please try again.'}), 500
 
 @generate_bp.route('/style-references', methods=['GET'])
 @token_required
@@ -236,12 +174,9 @@ def update_style_reference(current_user, ref_id):
     if not data:
         return jsonify({'error': 'No data provided'}), 400
 
-    allowed = {'title', 'feeling', 'layout', 'illustration_rules', 'typography'}
     updates = {}
-    for k, v in data.items():
-        if k in allowed:
-            max_len = MAX_LONG_TEXT_LENGTH if k in ('illustration_rules', 'layout') else MAX_SHORT_TEXT_LENGTH
-            updates[k] = sanitize_text(v, max_length=max_len)
+    if 'title' in data:
+        updates['title'] = sanitize_text(data['title'], max_length=MAX_SHORT_TEXT_LENGTH)
 
     if not updates:
         return jsonify({'error': 'No valid fields to update'}), 400
@@ -259,116 +194,6 @@ def update_style_reference(current_user, ref_id):
     logger.info("Style reference #%d updated", ref_id)
 
     return jsonify(storage_service.sign_style_ref_dict(style_ref.to_dict(), style_ref))
-
-
-VALID_REGENERATE_PARTS = {'clean', 'text_layer', 'feeling', 'layout', 'illustration_rules', 'typography'}
-
-@generate_bp.route('/style-references/<int:ref_id>/regenerate', methods=['POST'])
-@limiter.limit("10 per minute")
-@token_required
-def regenerate_style_reference_part(current_user, ref_id):
-    data = request.get_json()
-    part = data.get('part')
-    note = data.get('note', '').strip() if data.get('note') else ''
-
-    if not part or part not in VALID_REGENERATE_PARTS:
-        return jsonify({'error': f'Invalid part. Must be one of: {", ".join(sorted(VALID_REGENERATE_PARTS))}'}), 400
-
-    logger.info(
-        "Regenerate '%s' request for style reference #%d from user id=%s",
-        part, ref_id, current_user.id,
-    )
-
-    result = get_supabase().table('style_references').select('*').eq(
-        'id', ref_id
-    ).eq('user_id', current_user.id).execute()
-
-    if not result.data:
-        logger.warning(
-            "Style reference #%d not found for user id=%s",
-            ref_id, current_user.id,
-        )
-        return jsonify({'error': 'Style reference not found'}), 404
-
-    style_ref = StyleReference.from_row(result.data[0])
-
-    credit_result = deduct_credits(current_user, REGENERATION_COST)
-    if not credit_result['success']:
-        return jsonify({
-            'error': 'Not enough credits to regenerate.',
-        }), 403
-
-    try:
-        updates = {}
-
-        if part == 'clean':
-            logger.info("Regenerating clean image for style reference #%d", ref_id)
-            response = http_requests.get(style_ref.image_url, timeout=60)
-            response.raise_for_status()
-            image_bytes = response.content
-            image_data_url = f"data:image/png;base64,{base64.b64encode(image_bytes).decode()}"
-
-            clean_result = image_service.remove_text_from_image(image_data_url)
-            clean_upload = storage_service.upload_from_url(
-                clean_result['image_url'],
-                folder='references-clean'
-            )
-            updates['clean_image_url'] = clean_upload['public_url']
-            updates['clean_image_path'] = clean_upload['path']
-            logger.info("Clean image regenerated: %s", updates['clean_image_path'])
-
-        elif part == 'text_layer':
-            logger.info("Regenerating text layer for style reference #%d", ref_id)
-            response = http_requests.get(style_ref.image_url, timeout=60)
-            response.raise_for_status()
-            image_bytes = response.content
-            image_data_url = f"data:image/png;base64,{base64.b64encode(image_bytes).decode()}"
-
-            background_color = get_contrasting_background(image_bytes)
-            text_layer_result = image_service.isolate_text_layer(
-                image_data_url, background_color, note=note if note else None
-            )
-
-            response = http_requests.get(text_layer_result['image_url'], timeout=60)
-            response.raise_for_status()
-            text_layer_bytes = response.content
-
-            text_layer_upload = storage_service.upload_bytes(
-                text_layer_bytes,
-                folder='references-text',
-                content_type='image/png'
-            )
-            updates['text_layer_url'] = text_layer_upload['public_url']
-            updates['text_layer_path'] = text_layer_upload['path']
-            logger.info("Text layer regenerated: %s", updates['text_layer_path'])
-
-        else:
-            logger.info("Regenerating analysis field '%s' for style reference #%d", part, ref_id)
-            response = http_requests.get(style_ref.image_url, timeout=60)
-            response.raise_for_status()
-            image_bytes = response.content
-            image_data_url = f"data:image/png;base64,{base64.b64encode(image_bytes).decode()}"
-
-            new_value = llm_service.regenerate_single_analysis_field(image_data_url, part)
-            updates[part] = new_value
-            logger.info("Analysis field '%s' regenerated (%d chars)", part, len(new_value))
-
-        updated = get_supabase().table('style_references').update(updates).eq(
-            'id', ref_id
-        ).eq('user_id', current_user.id).execute()
-
-        style_ref = StyleReference.from_row(updated.data[0])
-        logger.info("Style reference #%d part '%s' regenerated", ref_id, part)
-
-        response_data = storage_service.sign_style_ref_dict(style_ref.to_dict(), style_ref)
-        response_data['remaining_credits'] = credit_result['remaining']
-        return jsonify(response_data)
-
-    except Exception as e:
-        logger.error("Regeneration failed for style reference #%d: %s", ref_id, e, exc_info=True)
-        from app.services.credit_service import refund_credits
-        refund_credits(current_user, REGENERATION_COST)
-        return jsonify({'error': 'Regeneration failed. Please try again.'}), 500
 
 
 @generate_bp.route('/generations', methods=['GET'])

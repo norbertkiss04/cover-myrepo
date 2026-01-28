@@ -122,12 +122,6 @@ export default function GeneratePage() {
     if (form.selectedRefId !== null) {
       const ref = styleReferences.find((r) => r.id === form.selectedRefId);
       if (ref) {
-        payload.style_analysis = {
-          feeling: ref.feeling || '',
-          layout: ref.layout || '',
-          illustration_rules: ref.illustration_rules || '',
-          typography: ref.typography || '',
-        };
         payload.style_reference_id = ref.id;
         payload.use_style_image = true;
       }

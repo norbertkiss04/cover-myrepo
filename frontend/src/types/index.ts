@@ -20,23 +20,10 @@ export interface AspectRatioInfo {
   name: string;
 }
 
-export interface StyleAnalysis {
-  feeling: string;
-  layout: string;
-  illustration_rules: string;
-  typography: string;
-}
-
 export interface StyleReference {
   id: number;
   title: string;
   image_url: string;
-  clean_image_url: string | null;
-  text_layer_url: string | null;
-  feeling: string | null;
-  layout: string | null;
-  illustration_rules: string | null;
-  typography: string | null;
   created_at: string;
 }
 
@@ -52,7 +39,6 @@ export interface Generation {
   character_description: string | null;
   keywords: string[] | null;
   reference_image_description: string | null;
-  style_analysis: StyleAnalysis | null;
   style_reference_id: number | null;
   use_style_image: boolean;
   base_image_only: boolean;
@@ -76,7 +62,6 @@ export interface GenerationInput {
   genres?: string[];
   aspect_ratio?: string;
   character_description?: string;
-  style_analysis?: StyleAnalysis;
   style_reference_id?: number;
   use_style_image?: boolean;
   base_image_only?: boolean;

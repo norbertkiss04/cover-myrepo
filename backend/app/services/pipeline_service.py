@@ -42,7 +42,7 @@ def _check_cancelled(gen_id):
         raise GenerationCancelled(f"Generation #{gen_id} was cancelled")
 
 
-def run_standard_pipeline(gen_id, generation, book_data, style_analysis, aspect_ratio, on_progress=None, base_image_only=False):
+def run_standard_pipeline(gen_id, generation, book_data, aspect_ratio, on_progress=None, base_image_only=False):
     total_steps = 2 if base_image_only else 4
 
     def progress(step, total, message):
@@ -51,9 +51,7 @@ def run_standard_pipeline(gen_id, generation, book_data, style_analysis, aspect_
             on_progress(step, total, message)
 
     progress(1, total_steps, "Generating image prompt...")
-    base_prompt = llm_service.generate_base_image_prompt(
-        book_data, style_analysis=style_analysis, base_image_only=base_image_only
-    )
+    base_prompt = llm_service.generate_base_image_prompt(book_data, base_image_only=base_image_only)
     if base_image_only:
         base_prompt += " Do not include any text, words, letters, titles, or typography anywhere in the image."
     base_prompt += " The image must fill the entire canvas edge-to-edge with absolutely no white borders, margins, or empty space."
@@ -87,9 +85,7 @@ def run_standard_pipeline(gen_id, generation, book_data, style_analysis, aspect_
         return final_gen
 
     progress(3, total_steps, "Designing typography...")
-    text_prompt = llm_service.generate_text_overlay_prompt(
-        book_data, style_analysis=style_analysis
-    )
+    text_prompt = llm_service.generate_text_overlay_prompt(book_data)
     logger.info("Gen #%s Step 3/4 done. Prompt length: %d chars", gen_id, len(text_prompt))
     get_supabase().table('generations').update(
         {'text_prompt': text_prompt}
@@ -121,7 +117,7 @@ def run_standard_pipeline(gen_id, generation, book_data, style_analysis, aspect_
 
 
 def run_style_ref_pipeline(
-    gen_id, generation, book_data, style_analysis,
+    gen_id, generation, book_data,
     style_reference_id, aspect_ratio, user_id, on_progress=None,
     base_image_only=False,
 ):
@@ -141,13 +137,9 @@ def run_style_ref_pipeline(
 
     progress(1, 2, "Generating image prompt...")
     if base_image_only:
-        unified_prompt = llm_service.generate_style_referenced_prompt_no_text(
-            book_data, style_analysis
-        )
+        unified_prompt = llm_service.generate_style_referenced_prompt_no_text(book_data)
     else:
-        unified_prompt = llm_service.generate_style_referenced_prompt(
-            book_data, style_analysis
-        )
+        unified_prompt = llm_service.generate_style_referenced_prompt(book_data)
     unified_prompt += " The image must fill the entire canvas edge-to-edge with absolutely no white borders, margins, or empty space."
     logger.info("Gen #%s Step 1/2 done. Prompt length: %d chars", gen_id, len(unified_prompt))
     get_supabase().table('generations').update(
@@ -155,27 +147,11 @@ def run_style_ref_pipeline(
     ).eq('id', generation.id).execute()
 
     progress(2, 2, "Generating final cover...")
-    ref_image_path = style_ref.clean_image_path or style_ref.image_path
-    signed_ref_url = storage_service.get_signed_url(ref_image_path, expires_in=600)
-
-    image_urls = [signed_ref_url]
-    prompt_to_use = unified_prompt
-
-    if style_ref.text_layer_path:
-        signed_text_layer_url = storage_service.get_signed_url(style_ref.text_layer_path, expires_in=600)
-        if signed_text_layer_url:
-            image_urls.append(signed_text_layer_url)
-            prompt_to_use = (
-                "You are given TWO reference images. "
-                "IMAGE 1 is a STYLE reference - match its visual style, colors, mood, and illustration approach. "
-                "IMAGE 2 is a TYPOGRAPHY reference - match its text layout, font styles, and positioning. "
-                "Create a NEW book cover that combines the style from IMAGE 1 with typography inspired by IMAGE 2.\n\n"
-            ) + unified_prompt
-            logger.info("Gen #%s: Using text layer reference alongside style reference", gen_id)
+    signed_ref_url = storage_service.get_signed_url(style_ref.image_path, expires_in=600)
 
     final_result = image_service.generate_image_with_text(
-        image_urls,
-        prompt_to_use,
+        [signed_ref_url],
+        unified_prompt,
         aspect_ratio,
     )
     final_image_url = final_result['image_url']

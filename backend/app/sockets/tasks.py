@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 _running_tasks = set()
 
 
-def _run_generation_task(app, generation, user_id, style_analysis, style_reference_id, use_style_image, aspect_ratio, base_image_only=False):
+def _run_generation_task(app, generation, user_id, style_reference_id, use_style_image, aspect_ratio, base_image_only=False):
     with app.app_context():
         gen_id = generation.id
         room = _room_for(user_id)
@@ -55,16 +55,16 @@ def _run_generation_task(app, generation, user_id, style_analysis, style_referen
 
             from app.services.pipeline_service import run_standard_pipeline, run_style_ref_pipeline
 
-            if use_style_image and style_reference_id and style_analysis:
+            if use_style_image and style_reference_id:
                 final_gen = run_style_ref_pipeline(
-                    gen_id, generation, book_data, style_analysis,
+                    gen_id, generation, book_data,
                     style_reference_id, aspect_ratio, user_id,
                     on_progress=on_progress,
                     base_image_only=base_image_only,
                 )
             else:
                 final_gen = run_standard_pipeline(
-                    gen_id, generation, book_data, style_analysis, aspect_ratio,
+                    gen_id, generation, book_data, aspect_ratio,
                     on_progress=on_progress,
                     base_image_only=base_image_only,
                 )

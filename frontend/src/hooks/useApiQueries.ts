@@ -111,7 +111,7 @@ export function useUpdateStyleReference() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<Pick<StyleReference, 'title' | 'feeling' | 'layout' | 'illustration_rules' | 'typography'>> }) =>
+    mutationFn: ({ id, data }: { id: number; data: Partial<Pick<StyleReference, 'title'>> }) =>
       generationApi.updateStyleReference(id, data),
     onMutate: async ({ id, data }) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.styleReferences });
@@ -134,26 +134,6 @@ export function useUpdateStyleReference() {
         queryKeys.styleReferences,
         (old) => old?.map((r) => (r.id === updated.id ? updated : r)) ?? []
       );
-    },
-  });
-}
-
-export type RegeneratePart = 'clean' | 'text_layer' | 'feeling' | 'layout' | 'illustration_rules' | 'typography';
-
-export function useRegenerateStyleReferencePart() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({ id, part, note }: { id: number; part: RegeneratePart; note?: string }) =>
-      generationApi.regenerateStyleReferencePart(id, part, note),
-    onSuccess: (updated) => {
-      queryClient.setQueryData<StyleReference[]>(
-        queryKeys.styleReferences,
-        (old) => old?.map((r) => (r.id === updated.id ? updated : r)) ?? []
-      );
-    },
-    onError: () => {
-      toast.error('Failed to regenerate. Please try again.');
     },
   });
 }

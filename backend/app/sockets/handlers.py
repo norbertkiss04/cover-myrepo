@@ -20,7 +20,7 @@ from app.sockets.helpers import (
 )
 from app.sockets.tasks import _run_generation_task
 from app.utils.db import get_supabase
-from app.utils.validation import sanitize_generation_data, sanitize_text
+from app.utils.validation import sanitize_generation_data
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,6 @@ def _launch_generation(generation, user, credit_result):
         current_app._get_current_object(),
         generation,
         user.id,
-        generation.style_analysis,
         generation.style_reference_id,
         generation.use_style_image,
         generation.aspect_ratio,
@@ -162,7 +161,6 @@ def handle_start_generation(data):
         'color_preference': sanitized.get('color_preference'),
         'character_description': sanitized.get('character_description'),
         'keywords': sanitized.get('keywords'),
-        'style_analysis': data.get('style_analysis'),
         'style_reference_id': data.get('style_reference_id'),
         'use_style_image': bool(data.get('use_style_image', False)),
         'base_image_only': base_image_only,
@@ -251,7 +249,6 @@ def handle_start_regeneration(data):
         'color_preference': original.color_preference,
         'character_description': original.character_description,
         'keywords': original.keywords,
-        'style_analysis': original.style_analysis,
         'style_reference_id': original.style_reference_id,
         'use_style_image': original.use_style_image,
         'base_image_only': original.base_image_only,

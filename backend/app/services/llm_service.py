@@ -21,180 +21,6 @@ PROMPT_SCHEMA = {
     },
 }
 
-STYLE_ANALYSIS_SCHEMA = {
-    "name": "style_analysis",
-    "strict": True,
-    "schema": {
-        "type": "object",
-        "properties": {
-            "title": {
-                "type": "string",
-                "title": "Short Title",
-            },
-            "feeling": {
-                "type": "string",
-                "title": "Feeling & Atmosphere",
-            },
-            "layout": {
-                "type": "string",
-                "title": "Layout & Composition",
-            },
-            "illustration_rules": {
-                "type": "string",
-                "title": "Illustration Rules / Visual Style",
-            },
-            "typography": {
-                "type": "string",
-                "title": "Typography Analysis",
-            },
-        },
-        "required": ["title", "feeling", "layout", "illustration_rules", "typography"],
-        "additionalProperties": False,
-    },
-}
-
-SINGLE_FIELD_PROMPTS = {
-    'feeling': """Act as an expert Senior Art Director and Book Cover Designer. Analyze the visual style of the provided image.
-
-Focus ONLY on the Feeling & Atmosphere:
-Describe the emotional resonance and atmosphere. What is the psychological hook? (e.g., whimsical, terrifying, authoritative, romantic). Who is the target audience and what promise does the cover make to them?
-
-Ignore the specific subject matter (e.g., do not describe "a dog" or "a mermaid"); instead, describe the emotional impact so it can be applied to a completely different subject.
-
-Return your analysis as a JSON object with a single "feeling" field containing your analysis.""",
-
-    'layout': """Act as an expert Senior Art Director and Book Cover Designer. Analyze the visual style of the provided image.
-
-Focus ONLY on the Layout & Composition:
-How is the space divided (e.g., rule of thirds, central symmetry, top-heavy)? Where is the negative space? How does the text interact with the imagery (framed by it, overlapping it, isolated from it)?
-
-IMPORTANT: Do NOT use percentages, pixel values, or specific numbers. Use only relative descriptive terms.
-
-Return your analysis as a JSON object with a single "layout" field containing your analysis.""",
-
-    'illustration_rules': """Act as an expert Senior Art Director and Book Cover Designer. Analyze the visual style of the provided image.
-
-Focus ONLY on the Illustration Rules / Visual Style:
-Describe the medium and artistic technique. If illustrated: Analyze the line work (clean vs. sketchy), shading (cel-shaded, gradient, cross-hatched), and texture (grainy, paper, smooth digital). If photographic: Describe the lighting (soft, harsh, cinematic), depth of field, and color grading. Color Palette: Describe the dominant colors, saturation levels, and contrast.
-
-Ignore the specific subject matter; describe the artistic techniques so they can be applied to a completely different subject.
-
-Return your analysis as a JSON object with a single "illustration_rules" field containing your analysis.""",
-
-    'typography': """Act as an expert Senior Art Director and Book Cover Designer. Analyze the typography of the provided image.
-
-Focus ONLY on Typography specifications using ONLY relative terms (NO percentages, pixels, or numbers):
-
-TITLE TEXT:
-- Font category (Serif, Sans-Serif, Slab Serif, Display, Script, Handwritten, Blackletter)
-- Weight (Thin, Light, Regular, Medium, Bold, Black, Ultra Black)
-- Case (ALL CAPS, Title Case, lowercase)
-- Color with approximate hex code (e.g., "neon mint green ~#50FFB0")
-- Size relative to cover (small, medium, large, dominant)
-- Vertical position (top, upper-third, middle, lower-third, bottom)
-- Horizontal alignment (left, center, right)
-- Letter spacing (tight, normal, wide)
-- Effects (drop shadow with direction, glow, outline/stroke, emboss, gradient, distressed, metallic)
-
-AUTHOR NAME:
-- Same categories as title
-- Size relative to title (much smaller, smaller, similar)
-- Position relative to title (above title, below title with gap, at opposite end of cover)
-
-SUBTITLE (if present, otherwise state "No subtitle"):
-- Same categories as above
-
-Return your analysis as a JSON object with a single "typography" field containing your analysis.""",
-}
-
-SINGLE_FIELD_SCHEMAS = {
-    'feeling': {
-        "name": "feeling_analysis",
-        "strict": True,
-        "schema": {
-            "type": "object",
-            "properties": {
-                "feeling": {"type": "string"},
-            },
-            "required": ["feeling"],
-            "additionalProperties": False,
-        },
-    },
-    'layout': {
-        "name": "layout_analysis",
-        "strict": True,
-        "schema": {
-            "type": "object",
-            "properties": {
-                "layout": {"type": "string"},
-            },
-            "required": ["layout"],
-            "additionalProperties": False,
-        },
-    },
-    'illustration_rules': {
-        "name": "illustration_rules_analysis",
-        "strict": True,
-        "schema": {
-            "type": "object",
-            "properties": {
-                "illustration_rules": {"type": "string"},
-            },
-            "required": ["illustration_rules"],
-            "additionalProperties": False,
-        },
-    },
-    'typography': {
-        "name": "typography_analysis",
-        "strict": True,
-        "schema": {
-            "type": "object",
-            "properties": {
-                "typography": {"type": "string"},
-            },
-            "required": ["typography"],
-            "additionalProperties": False,
-        },
-    },
-}
-
-STYLE_ANALYSIS_PROMPT = """Act as an expert Senior Art Director and Book Cover Designer. Analyze the visual style of the provided image to create a transferable design brief. 
-
-Ignore the specific subject matter (e.g., do not describe "a dog" or "a mermaid"); instead, describe the artistic techniques and design choices so they can be applied to a completely different subject.
-
-IMPORTANT: Do NOT use percentages, pixel values, or specific numbers in your analysis. Use only relative descriptive terms.
-
-Provide your analysis for these areas:
-
-1. Feeling: Describe the emotional resonance and atmosphere. What is the psychological hook? (e.g., whimsical, terrifying, authoritative, romantic). Who is the target audience and what promise does the cover make to them?
-
-2. Layout: Analyze the composition structure. How is the space divided (e.g., rule of thirds, central symmetry, top-heavy)? Where is the negative space? How does the text interact with the imagery (framed by it, overlapping it, isolated from it)?
-
-3. Illustration Rules (or Visual Style): Describe the medium and artistic technique. If illustrated: Analyze the line work (clean vs. sketchy), shading (cel-shaded, gradient, cross-hatched), and texture (grainy, paper, smooth digital). If photographic: Describe the lighting (soft, harsh, cinematic), depth of field, and color grading. Color Palette: Describe the dominant colors, saturation levels, and contrast.
-
-4. Typography: Provide typography specifications using ONLY relative terms (NO percentages, pixels, or numbers):
-
-   TITLE TEXT:
-   - Font category (Serif, Sans-Serif, Slab Serif, Display, Script, Handwritten, Blackletter)
-   - Weight (Thin, Light, Regular, Medium, Bold, Black, Ultra Black)
-   - Case (ALL CAPS, Title Case, lowercase)
-   - Color with approximate hex code (e.g., "neon mint green ~#50FFB0")
-   - Size relative to cover (small, medium, large, dominant)
-   - Vertical position (top, upper-third, middle, lower-third, bottom)
-   - Horizontal alignment (left, center, right)
-   - Letter spacing (tight, normal, wide)
-   - Effects (drop shadow with direction, glow, outline/stroke, emboss, gradient, distressed, metallic)
-
-   AUTHOR NAME:
-   - Same categories as title
-   - Size relative to title (much smaller, smaller, similar)
-   - Position relative to title (above title, below title with gap, at opposite end of cover)
-
-   SUBTITLE (if present, otherwise state "No subtitle"):
-   - Same categories as above
-
-5. Title: Provide a short title (maximum 2 words) that captures the core visual style or mood of this cover design. Examples: "Gothic Horror", "Pastel Romance", "Noir Thriller", "Vintage Western", "Minimalist Sci-Fi"."""
-
 _BASE_IMAGE_SYSTEM_PROMPT = """You are an expert book cover designer. Your task is to create a detailed 
 image generation prompt for a book cover illustration. 
 
@@ -211,8 +37,7 @@ _TEXT_RULE_BASE_IMAGE_ONLY = "DO NOT include any text, titles, author names, wor
 _TEXT_RULE_STANDARD = "DO NOT include any text, titles, or author names in the image prompt - this will be added later"
 
 _STYLE_REF_SYSTEM_PROMPT_WITH_TEXT = """You are an expert book cover designer. You will be given details about a new book 
-and a style analysis from a reference image. The reference image will be provided alongside your prompt 
-to the image generation model.
+and a reference image will be provided alongside your prompt to the image generation model.
 
 Your task is to create a SINGLE, comprehensive image generation prompt that:
 1. Describes the new book cover's visual content (imagery, composition, colors, mood)
@@ -232,8 +57,7 @@ the desired output resolution and aspect ratio. Ignore any white borders or stri
 they are NOT part of the style. The actual style reference is the image content within."""
 
 _STYLE_REF_SYSTEM_PROMPT_NO_TEXT = """You are an expert book cover designer. You will be given details about a new book 
-and a style analysis from a reference image. The reference image will be provided alongside your prompt 
-to the image generation model.
+and a reference image will be provided alongside your prompt to the image generation model.
 
 Your task is to create a SINGLE, comprehensive image generation prompt that:
 1. Describes the new book cover's visual content (imagery, composition, colors, mood)
@@ -269,21 +93,6 @@ def _build_book_details_content(book_data, include_title=True):
 
     if book_data.get('character_description'):
         parts.append(f"Main Character: {book_data.get('character_description')}")
-
-    return "\n".join(parts)
-
-
-def _build_style_analysis_content(style_analysis, include_typography=True):
-    parts = ["\n--- Visual Style Reference (apply these artistic rules to the cover) ---"]
-
-    if style_analysis.get('feeling'):
-        parts.append(f"Feeling & Atmosphere: {style_analysis['feeling']}")
-    if style_analysis.get('layout'):
-        parts.append(f"Layout & Composition: {style_analysis['layout']}")
-    if style_analysis.get('illustration_rules'):
-        parts.append(f"Illustration Style: {style_analysis['illustration_rules']}")
-    if include_typography and style_analysis.get('typography'):
-        parts.append(f"Typography: {style_analysis['typography']}")
 
     return "\n".join(parts)
 
@@ -354,51 +163,12 @@ class LLMService:
                 return json.loads(match.group(0))
             raise ValueError(f"Could not parse JSON from LLM response: {content[:200]}")
 
-    def analyze_style_reference(self, image_data_url):
-        logger.info("Analyzing style reference image via Gemini vision")
-
-        messages = [
-            {
-                'role': 'user',
-                'content': [
-                    {
-                        'type': 'image_url',
-                        'image_url': {
-                            'url': image_data_url,
-                        },
-                    },
-                    {
-                        'type': 'text',
-                        'text': STYLE_ANALYSIS_PROMPT,
-                    },
-                ],
-            }
-        ]
-
-        result = self._make_request(
-            messages,
-            schema=STYLE_ANALYSIS_SCHEMA,
-            model='google/gemini-3-flash-preview',
-        )
-
-        logger.info("Style analysis complete (title=%s, feeling=%d chars, layout=%d chars, illustration=%d chars, typography=%d chars)",
-                     result.get('title', ''),
-                     len(result.get('feeling', '')),
-                     len(result.get('layout', '')),
-                     len(result.get('illustration_rules', '')),
-                     len(result.get('typography', '')))
-
-        return result
-
-    def generate_base_image_prompt(self, book_data, style_analysis=None, base_image_only=False):
+    def generate_base_image_prompt(self, book_data, base_image_only=False):
         text_rule = _TEXT_RULE_BASE_IMAGE_ONLY if base_image_only else _TEXT_RULE_STANDARD
         system_prompt = _BASE_IMAGE_SYSTEM_PROMPT.format(text_rule=text_rule)
 
         user_content = "Create an image generation prompt for a book cover with these details:\n"
         user_content += _build_book_details_content(book_data, include_title=not base_image_only)
-
-        if style_analysis:
-            user_content += _build_style_analysis_content(style_analysis)
 
         user_content += "\n\nGenerate the image prompt now:"
 
@@ -410,7 +180,7 @@ class LLMService:
         result = self._make_request(messages, schema=PROMPT_SCHEMA)
         return result['prompt']
 
-    def generate_text_overlay_prompt(self, book_data, style_analysis=None):
+    def generate_text_overlay_prompt(self, book_data):
         system_prompt = """You are an expert in book cover typography and design. Your task is to create 
 a detailed prompt for adding text to a book cover image.
 
@@ -445,12 +215,6 @@ The text should be:
 - Positioned for maximum visual impact and readability
 """
 
-        if style_analysis and style_analysis.get('typography'):
-            user_content += f"""
---- Typography Reference (apply this typography style) ---
-{style_analysis['typography']}
-"""
-
         user_content += "\nGenerate the text overlay prompt now:"
 
         messages = [
@@ -461,7 +225,7 @@ The text should be:
         result = self._make_request(messages, schema=PROMPT_SCHEMA)
         return result['prompt']
 
-    def generate_style_referenced_prompt(self, book_data, style_analysis, include_text=True):
+    def generate_style_referenced_prompt(self, book_data, include_text=True):
         system_prompt = _STYLE_REF_SYSTEM_PROMPT_WITH_TEXT if include_text else _STYLE_REF_SYSTEM_PROMPT_NO_TEXT
 
         if include_text:
@@ -490,15 +254,7 @@ Book Details:
             prefix = "- " if include_text else ""
             user_content += f"{prefix}Main Character: {book_data.get('character_description')}\n"
 
-        user_content += f"""
-Style Analysis of Reference Image:
-- Feeling & Atmosphere: {style_analysis.get('feeling', '')}
-- Layout & Composition: {style_analysis.get('layout', '')}
-- Illustration Style: {style_analysis.get('illustration_rules', '')}
-"""
-
         if include_text:
-            user_content += f"- Typography: {style_analysis.get('typography', '')}\n"
             user_content += f"""
 Generate a single prompt that creates this book cover in the style of the reference image. 
 The title "{book_data.get('book_title')}" and author "{book_data.get('author_name')}" must appear as text on the cover.
@@ -517,42 +273,7 @@ Use the reference image for style only — do NOT copy its subject matter."""
         result = self._make_request(messages, schema=PROMPT_SCHEMA)
         return result['prompt']
 
-    def generate_style_referenced_prompt_no_text(self, book_data, style_analysis):
-        return self.generate_style_referenced_prompt(book_data, style_analysis, include_text=False)
-
-    def regenerate_single_analysis_field(self, image_data_url, field_name):
-        if field_name not in SINGLE_FIELD_PROMPTS:
-            raise ValueError(f"Unknown analysis field: {field_name}")
-
-        logger.info("Regenerating single analysis field '%s' via Gemini vision", field_name)
-
-        messages = [
-            {
-                'role': 'user',
-                'content': [
-                    {
-                        'type': 'image_url',
-                        'image_url': {
-                            'url': image_data_url,
-                        },
-                    },
-                    {
-                        'type': 'text',
-                        'text': SINGLE_FIELD_PROMPTS[field_name],
-                    },
-                ],
-            }
-        ]
-
-        result = self._make_request(
-            messages,
-            schema=SINGLE_FIELD_SCHEMAS[field_name],
-            model='google/gemini-3-flash-preview',
-        )
-
-        logger.info("Single field '%s' regeneration complete (%d chars)",
-                    field_name, len(result.get(field_name, '')))
-
-        return result[field_name]
+    def generate_style_referenced_prompt_no_text(self, book_data):
+        return self.generate_style_referenced_prompt(book_data, include_text=False)
 
 llm_service = LLMService()

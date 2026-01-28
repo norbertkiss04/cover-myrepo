@@ -7,15 +7,7 @@ class StyleReference:
     image_url: str
     image_path: str
     id: Optional[int] = None
-    clean_image_url: Optional[str] = None
-    clean_image_path: Optional[str] = None
-    text_layer_url: Optional[str] = None
-    text_layer_path: Optional[str] = None
     title: Optional[str] = None
-    feeling: Optional[str] = None
-    layout: Optional[str] = None
-    illustration_rules: Optional[str] = None
-    typography: Optional[str] = None
     created_at: Optional[str] = None
 
     @classmethod
@@ -25,15 +17,7 @@ class StyleReference:
             user_id=row.get('user_id'),
             image_url=row.get('image_url', ''),
             image_path=row.get('image_path', ''),
-            clean_image_url=row.get('clean_image_url'),
-            clean_image_path=row.get('clean_image_path'),
-            text_layer_url=row.get('text_layer_url'),
-            text_layer_path=row.get('text_layer_path'),
             title=row.get('title'),
-            feeling=row.get('feeling'),
-            layout=row.get('layout'),
-            illustration_rules=row.get('illustration_rules'),
-            typography=row.get('typography'),
             created_at=row.get('created_at'),
         )
 
@@ -42,12 +26,6 @@ class StyleReference:
             'id': self.id,
             'title': self.title,
             'image_url': self.image_url,
-            'clean_image_url': self.clean_image_url,
-            'text_layer_url': self.text_layer_url,
-            'feeling': self.feeling,
-            'layout': self.layout,
-            'illustration_rules': self.illustration_rules,
-            'typography': self.typography,
             'created_at': self.created_at,
         }
 
