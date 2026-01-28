@@ -217,7 +217,8 @@ class ImageService:
                 f'{removal_prompt} '
                 f'Replace all removed elements with solid flat {background_color} background. '
                 f'Keep only the main book title, author name, and subtitle text intact. '
-                f'Maintain the exact position, font style, size, and color of the kept text. '
+                f'CRITICAL: Do NOT move, reposition, or shift the text in any way — the text must remain at its EXACT original pixel location. '
+                f'Maintain the exact font style, size, and color of the kept text. '
                 f'The background must remain solid {background_color} with no artifacts or remnants.'
             ),
             'images': [image_url],
