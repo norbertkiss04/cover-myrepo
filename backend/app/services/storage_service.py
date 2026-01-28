@@ -106,7 +106,7 @@ class StorageService:
         return gen_dict
 
     def sign_style_ref_dict(self, ref_dict: dict, style_ref) -> dict:
-        """Sign the image_url and clean_image_url in a style reference dict."""
+        """Sign the image_url, clean_image_url, and text_layer_url in a style reference dict."""
         if style_ref.image_path:
             signed = self.get_signed_url(style_ref.image_path, expires_in=3600)
             if signed:
@@ -115,6 +115,10 @@ class StorageService:
             signed = self.get_signed_url(style_ref.clean_image_path, expires_in=3600)
             if signed:
                 ref_dict['clean_image_url'] = signed
+        if style_ref.text_layer_path:
+            signed = self.get_signed_url(style_ref.text_layer_path, expires_in=3600)
+            if signed:
+                ref_dict['text_layer_url'] = signed
         return ref_dict
 
     def delete_file(self, file_url: str) -> bool:

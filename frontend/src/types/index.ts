@@ -31,6 +31,8 @@ export interface StyleReference {
   id: number;
   title: string;
   image_url: string;
+  clean_image_url: string | null;
+  text_layer_url: string | null;
   feeling: string | null;
   layout: string | null;
   illustration_rules: string | null;

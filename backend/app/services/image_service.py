@@ -1,9 +1,26 @@
+import io
 import time
 import logging
 import requests
 from flask import current_app
+from PIL import Image
 
 logger = logging.getLogger(__name__)
+
+
+def get_average_luminance(image_bytes):
+    img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
+    img = img.resize((50, 50))
+    pixels = list(img.getdata())
+    avg_r = sum(p[0] for p in pixels) / len(pixels)
+    avg_g = sum(p[1] for p in pixels) / len(pixels)
+    avg_b = sum(p[2] for p in pixels) / len(pixels)
+    luminance = (0.299 * avg_r + 0.587 * avg_g + 0.114 * avg_b) / 255
+    return luminance
+
+
+def choose_contrasting_background(luminance):
+    return '#f5f5f5' if luminance < 0.5 else '#1a1a2e'
 
 class ImageService:
 
@@ -94,14 +111,17 @@ class ImageService:
         image_url = self._poll(job_id)
         return {'image_url': image_url}
 
-    def generate_image_with_text(self, base_image_url, text_prompt, aspect_ratio='2:3'):
+    def generate_image_with_text(self, image_urls, text_prompt, aspect_ratio='2:3'):
         self._get_config()
+
+        if isinstance(image_urls, str):
+            image_urls = [image_urls]
 
         size = self._get_size_string(aspect_ratio)
 
         payload = {
             'prompt': text_prompt,
-            'images': [base_image_url],
+            'images': image_urls,
             'size': size,
             'enable_base64_output': False,
             'enable_sync_mode': False,
@@ -137,6 +157,32 @@ class ImageService:
         )
         image_url = self._poll(job_id)
         logger.info("Text removal complete")
+        return {'image_url': image_url}
+
+    def isolate_text_layer(self, image_url, background_color):
+        self._get_config()
+
+        payload = {
+            'prompt': (
+                f'Create an image with ONLY the text and typography from this book cover. '
+                f'Remove ALL illustrations, photos, artwork, people, objects, and backgrounds. '
+                f'Keep ONLY: title, author name, subtitles, and any other text/letters. '
+                f'Fill the ENTIRE background with solid flat {background_color} color. '
+                f'Text must remain in its original position, font style, and color. '
+                f'Nothing else should be visible except text on solid {background_color}.'
+            ),
+            'images': [image_url],
+            'enable_base64_output': False,
+            'enable_sync_mode': False,
+        }
+
+        logger.info("Submitting text layer isolation job (bg=%s)", background_color)
+        job_id = self._submit(
+            f'{self.base_url}/bytedance/seedream-v4.5/edit',
+            payload
+        )
+        image_url = self._poll(job_id)
+        logger.info("Text layer isolation complete")
         return {'image_url': image_url}
 
 image_service = ImageService()

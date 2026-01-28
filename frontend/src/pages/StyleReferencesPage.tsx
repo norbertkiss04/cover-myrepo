@@ -7,6 +7,7 @@ import { useStyleReferences, queryKeys } from '../hooks/useApiQueries';
 import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import ErrorState from '../components/common/ErrorState';
+import StyleReferenceModal from '../components/common/StyleReferenceModal';
 import type { StyleReference } from '../types';
 import { MASONRY_BREAKPOINTS } from '../constants';
 
@@ -134,14 +135,16 @@ export default function StyleReferencesPage() {
   const { user, updateCredits } = useAuth();
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedRef, setSelectedRef] = useState<StyleReference | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleImageFile = useCallback(async (file: File) => {
     if (!file.type.startsWith('image/')) {
       setAnalyzeError('Please select an image file.');
       return;
     }
-    if (!user?.unlimited_credits && (user?.credits ?? 0) < 2) {
-      setAnalyzeError('Not enough credits. You need 2 credits to upload a style reference.');
+    if (!user?.unlimited_credits && (user?.credits ?? 0) < 3) {
+      setAnalyzeError('Not enough credits. You need 3 credits to upload a style reference.');
       return;
     }
     setAnalyzeError(null);
@@ -218,7 +221,6 @@ export default function StyleReferencesPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Delete this style reference? This cannot be undone.')) return;
     try {
       await generationApi.deleteStyleReference(id);
       queryClient.setQueryData<StyleReference[]>(queryKeys.styleReferences, (old) =>
@@ -227,6 +229,24 @@ export default function StyleReferencesPage() {
     } catch (err: any) {
       alert(err.response?.data?.error || 'Failed to delete');
     }
+  };
+
+  const handleCardClick = (ref: StyleReference) => {
+    setSelectedRef(ref);
+    setIsModalOpen(true);
+  };
+
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+  };
+
+  const handleModalUpdate = (updated: StyleReference) => {
+    handleTitleSaved(updated);
+    setSelectedRef(updated);
+  };
+
+  const handleModalDelete = (id: number) => {
+    handleDelete(id);
   };
 
   if (isLoading) return <LoadingSpinner />;
@@ -256,13 +276,13 @@ export default function StyleReferencesPage() {
         </div>
         <button
           onClick={() => fileInputRef.current?.click()}
-          disabled={isAnalyzing || (!user?.unlimited_credits && (user?.credits ?? 0) < 2)}
+          disabled={isAnalyzing || (!user?.unlimited_credits && (user?.credits ?? 0) < 3)}
           className="flex-shrink-0 flex items-center gap-2 bg-accent text-white px-3.5 py-1.5 rounded-lg font-medium text-sm hover:bg-accent-hover disabled:opacity-40 transition-colors"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
-          Upload Image (2 credits)
+          Upload Image (3 credits)
         </button>
         <input
           ref={fileInputRef}
@@ -319,6 +339,7 @@ export default function StyleReferencesPage() {
           {refs.map((ref) => (
             <div
               key={ref.id}
+              onClick={() => handleCardClick(ref)}
               className="relative group rounded-2xl overflow-hidden cursor-pointer"
             >
               <img
@@ -348,7 +369,7 @@ export default function StyleReferencesPage() {
                       </button>
                     )}
                     <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(ref.id); }}
+                      onClick={(e) => { e.stopPropagation(); if (confirm('Delete this style reference? This cannot be undone.')) handleDelete(ref.id); }}
                       className="flex-shrink-0 p-2 bg-white/20 hover:bg-red-500/60 rounded-lg backdrop-blur-sm transition-colors cursor-pointer"
                       title="Delete"
                     >
@@ -362,6 +383,14 @@ export default function StyleReferencesPage() {
           ))}
         </Masonry>
       )}
+
+      <StyleReferenceModal
+        styleRef={selectedRef}
+        isOpen={isModalOpen}
+        onClose={handleModalClose}
+        onUpdate={handleModalUpdate}
+        onDelete={handleModalDelete}
+      />
     </div>
   );
 }

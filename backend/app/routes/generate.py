@@ -1,13 +1,14 @@
 import base64
 import logging
 import math
+import requests as http_requests
 from flask import Blueprint, request, jsonify, make_response
 
 from app.models.generation import Generation, ASPECT_RATIOS
 from app.models.style_reference import StyleReference
 from app.routes.auth import token_required
 from app.services.llm_service import llm_service
-from app.services.image_service import image_service
+from app.services.image_service import image_service, get_average_luminance, choose_contrasting_background
 from app.services.storage_service import storage_service
 from app.services.credit_service import deduct_credits
 from app.config import ANALYSIS_COST
@@ -114,6 +115,30 @@ def analyze_style(current_user):
             clean_image_url = image_url
             clean_image_path = image_path
 
+        text_layer_url = None
+        text_layer_path = None
+        try:
+            logger.info("Creating text layer...")
+            clean_signed_url = storage_service.get_signed_url(clean_image_path, expires_in=600)
+            clean_response = http_requests.get(clean_signed_url, timeout=60)
+            clean_response.raise_for_status()
+            clean_bytes = clean_response.content
+
+            luminance = get_average_luminance(clean_bytes)
+            bg_color = choose_contrasting_background(luminance)
+            logger.info("Clean image luminance: %.2f, using background: %s", luminance, bg_color)
+
+            text_layer_result = image_service.isolate_text_layer(image_data_url, bg_color)
+            text_layer_upload = storage_service.upload_from_url(
+                text_layer_result['image_url'],
+                folder='references-text'
+            )
+            text_layer_url = text_layer_upload['public_url']
+            text_layer_path = text_layer_upload['path']
+            logger.info("Text layer created: %s", text_layer_path)
+        except Exception as e:
+            logger.warning("Text layer creation failed, continuing without it: %s", e)
+
         logger.info("Calling Gemini vision for style analysis...")
         analysis = llm_service.analyze_style_reference(image_data_url)
         logger.info("Style analysis complete")
@@ -125,6 +150,8 @@ def analyze_style(current_user):
             'image_path': image_path,
             'clean_image_url': clean_image_url,
             'clean_image_path': clean_image_path,
+            'text_layer_url': text_layer_url,
+            'text_layer_path': text_layer_path,
             'title': user_title or analysis.get('title') or 'Untitled Reference',
             'feeling': analysis.get('feeling', ''),
             'layout': analysis.get('layout', ''),
