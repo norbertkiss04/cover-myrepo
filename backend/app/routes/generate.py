@@ -111,9 +111,7 @@ def analyze_style(current_user):
             clean_image_path = clean_upload['path']
             logger.info("Clean reference created: %s", clean_image_path)
         except Exception as e:
-            logger.warning("Text removal failed, using original as fallback: %s", e)
-            clean_image_url = image_url
-            clean_image_path = image_path
+            logger.warning("Text removal failed: %s", e)
 
         text_layer_url = None
         text_layer_path = None
