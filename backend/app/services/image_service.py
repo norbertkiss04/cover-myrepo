@@ -284,8 +284,7 @@ class ImageService:
         payload = {
             'prompt': (
                 f'{removal_prompt} '
-                f'Fill the removed area with solid {background_color}. '
-                f'Do not alter the text.'
+                f'Fill the removed area with solid background.'
             ),
             'images': [image_url],
             'enable_base64_output': False,
