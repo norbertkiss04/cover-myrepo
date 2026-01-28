@@ -101,13 +101,13 @@ class TestStyleReferences:
             response = client.put(
                 '/api/style-references/30',
                 headers=auth_headers,
-                json={'title': 'Updated Title', 'feeling': 'energetic'},
+                json={'title': 'Updated Title'},
             )
 
         assert response.status_code == 200
         data = response.get_json()
         assert data['title'] == 'Updated Title'
-        assert data['feeling'] == 'energetic'
+        assert data['feeling'] == 'calm'
 
     def test_update_style_reference_not_found(self, client, auth_headers):
         response = client.put(

@@ -191,3 +191,105 @@ class TestGenerateStyleReferencedPromptNoText:
         messages = mock_request.call_args[0][0]
         system_prompt = messages[0]['content']
         assert 'do not include any text' in system_prompt.lower() or 'text-free' in system_prompt.lower()
+
+
+class TestAnalyzeStyleReference:
+
+    @patch.object(LLMService, '_make_request')
+    def test_returns_analysis_dict(self, mock_request, llm):
+        mock_request.return_value = {
+            'feeling': 'Dark and mysterious',
+            'layout': 'Central symmetry',
+            'illustration_rules': 'Oil painting style',
+            'typography': 'Bold serif title',
+            'suggested_title': 'Gothic Romance',
+        }
+
+        result = llm.analyze_style_reference('https://example.com/image.jpg')
+
+        assert result['feeling'] == 'Dark and mysterious'
+        assert result['layout'] == 'Central symmetry'
+        assert result['illustration_rules'] == 'Oil painting style'
+        assert result['typography'] == 'Bold serif title'
+        assert result['suggested_title'] == 'Gothic Romance'
+
+    @patch.object(LLMService, '_make_request')
+    def test_uses_gemini_model(self, mock_request, llm):
+        mock_request.return_value = {
+            'feeling': 'test',
+            'layout': 'test',
+            'illustration_rules': 'test',
+            'typography': 'test',
+            'suggested_title': 'Test Style',
+        }
+
+        llm.analyze_style_reference('https://example.com/image.jpg')
+
+        call_kwargs = mock_request.call_args[1]
+        assert 'gemini' in call_kwargs['model'].lower()
+
+    @patch.object(LLMService, '_make_request')
+    def test_sends_image_in_vision_format(self, mock_request, llm):
+        mock_request.return_value = {
+            'feeling': 'test',
+            'layout': 'test',
+            'illustration_rules': 'test',
+            'typography': 'test',
+            'suggested_title': 'Test',
+        }
+
+        llm.analyze_style_reference('https://example.com/image.jpg')
+
+        messages = mock_request.call_args[0][0]
+        user_message = messages[1]
+        assert user_message['role'] == 'user'
+        assert isinstance(user_message['content'], list)
+        content_types = [c['type'] for c in user_message['content']]
+        assert 'text' in content_types
+        assert 'image_url' in content_types
+
+
+class TestStyleReferencedPromptWithAnalysis:
+
+    @patch.object(LLMService, '_make_request')
+    def test_includes_style_analysis_in_prompt(self, mock_request, llm, book_data):
+        mock_request.return_value = {'prompt': 'styled cover'}
+        style_analysis = {
+            'feeling': 'Whimsical and magical',
+            'layout': 'Rule of thirds',
+            'illustration_rules': 'Watercolor texture',
+            'typography': 'Handwritten script',
+        }
+
+        llm.generate_style_referenced_prompt(book_data, style_analysis=style_analysis)
+
+        messages = mock_request.call_args[0][0]
+        user_content = messages[1]['content']
+        assert 'Whimsical and magical' in user_content
+        assert 'Rule of thirds' in user_content
+        assert 'Watercolor texture' in user_content
+        assert 'Handwritten script' in user_content
+
+    @patch.object(LLMService, '_make_request')
+    def test_works_without_analysis(self, mock_request, llm, book_data):
+        mock_request.return_value = {'prompt': 'styled cover'}
+
+        result = llm.generate_style_referenced_prompt(book_data, style_analysis=None)
+
+        assert result == 'styled cover'
+
+    @patch.object(LLMService, '_make_request')
+    def test_no_text_variant_includes_analysis(self, mock_request, llm, book_data):
+        mock_request.return_value = {'prompt': 'styled cover'}
+        style_analysis = {
+            'feeling': 'Dark fantasy',
+            'layout': 'Top-heavy',
+            'illustration_rules': 'Digital painting',
+            'typography': 'Gothic serif',
+        }
+
+        llm.generate_style_referenced_prompt_no_text(book_data, style_analysis=style_analysis)
+
+        messages = mock_request.call_args[0][0]
+        user_content = messages[1]['content']
+        assert 'Dark fantasy' in user_content

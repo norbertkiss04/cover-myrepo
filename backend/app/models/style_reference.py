@@ -8,6 +8,10 @@ class StyleReference:
     image_path: str
     id: Optional[int] = None
     title: Optional[str] = None
+    feeling: Optional[str] = None
+    layout: Optional[str] = None
+    illustration_rules: Optional[str] = None
+    typography: Optional[str] = None
     created_at: Optional[str] = None
 
     @classmethod
@@ -18,6 +22,10 @@ class StyleReference:
             image_url=row.get('image_url', ''),
             image_path=row.get('image_path', ''),
             title=row.get('title'),
+            feeling=row.get('feeling'),
+            layout=row.get('layout'),
+            illustration_rules=row.get('illustration_rules'),
+            typography=row.get('typography'),
             created_at=row.get('created_at'),
         )
 
@@ -26,8 +34,23 @@ class StyleReference:
             'id': self.id,
             'title': self.title,
             'image_url': self.image_url,
+            'feeling': self.feeling,
+            'layout': self.layout,
+            'illustration_rules': self.illustration_rules,
+            'typography': self.typography,
             'created_at': self.created_at,
         }
+
+    def get_style_analysis(self) -> dict:
+        return {
+            'feeling': self.feeling or '',
+            'layout': self.layout or '',
+            'illustration_rules': self.illustration_rules or '',
+            'typography': self.typography or '',
+        }
+
+    def has_analysis(self) -> bool:
+        return bool(self.feeling or self.layout or self.illustration_rules or self.typography)
 
     def __repr__(self):
         return f'<StyleReference {self.id}>'

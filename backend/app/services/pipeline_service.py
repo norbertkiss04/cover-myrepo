@@ -135,11 +135,13 @@ def run_style_ref_pipeline(
 
     style_ref = StyleReference.from_row(ref_result.data[0])
 
+    style_analysis = style_ref.get_style_analysis() if style_ref.has_analysis() else None
+
     progress(1, 2, "Generating image prompt...")
     if base_image_only:
-        unified_prompt = llm_service.generate_style_referenced_prompt_no_text(book_data)
+        unified_prompt = llm_service.generate_style_referenced_prompt_no_text(book_data, style_analysis=style_analysis)
     else:
-        unified_prompt = llm_service.generate_style_referenced_prompt(book_data)
+        unified_prompt = llm_service.generate_style_referenced_prompt(book_data, style_analysis=style_analysis)
 
     logger.info("Gen #%s Step 1/2 done. Prompt length: %d chars", gen_id, len(unified_prompt))
     get_supabase().table('generations').update(

@@ -108,6 +108,10 @@ def test_style_reference_from_row():
         'image_url': 'https://example.com/img.png',
         'image_path': 'references/img.png',
         'title': 'Gothic',
+        'feeling': 'Dark and mysterious',
+        'layout': 'Central symmetry',
+        'illustration_rules': 'Oil painting style',
+        'typography': 'Bold serif',
         'created_at': '2025-06-01T00:00:00Z',
     }
     ref = StyleReference.from_row(row)
@@ -117,6 +121,10 @@ def test_style_reference_from_row():
     assert ref.image_url == 'https://example.com/img.png'
     assert ref.image_path == 'references/img.png'
     assert ref.title == 'Gothic'
+    assert ref.feeling == 'Dark and mysterious'
+    assert ref.layout == 'Central symmetry'
+    assert ref.illustration_rules == 'Oil painting style'
+    assert ref.typography == 'Bold serif'
 
 
 def test_style_reference_to_dict():
@@ -126,6 +134,10 @@ def test_style_reference_to_dict():
         image_url='https://example.com/img.png',
         image_path='references/img.png',
         title='Gothic',
+        feeling='Dark and mysterious',
+        layout='Central symmetry',
+        illustration_rules='Oil painting style',
+        typography='Bold serif',
         created_at='2025-06-01T00:00:00Z',
     )
     d = ref.to_dict()
@@ -133,8 +145,49 @@ def test_style_reference_to_dict():
     assert d['id'] == 5
     assert d['title'] == 'Gothic'
     assert d['image_url'] == 'https://example.com/img.png'
+    assert d['feeling'] == 'Dark and mysterious'
+    assert d['layout'] == 'Central symmetry'
+    assert d['illustration_rules'] == 'Oil painting style'
+    assert d['typography'] == 'Bold serif'
     assert d['created_at'] == '2025-06-01T00:00:00Z'
     assert 'image_path' not in d
+
+
+def test_style_reference_get_style_analysis():
+    ref = StyleReference(
+        id=5,
+        user_id=1,
+        image_url='https://example.com/img.png',
+        image_path='references/img.png',
+        title='Gothic',
+        feeling='Dark and mysterious',
+        layout='Central symmetry',
+        illustration_rules='Oil painting style',
+        typography='Bold serif',
+    )
+    analysis = ref.get_style_analysis()
+
+    assert analysis['feeling'] == 'Dark and mysterious'
+    assert analysis['layout'] == 'Central symmetry'
+    assert analysis['illustration_rules'] == 'Oil painting style'
+    assert analysis['typography'] == 'Bold serif'
+
+
+def test_style_reference_has_analysis():
+    ref_with = StyleReference(
+        user_id=1,
+        image_url='https://example.com/img.png',
+        image_path='references/img.png',
+        feeling='Dark',
+    )
+    assert ref_with.has_analysis() is True
+
+    ref_without = StyleReference(
+        user_id=1,
+        image_url='https://example.com/img.png',
+        image_path='references/img.png',
+    )
+    assert ref_without.has_analysis() is False
 
 
 def test_generation_to_dict_includes_all_keys():

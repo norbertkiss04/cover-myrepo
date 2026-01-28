@@ -8,6 +8,8 @@ logger = logging.getLogger(__name__)
 
 _prompts_cache = None
 
+STYLE_ANALYSIS_MODEL = 'google/gemini-2.5-flash-preview'
+
 
 def _load_prompts():
     global _prompts_cache
@@ -47,6 +49,23 @@ def _build_book_details_content(book_data, include_title=True):
         parts.append(f"Main Character: {book_data.get('character_description')}")
 
     return "\n".join(parts)
+
+
+def _build_style_analysis_section(style_analysis):
+    if not style_analysis:
+        return ""
+
+    has_content = any(style_analysis.get(k) for k in ['feeling', 'layout', 'illustration_rules', 'typography'])
+    if not has_content:
+        return ""
+
+    template = get_prompt('style_reference', 'style_analysis_template')
+    return template.format(
+        feeling=style_analysis.get('feeling', ''),
+        layout=style_analysis.get('layout', ''),
+        illustration_rules=style_analysis.get('illustration_rules', ''),
+        typography=style_analysis.get('typography', ''),
+    )
 
 
 class LLMService:
@@ -115,6 +134,30 @@ class LLMService:
                 return json.loads(match.group(0))
             raise ValueError(f"Could not parse JSON from LLM response: {content[:200]}")
 
+    def analyze_style_reference(self, image_url):
+        system_prompt = get_prompt('style_analysis', 'system')
+        user_text = get_prompt('style_analysis', 'user_template')
+
+        messages = [
+            {'role': 'system', 'content': system_prompt},
+            {
+                'role': 'user',
+                'content': [
+                    {'type': 'text', 'text': user_text},
+                    {'type': 'image_url', 'image_url': {'url': image_url}},
+                ],
+            },
+        ]
+
+        logger.info("Analyzing style reference image with %s", STYLE_ANALYSIS_MODEL)
+        result = self._make_request(
+            messages,
+            schema=get_prompt_schema('style_analysis'),
+            model=STYLE_ANALYSIS_MODEL,
+        )
+        logger.info("Style analysis complete: suggested_title='%s'", result.get('suggested_title', ''))
+        return result
+
     def generate_base_image_prompt(self, book_data, base_image_only=False):
         text_rules = get_prompt('base_image', 'text_rules')
         text_rule = text_rules['base_image_only'] if base_image_only else text_rules['standard']
@@ -156,7 +199,7 @@ class LLMService:
         result = self._make_request(messages, schema=get_prompt_schema('cover_prompt'))
         return result['prompt']
 
-    def generate_style_referenced_prompt(self, book_data, include_text=True):
+    def generate_style_referenced_prompt(self, book_data, include_text=True, style_analysis=None):
         if include_text:
             system_prompt = get_prompt('style_reference', 'system_with_text')
         else:
@@ -181,15 +224,19 @@ class LLMService:
         if extra_details:
             extra_details += "\n"
 
+        style_analysis_section = _build_style_analysis_section(style_analysis)
+
         if include_text:
             user_content = get_prompt('style_reference', 'user_template_with_text').format(
                 title=book_data.get('book_title'),
                 author=book_data.get('author_name'),
-                extra_details=extra_details
+                extra_details=extra_details,
+                style_analysis_section=style_analysis_section,
             )
         else:
             user_content = get_prompt('style_reference', 'user_template_no_text').format(
-                extra_details=extra_details
+                extra_details=extra_details,
+                style_analysis_section=style_analysis_section,
             )
 
         messages = [
@@ -200,7 +247,7 @@ class LLMService:
         result = self._make_request(messages, schema=get_prompt_schema('cover_prompt'))
         return result['prompt']
 
-    def generate_style_referenced_prompt_no_text(self, book_data):
-        return self.generate_style_referenced_prompt(book_data, include_text=False)
+    def generate_style_referenced_prompt_no_text(self, book_data, style_analysis=None):
+        return self.generate_style_referenced_prompt(book_data, include_text=False, style_analysis=style_analysis)
 
 llm_service = LLMService()

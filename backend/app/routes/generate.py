@@ -6,6 +6,7 @@ from flask import Blueprint, request, jsonify, make_response
 from app.models.generation import Generation, ASPECT_RATIOS
 from app.models.style_reference import StyleReference
 from app.routes.auth import token_required
+from app.services.llm_service import llm_service
 from app.services.storage_service import storage_service
 from app.utils.db import get_supabase
 from app.utils.validation import sanitize_text, MAX_SHORT_TEXT_LENGTH
@@ -88,13 +89,25 @@ def upload_style_reference(current_user):
 
         logger.info("Reference image uploaded: %s", image_path)
 
-        sanitized_title = sanitize_text(title, max_length=MAX_SHORT_TEXT_LENGTH) if title else 'Untitled Reference'
+        signed_url = storage_service.get_signed_url(image_path, expires_in=300)
+        logger.info("Analyzing style reference image...")
+        analysis = llm_service.analyze_style_reference(signed_url)
+        logger.info("Style analysis complete: %s", analysis.get('suggested_title', ''))
+
+        if title:
+            sanitized_title = sanitize_text(title, max_length=MAX_SHORT_TEXT_LENGTH)
+        else:
+            sanitized_title = analysis.get('suggested_title', 'Untitled Reference')
 
         ref_data = {
             'user_id': current_user.id,
             'image_url': image_url,
             'image_path': image_path,
             'title': sanitized_title,
+            'feeling': analysis.get('feeling', ''),
+            'layout': analysis.get('layout', ''),
+            'illustration_rules': analysis.get('illustration_rules', ''),
+            'typography': analysis.get('typography', ''),
         }
 
         result = get_supabase().table('style_references').insert(ref_data).execute()

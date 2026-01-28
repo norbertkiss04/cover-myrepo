@@ -197,6 +197,10 @@ class TestRunStyleRefPipeline:
                 'image_url': 'https://storage.com/ref.png',
                 'image_path': 'references/ref.png',
                 'title': 'Dark Style',
+                'feeling': 'Dark and mysterious',
+                'layout': 'Central symmetry',
+                'illustration_rules': 'Oil painting',
+                'typography': 'Bold serif',
             })
 
             mock_llm.generate_style_referenced_prompt.return_value = 'Style referenced prompt'
@@ -223,6 +227,9 @@ class TestRunStyleRefPipeline:
             assert result.final_image_url == 'https://storage.com/final.png'
 
             mock_llm.generate_style_referenced_prompt.assert_called_once()
+            call_kwargs = mock_llm.generate_style_referenced_prompt.call_args[1]
+            assert call_kwargs['style_analysis'] is not None
+            assert call_kwargs['style_analysis']['feeling'] == 'Dark and mysterious'
             mock_image.generate_image_with_text.assert_called_once()
 
             assert len(progress_calls) == 2
@@ -244,6 +251,10 @@ class TestRunStyleRefPipeline:
                 'image_url': 'https://storage.com/ref.png',
                 'image_path': 'references/ref.png',
                 'title': 'Dark Style',
+                'feeling': 'Dark and mysterious',
+                'layout': 'Central symmetry',
+                'illustration_rules': 'Oil painting',
+                'typography': 'Bold serif',
             })
 
             mock_llm.generate_style_referenced_prompt_no_text.return_value = 'No text prompt'
@@ -262,7 +273,46 @@ class TestRunStyleRefPipeline:
             )
 
             mock_llm.generate_style_referenced_prompt_no_text.assert_called_once()
+            call_kwargs = mock_llm.generate_style_referenced_prompt_no_text.call_args[1]
+            assert call_kwargs['style_analysis'] is not None
             mock_llm.generate_style_referenced_prompt.assert_not_called()
+
+    @patch('app.services.pipeline_service.storage_service')
+    @patch('app.services.pipeline_service.image_service')
+    @patch('app.services.pipeline_service.llm_service')
+    def test_no_analysis_when_fields_empty(self, mock_llm, mock_image, mock_storage, app, mock_generation, book_data):
+        with app.app_context():
+            app._test_store.setdefault('generations', []).append({
+                'id': 42,
+                'user_id': 1,
+                'status': 'generating',
+                'aspect_ratio': '2:3',
+            })
+            app._test_store.setdefault('style_references', []).append({
+                'id': 10,
+                'user_id': 1,
+                'image_url': 'https://storage.com/ref.png',
+                'image_path': 'references/ref.png',
+                'title': 'Dark Style',
+            })
+
+            mock_llm.generate_style_referenced_prompt.return_value = 'Style referenced prompt'
+            mock_storage.get_signed_url.return_value = 'https://signed.com/ref.png'
+
+            mock_image.generate_image_with_text.return_value = {'image_url': 'https://ext.com/final.png'}
+            mock_storage.upload_from_url.return_value = {
+                'public_url': 'https://storage.com/final.png',
+                'path': 'covers/uuid.png',
+            }
+
+            run_style_ref_pipeline(
+                42, mock_generation, book_data,
+                10, '2:3', 1,
+            )
+
+            mock_llm.generate_style_referenced_prompt.assert_called_once()
+            call_kwargs = mock_llm.generate_style_referenced_prompt.call_args[1]
+            assert call_kwargs['style_analysis'] is None
 
     def test_style_reference_not_found_raises(self, app, mock_generation, book_data):
         with app.app_context():
