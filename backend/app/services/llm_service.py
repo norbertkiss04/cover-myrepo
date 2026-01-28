@@ -43,18 +43,10 @@ Your task is to create a SINGLE, comprehensive image generation prompt that:
 1. Describes the new book cover's visual content (imagery, composition, colors, mood)
 2. INCLUDES the book title and author name as text elements on the cover
 3. Specifies typography style, placement, and hierarchy for the title and author name
-4. Instructs the model to use the reference image ONLY for visual style — NOT its subject matter
+4. Uses the reference image for visual style only — create new imagery appropriate for the book
 5. NEVER include nudity, exposed intimate body parts, or explicit sexual acts in the prompt — even for erotic or romance genres, keep all figures clothed or tastefully obscured (e.g. silhouettes, draped fabric, suggestive but covered poses)
 6. Keep the prompt under 800 characters for best results
-7. Return your response as JSON with a single "prompt" field
-
-CRITICAL: The prompt must explicitly state that the reference image is for STYLE REFERENCE ONLY. 
-The new cover must depict entirely new imagery appropriate for the book described, 
-while matching the artistic style, color palette, composition approach, and typography feel of the reference.
-
-NOTE: The reference image may be placed on a white canvas with white padding/letterboxing to enforce 
-the desired output resolution and aspect ratio. Ignore any white borders or strips around the reference — 
-they are NOT part of the style. The actual style reference is the image content within."""
+7. Return your response as JSON with a single "prompt" field"""
 
 _STYLE_REF_SYSTEM_PROMPT_NO_TEXT = """You are an expert book cover designer. You will be given details about a new book 
 and a reference image will be provided alongside your prompt to the image generation model.
@@ -62,18 +54,10 @@ and a reference image will be provided alongside your prompt to the image genera
 Your task is to create a SINGLE, comprehensive image generation prompt that:
 1. Describes the new book cover's visual content (imagery, composition, colors, mood)
 2. DO NOT include any text, titles, or author names in the image — this is a text-free illustration
-3. Instructs the model to use the reference image ONLY for visual style — NOT its subject matter
+3. Uses the reference image for visual style only — create new imagery appropriate for the book
 4. NEVER include nudity, exposed intimate body parts, or explicit sexual acts in the prompt — even for erotic or romance genres, keep all figures clothed or tastefully obscured (e.g. silhouettes, draped fabric, suggestive but covered poses)
 5. Keep the prompt under 800 characters for best results
-6. Return your response as JSON with a single "prompt" field
-
-CRITICAL: The prompt must explicitly state that the reference image is for STYLE REFERENCE ONLY. 
-The new cover must depict entirely new imagery appropriate for the book described, 
-while matching the artistic style, color palette, and composition approach of the reference.
-
-NOTE: The reference image may be placed on a white canvas with white padding/letterboxing to enforce 
-the desired output resolution and aspect ratio. Ignore any white borders or strips around the reference — 
-they are NOT part of the style. The actual style reference is the image content within."""
+6. Return your response as JSON with a single "prompt" field"""
 
 
 def _build_book_details_content(book_data, include_title=True):

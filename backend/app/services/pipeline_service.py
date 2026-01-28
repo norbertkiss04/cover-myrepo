@@ -54,7 +54,7 @@ def run_standard_pipeline(gen_id, generation, book_data, aspect_ratio, on_progre
     base_prompt = llm_service.generate_base_image_prompt(book_data, base_image_only=base_image_only)
     if base_image_only:
         base_prompt += " Do not include any text, words, letters, titles, or typography anywhere in the image."
-    base_prompt += " The image must fill the entire canvas edge-to-edge with absolutely no white borders, margins, or empty space."
+
     logger.info("Gen #%s Step 1/%d done. Prompt length: %d chars", gen_id, total_steps, len(base_prompt))
     get_supabase().table('generations').update(
         {'base_prompt': base_prompt}
@@ -140,7 +140,7 @@ def run_style_ref_pipeline(
         unified_prompt = llm_service.generate_style_referenced_prompt_no_text(book_data)
     else:
         unified_prompt = llm_service.generate_style_referenced_prompt(book_data)
-    unified_prompt += " The image must fill the entire canvas edge-to-edge with absolutely no white borders, margins, or empty space."
+
     logger.info("Gen #%s Step 1/2 done. Prompt length: %d chars", gen_id, len(unified_prompt))
     get_supabase().table('generations').update(
         {'base_prompt': unified_prompt}
