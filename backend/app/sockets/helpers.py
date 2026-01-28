@@ -81,6 +81,36 @@ def _check_active_generation(user_id):
     return active
 
 
+RECENT_COMPLETION_MINUTES = 2
+
+
+def _check_recent_completion(user_id):
+    result = get_supabase().table('generations').select('*').eq(
+        'user_id', user_id
+    ).eq('status', 'completed').order('completed_at', desc=True).limit(1).execute()
+
+    if not result.data:
+        return None
+
+    gen = Generation.from_row(result.data[0])
+
+    if not gen.completed_at:
+        return None
+
+    completed = gen.completed_at
+    if isinstance(completed, str):
+        completed = datetime.fromisoformat(completed.replace('Z', '+00:00'))
+    if completed.tzinfo is None:
+        completed = completed.replace(tzinfo=timezone.utc)
+
+    age_minutes = (datetime.now(timezone.utc) - completed).total_seconds() / 60
+
+    if age_minutes <= RECENT_COMPLETION_MINUTES:
+        return gen
+
+    return None
+
+
 def _refresh_user(user):
     from app.models.user import User
     result = get_supabase().table('users').select('*').eq('id', user.id).execute()

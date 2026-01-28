@@ -11,6 +11,7 @@ from app.sockets.helpers import (
     connected_users,
     _room_for,
     _check_active_generation,
+    _check_recent_completion,
     _require_authenticated_user,
     _require_no_active_generation,
     _deduct_and_refresh,
@@ -89,6 +90,15 @@ def handle_connect(auth=None):
             'total_steps': active.total_steps or 0,
             'step_message': active.step_message or 'Resuming generation...',
         })
+    else:
+        recent = _check_recent_completion(user.id)
+        if recent:
+            logger.info("User id=%s has recent completion #%s, sending result", user.id, recent.id)
+            from app.services.storage_service import storage_service
+            emit('generation_completed', {
+                'generation_id': recent.id,
+                'generation': storage_service.sign_generation_dict(recent.to_dict()),
+            })
 
 
 @socketio.on('disconnect')

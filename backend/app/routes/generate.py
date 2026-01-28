@@ -7,6 +7,7 @@ from app.models.generation import Generation, ASPECT_RATIOS
 from app.models.style_reference import StyleReference
 from app.routes.auth import token_required
 from app.services.llm_service import llm_service
+from app.services.image_service import image_service
 from app.services.storage_service import storage_service
 from app.services.credit_service import deduct_credits
 from app.config import ANALYSIS_COST
@@ -96,6 +97,23 @@ def analyze_style(current_user):
 
         logger.info("Reference image uploaded: %s", image_path)
 
+        clean_image_url = None
+        clean_image_path = None
+        try:
+            logger.info("Creating clean version (removing text)...")
+            clean_result = image_service.remove_text_from_image(image_data_url)
+            clean_upload = storage_service.upload_from_url(
+                clean_result['image_url'],
+                folder='references-clean'
+            )
+            clean_image_url = clean_upload['public_url']
+            clean_image_path = clean_upload['path']
+            logger.info("Clean reference created: %s", clean_image_path)
+        except Exception as e:
+            logger.warning("Text removal failed, using original as fallback: %s", e)
+            clean_image_url = image_url
+            clean_image_path = image_path
+
         logger.info("Calling Gemini vision for style analysis...")
         analysis = llm_service.analyze_style_reference(image_data_url)
         logger.info("Style analysis complete")
@@ -105,6 +123,8 @@ def analyze_style(current_user):
             'user_id': current_user.id,
             'image_url': image_url,
             'image_path': image_path,
+            'clean_image_url': clean_image_url,
+            'clean_image_path': clean_image_path,
             'title': user_title or analysis.get('title') or 'Untitled Reference',
             'feeling': analysis.get('feeling', ''),
             'layout': analysis.get('layout', ''),

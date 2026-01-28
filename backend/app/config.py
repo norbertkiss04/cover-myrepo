@@ -5,7 +5,7 @@ load_dotenv()
 
 INITIAL_CREDITS = 30
 GENERATION_COST = 3
-ANALYSIS_COST = 1
+ANALYSIS_COST = 2
 
 class Config:
     SECRET_KEY = os.getenv('SECRET_KEY')
