@@ -180,9 +180,8 @@ export const generationApi = {
   regenerateStyleReferencePart: async (
     id: number,
     part: 'clean' | 'text_layer' | 'feeling' | 'layout' | 'illustration_rules' | 'typography',
-    note?: string,
   ): Promise<StyleReference & { remaining_credits: number }> => {
-    const response = await api.post(`/api/style-references/${id}/regenerate`, { part, ...(note ? { note } : {}) });
+    const response = await api.post(`/api/style-references/${id}/regenerate`, { part });
     return response.data;
   },
 };

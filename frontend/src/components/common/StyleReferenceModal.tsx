@@ -26,10 +26,7 @@ export default function StyleReferenceModal({
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState('');
   const [regeneratingPart, setRegeneratingPart] = useState<RegeneratePart | null>(null);
-  const [showTextLayerNoteModal, setShowTextLayerNoteModal] = useState(false);
-  const [textLayerNote, setTextLayerNote] = useState('');
   const titleInputRef = useRef<HTMLInputElement>(null);
-  const textLayerNoteRef = useRef<HTMLTextAreaElement>(null);
   const updateMutation = useUpdateStyleReference();
   const regenerateMutation = useRegenerateStyleReferencePart();
   const { user, updateCredits } = useAuth();
@@ -48,12 +45,6 @@ export default function StyleReferenceModal({
       titleInputRef.current.select();
     }
   }, [isEditingTitle]);
-
-  useEffect(() => {
-    if (showTextLayerNoteModal && textLayerNoteRef.current) {
-      textLayerNoteRef.current.focus();
-    }
-  }, [showTextLayerNoteModal]);
 
   if (!styleRef) return null;
 
@@ -113,13 +104,13 @@ export default function StyleReferenceModal({
     }
   };
 
-  const handleRegenerate = (part: RegeneratePart, note?: string) => {
+  const handleRegenerate = (part: RegeneratePart) => {
     if (regeneratingPart) return;
     if (!user?.unlimited_credits && (user?.credits ?? 0) < 1) return;
 
     setRegeneratingPart(part);
     regenerateMutation.mutate(
-      { id: styleRef.id, part, note },
+      { id: styleRef.id, part },
       {
         onSuccess: (updated) => {
           onUpdate(styleRef.id, {
@@ -138,21 +129,6 @@ export default function StyleReferenceModal({
         },
       }
     );
-  };
-
-  const handleTextLayerRegenerateClick = () => {
-    if (regeneratingPart) return;
-    if (!user?.unlimited_credits && (user?.credits ?? 0) < 1) return;
-    setShowTextLayerNoteModal(true);
-  };
-
-  const handleTextLayerNoteConfirm = () => {
-    setShowTextLayerNoteModal(false);
-    handleRegenerate('text_layer', textLayerNote.trim() || undefined);
-  };
-
-  const handleTextLayerNoteCancel = () => {
-    setShowTextLayerNoteModal(false);
   };
 
   const canRegenerate = user?.unlimited_credits || (user?.credits ?? 0) >= 1;
@@ -225,7 +201,7 @@ export default function StyleReferenceModal({
                             </button>
                             {variant !== 'original' && canRegenerate && (
                               <button
-                                onClick={() => variant === 'text_layer' ? handleTextLayerRegenerateClick() : handleRegenerate('clean')}
+                                onClick={() => handleRegenerate(variant === 'clean' ? 'clean' : 'text_layer')}
                                 disabled={regeneratingPart !== null}
                                 title="Regenerate (1 credit)"
                                 className="p-1 text-white/60 hover:text-white hover:bg-white/10 rounded-full transition-colors disabled:opacity-50"
@@ -318,73 +294,6 @@ export default function StyleReferenceModal({
             </Transition.Child>
           </div>
         </div>
-
-        <Transition appear show={showTextLayerNoteModal} as={Fragment}>
-          <Dialog as="div" className="relative z-[60]" onClose={handleTextLayerNoteCancel}>
-            <Transition.Child
-              as={Fragment}
-              enter="ease-out duration-200"
-              enterFrom="opacity-0"
-              enterTo="opacity-100"
-              leave="ease-in duration-150"
-              leaveFrom="opacity-100"
-              leaveTo="opacity-0"
-            >
-              <div className="fixed inset-0 bg-black/40" />
-            </Transition.Child>
-
-            <div className="fixed inset-0 overflow-y-auto">
-              <div className="flex min-h-full items-center justify-center p-4">
-                <Transition.Child
-                  as={Fragment}
-                  enter="ease-out duration-200"
-                  enterFrom="opacity-0 scale-95"
-                  enterTo="opacity-100 scale-100"
-                  leave="ease-in duration-150"
-                  leaveFrom="opacity-100 scale-100"
-                  leaveTo="opacity-0 scale-95"
-                >
-                  <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-xl bg-surface p-6 shadow-xl transition-all">
-                    <Dialog.Title className="text-lg font-semibold text-text mb-4">
-                      Regenerate Typography Layer
-                    </Dialog.Title>
-
-                    <div className="space-y-3">
-                      <label className="block text-sm text-text-secondary">
-                        Add instructions (optional):
-                      </label>
-                      <textarea
-                        ref={textLayerNoteRef}
-                        value={textLayerNote}
-                        onChange={(e) => setTextLayerNote(e.target.value)}
-                        placeholder='e.g., "Remove the woman figure, keep the title and author name"'
-                        className="w-full h-24 px-3 py-2 bg-surface-alt border border-border rounded-lg text-text placeholder-text-muted text-sm resize-none focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50"
-                      />
-                      <p className="text-xs text-text-muted">
-                        Leave empty to auto-detect what to remove.
-                      </p>
-                    </div>
-
-                    <div className="flex gap-3 mt-6">
-                      <button
-                        onClick={handleTextLayerNoteCancel}
-                        className="flex-1 px-4 py-2 text-sm font-medium text-text-secondary bg-surface-alt hover:bg-border rounded-lg transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleTextLayerNoteConfirm}
-                        className="flex-1 px-4 py-2 text-sm font-medium text-white bg-accent hover:bg-accent-hover rounded-lg transition-colors"
-                      >
-                        Regenerate
-                      </button>
-                    </div>
-                  </Dialog.Panel>
-                </Transition.Child>
-              </div>
-            </div>
-          </Dialog>
-        </Transition>
       </Dialog>
     </Transition>
   );
