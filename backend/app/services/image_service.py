@@ -278,26 +278,4 @@ class ImageService:
         logger.info("Text layer isolation complete")
         return {'image_url': image_url}
 
-    def cleanup_text_layer(self, image_url, removal_prompt, background_color):
-        self._get_config()
-
-        payload = {
-            'prompt': (
-                f'{removal_prompt} '
-                f'Fill the removed area with solid background.'
-            ),
-            'images': [image_url],
-            'enable_base64_output': False,
-            'enable_sync_mode': False,
-        }
-
-        logger.info("Submitting text layer cleanup job")
-        job_id = self._submit(
-            f'{self.base_url}/bytedance/seedream-v4.5/edit',
-            payload
-        )
-        image_url = self._poll(job_id)
-        logger.info("Text layer cleanup complete")
-        return {'image_url': image_url}
-
 image_service = ImageService()

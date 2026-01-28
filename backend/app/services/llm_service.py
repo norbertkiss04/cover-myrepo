@@ -53,20 +53,6 @@ STYLE_ANALYSIS_SCHEMA = {
     },
 }
 
-TEXT_LAYER_ANALYSIS_SCHEMA = {
-    "name": "text_layer_analysis",
-    "strict": True,
-    "schema": {
-        "type": "object",
-        "properties": {
-            "needs_cleanup": {"type": "boolean"},
-            "removal_prompt": {"type": ["string", "null"]},
-        },
-        "required": ["needs_cleanup", "removal_prompt"],
-        "additionalProperties": False,
-    },
-}
-
 SINGLE_FIELD_PROMPTS = {
     'feeling': """Act as an expert Senior Art Director and Book Cover Designer. Analyze the visual style of the provided image.
 
@@ -171,22 +157,6 @@ SINGLE_FIELD_SCHEMAS = {
         },
     },
 }
-
-TEXT_LAYER_ANALYSIS_PROMPT = """Analyze this isolated text layer image from a book cover.
-
-The image should contain ONLY the book title and author name on a solid colored background.
-
-Check if there are any unwanted elements that need to be removed:
-- Background artifacts or remnants of the original cover
-- Decorative borders, frames, or ornamental elements
-- Publisher logos or imprints
-- Award badges or stickers
-- Review quotes or blurbs
-- Subtitles, taglines, or any other text that isn't the title or author name
-
-Respond with:
-1. needs_cleanup: true if there are elements to remove, false if the image is clean
-2. removal_prompt: if needs_cleanup is true, provide a specific prompt describing what to remove (e.g., "Remove the decorative border frame, the subtitle, and the 'New York Times Bestseller' badge"). If needs_cleanup is false, set this to null."""
 
 STYLE_ANALYSIS_PROMPT = """Act as an expert Senior Art Director and Book Cover Designer. Analyze the visual style of the provided image to create a transferable design brief. 
 
@@ -418,36 +388,6 @@ class LLMService:
                      len(result.get('illustration_rules', '')),
                      len(result.get('typography', '')))
 
-        return result
-
-    def analyze_text_layer(self, image_data_url):
-        logger.info("Analyzing text layer for cleanup needs via Gemini vision")
-
-        messages = [
-            {
-                'role': 'user',
-                'content': [
-                    {
-                        'type': 'image_url',
-                        'image_url': {
-                            'url': image_data_url,
-                        },
-                    },
-                    {
-                        'type': 'text',
-                        'text': TEXT_LAYER_ANALYSIS_PROMPT,
-                    },
-                ],
-            }
-        ]
-
-        result = self._make_request(
-            messages,
-            schema=TEXT_LAYER_ANALYSIS_SCHEMA,
-            model='google/gemini-3-flash-preview',
-        )
-
-        logger.info("Text layer analysis complete (needs_cleanup=%s)", result.get('needs_cleanup'))
         return result
 
     def generate_base_image_prompt(self, book_data, style_analysis=None, base_image_only=False):
