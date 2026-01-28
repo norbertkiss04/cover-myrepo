@@ -245,6 +245,26 @@ def list_invites(current_user):
     return jsonify({'invites': result.data or []})
 
 
+@auth_bp.route('/invites/<int:invite_id>', methods=['DELETE'])
+@token_required
+def delete_invite(current_user, invite_id):
+    if not current_user.is_admin:
+        return jsonify({'error': 'Forbidden'}), 403
+
+    sb = current_app.supabase
+    try:
+        sb.table('invites').delete().eq(
+            'id', invite_id
+        ).eq(
+            'created_by', current_user.id
+        ).execute()
+    except Exception as e:
+        logger.error("Failed to delete invite %d for user %d: %s", invite_id, current_user.id, e)
+        return jsonify({'error': 'Failed to delete invite'}), 500
+
+    return jsonify({'success': True})
+
+
 ALLOWED_VISIBLE_FIELDS = {
     'description', 'genres', 'mood', 'color_preference',
     'character_description', 'keywords', 'cover_ideas',

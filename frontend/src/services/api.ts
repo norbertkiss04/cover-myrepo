@@ -111,6 +111,10 @@ export const authApi = {
     return response.data;
   },
 
+  deleteInvite: async (id: number): Promise<void> => {
+    await api.delete(`/auth/invites/${id}`);
+  },
+
   logout: async (): Promise<void> => {
     await api.post('/auth/logout');
   },
