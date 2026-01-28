@@ -115,6 +115,10 @@ def handle_start_generation(data):
     if not _require_no_active_generation(user):
         return
 
+    if data.get('genres') and not isinstance(data['genres'], list):
+        emit('generation_error', {'error': 'genres must be an array'})
+        return
+
     sanitized = sanitize_generation_data(data)
     if sanitized is None:
         emit('generation_error', {'error': 'Invalid input detected. Please revise your text.'})
@@ -124,10 +128,6 @@ def handle_start_generation(data):
 
     if not base_image_only and (not sanitized.get('book_title') or not sanitized.get('author_name')):
         emit('generation_error', {'error': 'Missing required fields: book_title, author_name'})
-        return
-
-    if sanitized.get('genres') and not isinstance(sanitized['genres'], list):
-        emit('generation_error', {'error': 'genres must be an array'})
         return
 
     aspect_ratio = data.get('aspect_ratio', '2:3')

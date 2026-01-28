@@ -125,13 +125,55 @@ class MockQueryBuilder:
         result.data = removed
         return result
 
+class MockRpcBuilder:
+
+    def __init__(self, store, func_name, params):
+        self._store = store
+        self._func_name = func_name
+        self._params = params
+
+    def execute(self):
+        result = MagicMock()
+        if self._func_name == 'deduct_credits':
+            user_id = self._params.get('p_user_id')
+            amount = self._params.get('p_amount')
+            users = self._store.get('users', [])
+            for user in users:
+                if user.get('id') == user_id:
+                    if user.get('credits', 0) >= amount:
+                        user['credits'] -= amount
+                        result.data = user['credits']
+                    else:
+                        result.data = False
+                    return result
+            result.data = False
+            return result
+        elif self._func_name == 'refund_credits':
+            user_id = self._params.get('p_user_id')
+            amount = self._params.get('p_amount')
+            users = self._store.get('users', [])
+            for user in users:
+                if user.get('id') == user_id:
+                    user['credits'] = user.get('credits', 0) + amount
+                    result.data = user['credits']
+                    return result
+            result.data = None
+            return result
+        result.data = None
+        return result
+
+
 def _make_mock_supabase(store: dict):
     mock_supabase = MagicMock()
 
     def table_factory(table_name):
         return MockQueryBuilder(store, table_name)
 
+    def rpc_factory(func_name, params=None):
+        return MockRpcBuilder(store, func_name, params or {})
+
     mock_supabase.table = table_factory
+    mock_supabase.rpc = rpc_factory
 
     mock_supabase.auth.get_user.side_effect = Exception('Invalid token')
 

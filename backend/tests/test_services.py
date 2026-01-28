@@ -52,7 +52,6 @@ class TestCreditService:
         with app.app_context():
             user = User(google_id='g1', email='user@example.com', name='User', id=1, credits=10)
 
-            # The mock store already has the update mechanism
             app._test_store.setdefault('users', []).append({
                 'id': 1,
                 'google_id': 'g1',
@@ -64,6 +63,7 @@ class TestCreditService:
             result = refund_credits(user, 3)
 
             assert result == 13
+            assert app._test_store['users'][0]['credits'] == 13
 
     def test_refund_credits_owner_bypass(self, app):
         with app.app_context():

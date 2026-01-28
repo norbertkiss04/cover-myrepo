@@ -137,8 +137,9 @@ def sync_user(current_user):
     return jsonify(current_user.to_dict())
 
 ALLOWED_VISIBLE_FIELDS = {
-    'cover_ideas', 'mood', 'color_preference',
-    'character_description', 'keywords',
+    'description', 'genres', 'mood', 'color_preference',
+    'character_description', 'keywords', 'cover_ideas',
+    'reference_image_description',
 }
 MAX_PREFERENCES_SIZE = 4096
 
