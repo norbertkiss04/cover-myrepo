@@ -259,10 +259,12 @@ class ImageService:
 
         payload = {
             'prompt': (
-                f'Remove all illustrations, photos, artwork, people, objects, and backgrounds. '
-                f'Keep only the book title and author name text. '
-                f'Fill removed areas with solid {background_color}. '
-                f'Do not alter the text.'
+                f'Create an image with ONLY the text and typography from this book cover. '
+                f'Remove ALL illustrations, photos, artwork, people, objects, and backgrounds. '
+                f'Keep ONLY: the book title and author name. Remove all other text including subtitles, taglines, quotes, and blurbs. '
+                f'Fill the ENTIRE background with solid flat {background_color} color. '
+                f'Text must remain in its original position, font style, and color. '
+                f'Nothing else should be visible except text on solid {background_color}.'
             ),
             'images': [image_url],
             'enable_base64_output': False,
