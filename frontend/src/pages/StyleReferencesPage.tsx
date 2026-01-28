@@ -3,10 +3,12 @@ import Masonry from 'react-masonry-css';
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { generationApi } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import LoadingSpinner from '../components/common/LoadingSpinner';
+import ErrorState from '../components/common/ErrorState';
 import type { StyleReference } from '../types';
+import { MASONRY_BREAKPOINTS } from '../constants';
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
-const MASONRY_BREAKPOINTS = { default: 3, 1024: 2, 640: 1 };
 
 function resizeImage(file: File, maxDim = 2048): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -236,27 +238,8 @@ export default function StyleReferencesPage() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-2 border-accent border-t-transparent"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-16">
-        <p className="text-error">{error}</p>
-        <button
-          onClick={loadRefs}
-          className="mt-4 text-accent hover:text-accent-hover font-medium transition-colors"
-        >
-          Try again
-        </button>
-      </div>
-    );
-  }
+  if (isLoading) return <LoadingSpinner />;
+  if (error) return <ErrorState message={error} onRetry={loadRefs} />;
 
   return (
     <div

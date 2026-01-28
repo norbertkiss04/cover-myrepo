@@ -4,9 +4,10 @@ import Masonry from 'react-masonry-css';
 import { ArrowDownTrayIcon, TrashIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
 import { generationApi } from '../services/api';
 import GenerationSettingsModal from '../components/GenerationSettingsModal';
+import LoadingSpinner from '../components/common/LoadingSpinner';
+import ErrorState from '../components/common/ErrorState';
 import type { Generation, StyleReference } from '../types';
-
-const MASONRY_BREAKPOINTS = { default: 3, 1024: 2, 640: 1 };
+import { MASONRY_BREAKPOINTS } from '../constants';
 
 export default function HistoryPage() {
   const navigate = useNavigate();
@@ -50,27 +51,8 @@ export default function HistoryPage() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin rounded-full h-12 w-12 border-2 border-accent border-t-transparent"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-16">
-        <p className="text-error">{error}</p>
-        <button
-          onClick={loadGenerations}
-          className="mt-4 text-accent hover:text-accent-hover font-medium transition-colors"
-        >
-          Try again
-        </button>
-      </div>
-    );
-  }
+  if (isLoading) return <LoadingSpinner />;
+  if (error) return <ErrorState message={error} onRetry={loadGenerations} />;
 
   if (generations.length === 0) {
     return (
