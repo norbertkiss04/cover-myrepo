@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
 import type { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { supabase, setCurrentSession } from '../lib/supabase';
 import type { User, UserPreferences } from '../types';
@@ -103,15 +103,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signInWithEmail = async (email: string, password: string) => {
+  const signInWithEmail = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
     if (error) throw error;
-  };
+  }, []);
 
-  const signUp = async (email: string, password: string, name: string, inviteCode: string) => {
+  const signUp = useCallback(async (email: string, password: string, name: string, inviteCode: string) => {
     const trimmedInvite = inviteCode.trim();
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -128,9 +128,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const needsConfirmation = !data.session;
     return { needsConfirmation };
-  };
+  }, []);
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = useCallback(async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -138,9 +138,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     });
     if (error) throw error;
-  };
+  }, []);
 
-  const updatePreferences = async (preferences: UserPreferences) => {
+  const updatePreferences = useCallback(async (preferences: UserPreferences) => {
     try {
       const updatedUser = await authApi.updatePreferences(preferences);
       setUser(updatedUser);
@@ -148,31 +148,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error('Failed to update preferences:', error);
       throw error;
     }
-  };
+  }, []);
 
   const updateCredits = useCallback((newCredits: number) => {
     setUser((prev) => prev ? { ...prev, credits: newCredits } : prev);
   }, []);
 
-  const resetPassword = async (email: string) => {
+  const resetPassword = useCallback(async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/reset-password`,
     });
     if (error) throw error;
-  };
+  }, []);
 
-  const updatePassword = async (newPassword: string) => {
+  const updatePassword = useCallback(async (newPassword: string) => {
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) throw error;
     setIsRecoveryMode(false);
-  };
+  }, []);
 
-  const updateEmail = async (newEmail: string) => {
+  const updateEmail = useCallback(async (newEmail: string) => {
     const { error } = await supabase.auth.updateUser({ email: newEmail });
     if (error) throw error;
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await supabase.auth.signOut();
     } catch (error) {
@@ -181,28 +181,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setSupabaseUser(null);
     setSession(null);
-  };
+  }, []);
+
+  const value = useMemo(() => ({
+    user,
+    supabaseUser,
+    session,
+    isLoading,
+    isAuthenticated: !!session,
+    isRecoveryMode,
+    signInWithEmail,
+    signUp,
+    signInWithGoogle,
+    logout,
+    updatePreferences,
+    updateCredits,
+    resetPassword,
+    updatePassword,
+    updateEmail,
+  }), [
+    user,
+    supabaseUser,
+    session,
+    isLoading,
+    isRecoveryMode,
+    signInWithEmail,
+    signUp,
+    signInWithGoogle,
+    logout,
+    updatePreferences,
+    updateCredits,
+    resetPassword,
+    updatePassword,
+    updateEmail,
+  ]);
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        supabaseUser,
-        session,
-        isLoading,
-        isAuthenticated: !!session,
-        isRecoveryMode,
-        signInWithEmail,
-        signUp,
-        signInWithGoogle,
-        logout,
-        updatePreferences,
-        updateCredits,
-        resetPassword,
-        updatePassword,
-        updateEmail,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

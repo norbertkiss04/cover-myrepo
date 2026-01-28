@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo, type ReactNode } from 'react';
 import { connectSocket, disconnectSocket, getSocket } from '../lib/socket';
 import { useAuth } from './AuthContext';
 import type { GenerationInput, Generation, GenerationStatus } from '../types';
@@ -178,25 +178,40 @@ export function GenerationProvider({ children }: { children: ReactNode }) {
     setError(null);
   }, []);
 
+  const value = useMemo(() => ({
+    status,
+    generationId,
+    bookTitle,
+    authorName,
+    step,
+    totalSteps,
+    stepMessage,
+    result,
+    error,
+    socketConnected,
+    startGeneration,
+    startRegeneration,
+    cancelGeneration,
+    reset,
+  }), [
+    status,
+    generationId,
+    bookTitle,
+    authorName,
+    step,
+    totalSteps,
+    stepMessage,
+    result,
+    error,
+    socketConnected,
+    startGeneration,
+    startRegeneration,
+    cancelGeneration,
+    reset,
+  ]);
+
   return (
-    <GenerationContext.Provider
-      value={{
-        status,
-        generationId,
-        bookTitle,
-        authorName,
-        step,
-        totalSteps,
-        stepMessage,
-        result,
-        error,
-        socketConnected,
-        startGeneration,
-        startRegeneration,
-        cancelGeneration,
-        reset,
-      }}
-    >
+    <GenerationContext.Provider value={value}>
       {children}
     </GenerationContext.Provider>
   );

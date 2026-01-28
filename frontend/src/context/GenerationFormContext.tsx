@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from 'react';
 import type { GenerationInput } from '../types';
 
 interface GenerationFormState {
@@ -49,20 +49,30 @@ export function GenerationFormProvider({ children }: { children: ReactNode }) {
     setTempFieldsRaw(new Set());
   }, []);
 
+  const value = useMemo(() => ({
+    formData,
+    selectedRefId,
+    baseImageOnly,
+    tempFields,
+    setFormData,
+    setSelectedRefId,
+    setBaseImageOnly,
+    setTempFields,
+    clearForm,
+  }), [
+    formData,
+    selectedRefId,
+    baseImageOnly,
+    tempFields,
+    setFormData,
+    setSelectedRefId,
+    setBaseImageOnly,
+    setTempFields,
+    clearForm,
+  ]);
+
   return (
-    <GenerationFormContext.Provider
-      value={{
-        formData,
-        selectedRefId,
-        baseImageOnly,
-        tempFields,
-        setFormData,
-        setSelectedRefId,
-        setBaseImageOnly,
-        setTempFields,
-        clearForm,
-      }}
-    >
+    <GenerationFormContext.Provider value={value}>
       {children}
     </GenerationFormContext.Provider>
   );

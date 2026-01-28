@@ -87,16 +87,7 @@ h1, h2, h3 {
   letter-spacing: -0.025em;
 }
 
-*, *::before, *::after {
-  transition-property: background-color, border-color, color;
-  transition-duration: 0.15s;
-  transition-timing-function: ease;
-}
 
-.animate-spin,
-[class*="transition-"] {
-  transition-property: all;
-}
 
 .dark ::-webkit-scrollbar {
   width: 8px;
