@@ -286,11 +286,8 @@ class ImageService:
         payload = {
             'prompt': (
                 f'{removal_prompt} '
-                f'Replace all removed elements with solid flat {background_color} background. '
-                f'Keep only the main book title and author name intact. '
-                f'CRITICAL: Do NOT move, reposition, or shift the text in any way — the text must remain at its EXACT original pixel location. '
-                f'Maintain the exact font style, size, and color of the kept text. '
-                f'The background must remain solid {background_color} with no artifacts or remnants.'
+                f'Fill the removed area with solid {background_color}. '
+                f'Do not alter the text.'
             ),
             'images': [image_url],
             'enable_base64_output': False,
