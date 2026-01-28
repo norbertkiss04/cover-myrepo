@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 
 const GOOGLE_AUTH_ENABLED = false;
 
@@ -134,6 +134,17 @@ export default function LoginPage() {
                 placeholder={isRegister ? 'Min 6 characters' : 'Your password'}
               />
             </div>
+
+            {!isRegister && (
+              <div className="flex justify-end -mt-1">
+                <Link
+                  to="/forgot-password"
+                  className="text-xs text-accent hover:text-accent-hover font-medium transition-colors"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+            )}
 
             <button
               type="submit"
