@@ -4,7 +4,6 @@ import type { GenerationInput } from '../types';
 interface GenerationFormState {
   formData: GenerationInput;
   selectedRefId: number | null;
-  useStyleImage: boolean;
   baseImageOnly: boolean;
   tempFields: Set<string>;
 }
@@ -12,7 +11,6 @@ interface GenerationFormState {
 interface GenerationFormContextType extends GenerationFormState {
   setFormData: (data: GenerationInput | ((prev: GenerationInput) => GenerationInput)) => void;
   setSelectedRefId: (id: number | null) => void;
-  setUseStyleImage: (value: boolean) => void;
   setBaseImageOnly: (value: boolean) => void;
   setTempFields: (fields: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
   clearForm: () => void;
@@ -33,7 +31,6 @@ const GenerationFormContext = createContext<GenerationFormContextType | undefine
 export function GenerationFormProvider({ children }: { children: ReactNode }) {
   const [formData, setFormDataRaw] = useState<GenerationInput>({ ...defaultFormData });
   const [selectedRefId, setSelectedRefId] = useState<number | null>(null);
-  const [useStyleImage, setUseStyleImage] = useState(false);
   const [baseImageOnly, setBaseImageOnly] = useState(false);
   const [tempFields, setTempFieldsRaw] = useState<Set<string>>(new Set());
 
@@ -48,7 +45,6 @@ export function GenerationFormProvider({ children }: { children: ReactNode }) {
   const clearForm = useCallback(() => {
     setFormDataRaw({ ...defaultFormData });
     setSelectedRefId(null);
-    setUseStyleImage(false);
     setBaseImageOnly(false);
     setTempFieldsRaw(new Set());
   }, []);
@@ -58,12 +54,10 @@ export function GenerationFormProvider({ children }: { children: ReactNode }) {
       value={{
         formData,
         selectedRefId,
-        useStyleImage,
         baseImageOnly,
         tempFields,
         setFormData,
         setSelectedRefId,
-        setUseStyleImage,
         setBaseImageOnly,
         setTempFields,
         clearForm,

@@ -76,7 +76,6 @@ export default function GeneratePage() {
       const matchingRef = styleReferences.find((r) => r.id === gen.style_reference_id);
       if (matchingRef) {
         form.setSelectedRefId(matchingRef.id);
-        form.setUseStyleImage(Boolean(gen.use_style_image));
       }
     }
 
@@ -130,7 +129,7 @@ export default function GeneratePage() {
           typography: ref.typography || '',
         };
         payload.style_reference_id = ref.id;
-        payload.use_style_image = form.useStyleImage;
+        payload.use_style_image = true;
       }
     }
 
@@ -394,7 +393,6 @@ export default function GeneratePage() {
                     const val = e.target.value;
                     const newId = val === '' ? null : Number(val);
                     form.setSelectedRefId(newId);
-                    if (newId === null) form.setUseStyleImage(false);
                   }}
                   disabled={isGenerating}
                   className={inputClass}
@@ -416,19 +414,6 @@ export default function GeneratePage() {
                 )}
               </div>
             </div>
-
-            {form.selectedRefId !== null && (
-              <div className="flex items-center justify-between bg-surface-alt/50 border border-border rounded-lg px-3 py-2">
-                <span className="text-sm text-text-secondary">
-                  Use reference image in generation
-                </span>
-                <Toggle
-                  checked={form.useStyleImage}
-                  onChange={form.setUseStyleImage}
-                  disabled={isGenerating}
-                />
-              </div>
-            )}
 
             {visibleOptionalFields.length > 0 && (
               <div className="border-t border-border pt-3.5 space-y-3.5">
