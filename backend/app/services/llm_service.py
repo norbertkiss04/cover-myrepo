@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 _prompts_cache = None
 
-STYLE_ANALYSIS_MODEL = 'google/gemini-2.5-flash-preview'
+STYLE_ANALYSIS_MODEL = 'google/gemini-3-flash-preview'
 
 
 def _load_prompts():
