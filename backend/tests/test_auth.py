@@ -182,3 +182,202 @@ def test_race_condition_insert_fails_retry_finds_user(app, client):
     assert response.status_code == 200
     data = response.get_json()
     assert data['email'] == 'race@example.com'
+
+
+def _make_admin_headers(app, supabase_id='admin-supabase-id'):
+    app._test_store.setdefault('users', []).append({
+        'id': 100,
+        'google_id': supabase_id,
+        'email': 'admin@example.com',
+        'name': 'Admin User',
+        'picture': None,
+        'credits': 30,
+        'is_admin': True,
+        'created_at': '2025-01-01T00:00:00Z',
+        'updated_at': '2025-01-01T00:00:00Z',
+    })
+
+    mock_supabase_user = MagicMock()
+    mock_supabase_user.id = supabase_id
+    mock_supabase_user.email = 'admin@example.com'
+    mock_supabase_user.user_metadata = {'full_name': 'Admin User'}
+    mock_response = MagicMock()
+    mock_response.user = mock_supabase_user
+
+    original_side_effect = app.supabase.auth.get_user.side_effect
+
+    def get_user_side_effect(token):
+        if token == 'admin-token':
+            return mock_response
+        if original_side_effect:
+            return original_side_effect(token)
+        raise Exception('Invalid token')
+
+    app.supabase.auth.get_user.side_effect = get_user_side_effect
+
+    return {'Authorization': 'Bearer admin-token'}
+
+
+def test_give_credits_non_admin_forbidden(client, auth_headers):
+    response = client.post(
+        '/auth/credits',
+        headers=auth_headers,
+        json={'email': 'target@example.com', 'amount': 10},
+    )
+
+    assert response.status_code == 403
+    data = response.get_json()
+    assert data['error'] == 'Forbidden'
+
+
+def test_give_credits_missing_email(app, client):
+    admin_headers = _make_admin_headers(app)
+
+    response = client.post(
+        '/auth/credits',
+        headers=admin_headers,
+        json={'amount': 10},
+    )
+
+    assert response.status_code == 400
+    data = response.get_json()
+    assert 'Email' in data['error']
+
+
+def test_give_credits_invalid_email_format(app, client):
+    admin_headers = _make_admin_headers(app)
+
+    response = client.post(
+        '/auth/credits',
+        headers=admin_headers,
+        json={'email': 'not-an-email', 'amount': 10},
+    )
+
+    assert response.status_code == 400
+    data = response.get_json()
+    assert 'email' in data['error'].lower()
+
+
+def test_give_credits_missing_amount(app, client):
+    admin_headers = _make_admin_headers(app)
+
+    response = client.post(
+        '/auth/credits',
+        headers=admin_headers,
+        json={'email': 'target@example.com'},
+    )
+
+    assert response.status_code == 400
+    data = response.get_json()
+    assert 'Amount' in data['error']
+
+
+def test_give_credits_invalid_amount_zero(app, client):
+    admin_headers = _make_admin_headers(app)
+
+    response = client.post(
+        '/auth/credits',
+        headers=admin_headers,
+        json={'email': 'target@example.com', 'amount': 0},
+    )
+
+    assert response.status_code == 400
+    data = response.get_json()
+    assert 'at least 1' in data['error']
+
+
+def test_give_credits_invalid_amount_negative(app, client):
+    admin_headers = _make_admin_headers(app)
+
+    response = client.post(
+        '/auth/credits',
+        headers=admin_headers,
+        json={'email': 'target@example.com', 'amount': -5},
+    )
+
+    assert response.status_code == 400
+    data = response.get_json()
+    assert 'at least 1' in data['error']
+
+
+def test_give_credits_invalid_amount_string(app, client):
+    admin_headers = _make_admin_headers(app)
+
+    response = client.post(
+        '/auth/credits',
+        headers=admin_headers,
+        json={'email': 'target@example.com', 'amount': 'ten'},
+    )
+
+    assert response.status_code == 400
+    data = response.get_json()
+    assert 'integer' in data['error']
+
+
+def test_give_credits_user_not_found(app, client):
+    admin_headers = _make_admin_headers(app)
+
+    response = client.post(
+        '/auth/credits',
+        headers=admin_headers,
+        json={'email': 'nonexistent@example.com', 'amount': 10},
+    )
+
+    assert response.status_code == 404
+    data = response.get_json()
+    assert 'not found' in data['error'].lower()
+
+
+def test_give_credits_success(app, client):
+    admin_headers = _make_admin_headers(app)
+
+    app._test_store.setdefault('users', []).append({
+        'id': 200,
+        'google_id': 'target-user-id',
+        'email': 'target@example.com',
+        'name': 'Target User',
+        'picture': None,
+        'credits': 20,
+        'is_admin': False,
+        'created_at': '2025-01-01T00:00:00Z',
+        'updated_at': '2025-01-01T00:00:00Z',
+    })
+
+    response = client.post(
+        '/auth/credits',
+        headers=admin_headers,
+        json={'email': 'target@example.com', 'amount': 50},
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['success'] is True
+    assert data['email'] == 'target@example.com'
+    assert data['new_balance'] == 70
+
+
+def test_give_credits_email_case_insensitive(app, client):
+    admin_headers = _make_admin_headers(app)
+
+    app._test_store.setdefault('users', []).append({
+        'id': 201,
+        'google_id': 'case-user-id',
+        'email': 'case@example.com',
+        'name': 'Case User',
+        'picture': None,
+        'credits': 10,
+        'is_admin': False,
+        'created_at': '2025-01-01T00:00:00Z',
+        'updated_at': '2025-01-01T00:00:00Z',
+    })
+
+    response = client.post(
+        '/auth/credits',
+        headers=admin_headers,
+        json={'email': 'CASE@EXAMPLE.COM', 'amount': 25},
+    )
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['success'] is True
+    assert data['new_balance'] == 35

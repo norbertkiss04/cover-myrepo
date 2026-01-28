@@ -115,6 +115,11 @@ export const authApi = {
     await api.delete(`/auth/invites/${id}`);
   },
 
+  giveCredits: async (email: string, amount: number): Promise<{ success: boolean; email: string; new_balance: number }> => {
+    const response = await api.post('/auth/credits', { email, amount });
+    return response.data;
+  },
+
   logout: async (): Promise<void> => {
     await api.post('/auth/logout');
   },

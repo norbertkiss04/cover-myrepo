@@ -315,6 +315,79 @@ def update_preferences(current_user):
 
     return jsonify({'error': 'Failed to update preferences'}), 500
 
+MAX_EMAIL_LENGTH = 254
+MAX_CREDIT_AMOUNT = 1000000
+
+
+@auth_bp.route('/credits', methods=['POST'])
+@limiter.limit("10 per minute")
+@token_required
+def give_credits(current_user):
+    if not current_user.is_admin:
+        return jsonify({'error': 'Forbidden'}), 403
+
+    data = request.get_json() or {}
+
+    email = data.get('email')
+    if not email or not isinstance(email, str):
+        return jsonify({'error': 'Email is required'}), 400
+
+    email = email.strip().lower()
+    if len(email) > MAX_EMAIL_LENGTH:
+        return jsonify({'error': 'Email too long'}), 400
+
+    if '@' not in email or '.' not in email.split('@')[-1]:
+        return jsonify({'error': 'Invalid email format'}), 400
+
+    amount = data.get('amount')
+    if amount is None:
+        return jsonify({'error': 'Amount is required'}), 400
+
+    if not isinstance(amount, int) or isinstance(amount, bool):
+        return jsonify({'error': 'Amount must be an integer'}), 400
+
+    if amount < 1:
+        return jsonify({'error': 'Amount must be at least 1'}), 400
+
+    if amount > MAX_CREDIT_AMOUNT:
+        return jsonify({'error': f'Amount cannot exceed {MAX_CREDIT_AMOUNT}'}), 400
+
+    sb = current_app.supabase
+
+    try:
+        result = sb.table('users').select('id, email, credits').eq('email', email).execute()
+    except Exception as e:
+        logger.error("Failed to look up user by email %s: %s", email, e)
+        return jsonify({'error': 'Failed to look up user'}), 500
+
+    if not result.data:
+        return jsonify({'error': 'User not found'}), 404
+
+    target_user = result.data[0]
+    target_user_id = target_user['id']
+
+    try:
+        rpc_result = sb.rpc('refund_credits', {
+            'p_user_id': target_user_id,
+            'p_amount': amount,
+        }).execute()
+        new_balance = rpc_result.data if rpc_result.data is not None else target_user['credits'] + amount
+    except Exception as e:
+        logger.error("Failed to add credits to user %s: %s", email, e)
+        return jsonify({'error': 'Failed to add credits'}), 500
+
+    logger.info(
+        "Admin id=%s gave %d credits to user %s (new_balance=%s)",
+        current_user.id, amount, email, new_balance
+    )
+
+    return jsonify({
+        'success': True,
+        'email': email,
+        'new_balance': new_balance,
+    })
+
+
 @auth_bp.route('/logout', methods=['POST'])
 @token_required
 def logout(current_user):

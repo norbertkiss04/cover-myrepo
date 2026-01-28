@@ -45,6 +45,11 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [inviteListLoading, setInviteListLoading] = useState(false);
   const [deletingInviteId, setDeletingInviteId] = useState<number | null>(null);
 
+  const [creditEmail, setCreditEmail] = useState('');
+  const [creditAmount, setCreditAmount] = useState('');
+  const [creditStatus, setCreditStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [creditLoading, setCreditLoading] = useState(false);
+
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
@@ -65,6 +70,9 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       setInviteData(null);
       setActiveTab('account');
       setInviteList([]);
+      setCreditEmail('');
+      setCreditAmount('');
+      setCreditStatus(null);
     }
   }, [isOpen]);
 
@@ -171,6 +179,35 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       setInviteStatus({ type: 'error', message: 'Failed to delete invite.' });
     } finally {
       setDeletingInviteId(null);
+    }
+  };
+
+  const handleGiveCredits = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreditStatus(null);
+
+    const amount = parseInt(creditAmount, 10);
+    if (isNaN(amount) || amount < 1) {
+      setCreditStatus({ type: 'error', message: 'Please enter a valid amount (at least 1).' });
+      return;
+    }
+
+    setCreditLoading(true);
+    try {
+      const result = await authApi.giveCredits(creditEmail, amount);
+      setCreditStatus({ 
+        type: 'success', 
+        message: `Added ${amount} credits to ${result.email}. New balance: ${result.new_balance}` 
+      });
+      setCreditEmail('');
+      setCreditAmount('');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to give credits';
+      const axiosError = err as { response?: { data?: { error?: string } } };
+      const serverMessage = axiosError.response?.data?.error || message;
+      setCreditStatus({ type: 'error', message: serverMessage });
+    } finally {
+      setCreditLoading(false);
     }
   };
 
@@ -446,6 +483,56 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {user?.is_admin && (
+        <div className="border-t border-border pt-4">
+          <div className="flex items-center gap-2 mb-2">
+            <svg className="w-4 h-4 text-text-muted" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+            </svg>
+            <span className="text-xs text-text-muted">
+              Give credits to a user
+            </span>
+          </div>
+          {creditStatus && (
+            <div className={`mb-2 p-2 rounded-lg text-xs ${
+              creditStatus.type === 'success'
+                ? 'bg-success-bg border border-success-border text-success'
+                : 'bg-error-bg border border-error-border text-error'
+            }`}>
+              {creditStatus.message}
+            </div>
+          )}
+          <form onSubmit={handleGiveCredits} className="space-y-2">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="email"
+                required
+                value={creditEmail}
+                onChange={(e) => setCreditEmail(e.target.value)}
+                className="flex-1 w-full px-3 py-2 bg-surface-alt border border-border rounded-lg text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 text-sm"
+                placeholder="User email address"
+              />
+              <input
+                type="number"
+                required
+                min="1"
+                value={creditAmount}
+                onChange={(e) => setCreditAmount(e.target.value)}
+                className="w-full sm:w-24 px-3 py-2 bg-surface-alt border border-border rounded-lg text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 text-sm"
+                placeholder="Amount"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={creditLoading || !creditEmail || !creditAmount}
+              className="w-full sm:w-auto px-3 py-1.5 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              {creditLoading ? 'Giving...' : 'Give Credits'}
+            </button>
+          </form>
         </div>
       )}
     </div>
