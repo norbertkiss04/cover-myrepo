@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useTheme } from '../../hooks/useTheme';
 import { useAuth } from '../../context/AuthContext';
 import { validatePassword, getPasswordRules } from '../../utils/passwordValidation';
+import { authApi } from '../../services/api';
 
 const OPTIONAL_FIELDS = [
   { key: 'description', label: 'Book Description' },
@@ -13,6 +15,8 @@ const OPTIONAL_FIELDS = [
   { key: 'reference_image_description', label: 'Style Reference' },
 ];
 
+type TabId = 'account' | 'preferences';
+
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -20,8 +24,9 @@ interface SettingsModalProps {
 
 export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { effective, setTheme } = useTheme();
-  const { user, supabaseUser, updatePreferences, updateEmail, updatePassword } = useAuth();
+  const { user, supabaseUser, isAuthenticated, isLoading, logout, updatePreferences, updateEmail, updatePassword } = useAuth();
   const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabId>('account');
 
   const [newEmail, setNewEmail] = useState('');
   const [emailStatus, setEmailStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -31,6 +36,10 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordStatus, setPasswordStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [passwordLoading, setPasswordLoading] = useState(false);
+
+  const [inviteStatus, setInviteStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteData, setInviteData] = useState<{ code: string; invite_url: string; expires_at: string } | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -48,6 +57,9 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       setNewPassword('');
       setConfirmPassword('');
       setPasswordStatus(null);
+      setInviteStatus(null);
+      setInviteData(null);
+      setActiveTab('account');
     }
   }, [isOpen]);
 
@@ -98,9 +110,294 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     }
   };
 
+  const handleInviteGenerate = async () => {
+    setInviteLoading(true);
+    setInviteStatus(null);
+    try {
+      const data = await authApi.createInvite();
+      setInviteData(data);
+      setInviteStatus({ type: 'success', message: 'Invite link generated.' });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to create invite link';
+      setInviteStatus({ type: 'error', message });
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  const handleInviteCopy = async () => {
+    if (!inviteData?.invite_url) return;
+    try {
+      await navigator.clipboard.writeText(inviteData.invite_url);
+      setInviteStatus({ type: 'success', message: 'Invite link copied.' });
+    } catch {
+      setInviteStatus({ type: 'error', message: 'Failed to copy invite link.' });
+    }
+  };
+
   if (!isOpen) return null;
 
   const currentEmail = supabaseUser?.email || user?.email || '';
+  const showAccountSettings = isAuthenticated && !isLoading;
+
+  const renderAccountTab = () => (
+    <div className="space-y-4">
+      <div>
+        <div className="flex items-center gap-2 mb-2">
+          <svg className="w-4 h-4 text-text-muted" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+          </svg>
+          <span className="text-xs text-text-muted">
+            {currentEmail}
+          </span>
+        </div>
+        {emailStatus && (
+          <div className={`mb-2 p-2 rounded-lg text-xs ${
+            emailStatus.type === 'success'
+              ? 'bg-success-bg border border-success-border text-success'
+              : 'bg-error-bg border border-error-border text-error'
+          }`}>
+            {emailStatus.message}
+          </div>
+        )}
+        <form onSubmit={handleEmailChange} className="flex flex-col sm:flex-row gap-2">
+          <input
+            type="email"
+            required
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+            className="flex-1 w-full px-3 py-2 bg-surface-alt border border-border rounded-lg text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 text-sm"
+            placeholder="New email address"
+          />
+          <button
+            type="submit"
+            disabled={emailLoading || !newEmail}
+            className="w-full sm:w-auto px-3 py-1.5 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+          >
+            {emailLoading ? 'Sending...' : 'Change Email'}
+          </button>
+        </form>
+      </div>
+
+      <div className="border-t border-border pt-4">
+        <div className="flex items-center gap-2 mb-2">
+          <svg className="w-4 h-4 text-text-muted" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+          </svg>
+          <span className="text-xs text-text-muted">
+            Change password
+          </span>
+        </div>
+        {passwordStatus && (
+          <div className={`mb-2 p-2 rounded-lg text-xs ${
+            passwordStatus.type === 'success'
+              ? 'bg-success-bg border border-success-border text-success'
+              : 'bg-error-bg border border-error-border text-error'
+          }`}>
+            {passwordStatus.message}
+          </div>
+        )}
+        <form onSubmit={handlePasswordChange} className="space-y-2">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              type="password"
+              required
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="flex-1 w-full px-3 py-2 bg-surface-alt border border-border rounded-lg text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 text-sm"
+              placeholder="New password"
+            />
+            <input
+              type="password"
+              required
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="flex-1 w-full px-3 py-2 bg-surface-alt border border-border rounded-lg text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 text-sm"
+              placeholder="Confirm password"
+            />
+          </div>
+          {newPassword.length > 0 && (
+            <ul className="space-y-0.5">
+              {getPasswordRules(newPassword).map((rule) => (
+                <li
+                  key={rule.label}
+                  className={`flex items-center gap-1.5 text-xs ${
+                    rule.met ? 'text-success' : 'text-text-muted'
+                  }`}
+                >
+                  {rule.met ? (
+                    <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                  ) : (
+                    <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                    </svg>
+                  )}
+                  {rule.label}
+                </li>
+              ))}
+            </ul>
+          )}
+          {confirmPassword.length > 0 && newPassword !== confirmPassword && (
+            <p className="text-xs text-error">Passwords do not match.</p>
+          )}
+          <button
+            type="submit"
+            disabled={passwordLoading || !newPassword || !confirmPassword || validatePassword(newPassword).length > 0 || newPassword !== confirmPassword}
+            className="w-full sm:w-auto px-3 py-1.5 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            {passwordLoading ? 'Updating...' : 'Update Password'}
+          </button>
+        </form>
+      </div>
+
+      {user?.is_admin && (
+        <div className="border-t border-border pt-4">
+          <div className="flex items-center gap-2 mb-2">
+            <svg className="w-4 h-4 text-text-muted" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" />
+            </svg>
+            <span className="text-xs text-text-muted">
+              Invite links (expires in 7 days)
+            </span>
+          </div>
+          {inviteStatus && (
+            <div className={`mb-2 p-2 rounded-lg text-xs ${
+              inviteStatus.type === 'success'
+                ? 'bg-success-bg border border-success-border text-success'
+                : 'bg-error-bg border border-error-border text-error'
+            }`}>
+              {inviteStatus.message}
+            </div>
+          )}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <button
+              type="button"
+              onClick={handleInviteGenerate}
+              disabled={inviteLoading}
+              className="px-3 py-1.5 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              {inviteLoading ? 'Generating...' : 'Generate Invite'}
+            </button>
+            <button
+              type="button"
+              onClick={handleInviteCopy}
+              disabled={!inviteData?.invite_url}
+              className="px-3 py-1.5 bg-surface-alt border border-border rounded-lg text-sm font-medium text-text-secondary hover:text-text hover:border-accent/40 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Copy Link
+            </button>
+          </div>
+          {inviteData && (
+            <div className="mt-2 space-y-1.5">
+              <input
+                type="text"
+                readOnly
+                value={inviteData.invite_url}
+                className="w-full px-3 py-1.5 bg-surface-alt border border-border rounded-lg text-text text-sm"
+              />
+              <div className="flex flex-wrap gap-3 text-xs text-text-muted">
+                <span>Code: {inviteData.code}</span>
+                <span>Expires: {new Date(inviteData.expires_at).toLocaleString()}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  const renderPreferencesTab = () => (
+    <div className="space-y-4">
+      <div>
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-text">Theme</span>
+          <div className="flex bg-surface-alt border border-border rounded-lg p-0.5">
+            <button
+              onClick={() => setTheme('light')}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-sm font-medium transition-colors ${
+                effective === 'light'
+                  ? 'bg-surface text-text shadow-sm border border-border'
+                  : 'text-text-muted hover:text-text'
+              }`}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
+              </svg>
+              Light
+            </button>
+            <button
+              onClick={() => setTheme('dark')}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-sm font-medium transition-colors ${
+                effective === 'dark'
+                  ? 'bg-surface text-text shadow-sm border border-border'
+                  : 'text-text-muted hover:text-text'
+              }`}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
+              </svg>
+              Dark
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {showAccountSettings && (
+        <div className="border-t border-border pt-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-text">Default Form Fields</span>
+            {saving && (
+              <span className="text-xs text-text-muted">Saving...</span>
+            )}
+          </div>
+          <p className="text-xs text-text-muted mb-3">
+            Choose which optional fields appear by default on the generation form.
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {OPTIONAL_FIELDS.map(({ key, label }) => {
+              const visibleFields = user?.preferences?.visible_fields || [];
+              const isActive = visibleFields.includes(key);
+
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={isActive}
+                  onClick={async () => {
+                    const newFields = isActive
+                      ? visibleFields.filter((f) => f !== key)
+                      : [...visibleFields, key];
+                    setSaving(true);
+                    try {
+                      await updatePreferences({ visible_fields: newFields });
+                    } catch {
+
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                  className={`group flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                    isActive
+                      ? 'bg-accent text-white border-accent shadow-sm'
+                      : 'bg-surface-alt text-text-secondary border-border hover:border-accent/40 hover:text-text'
+                  }`}
+                >
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full transition-colors ${
+                      isActive ? 'bg-white' : 'bg-border-strong group-hover:bg-accent/40'
+                    }`}
+                  />
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -109,8 +406,8 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         onClick={onClose}
       />
 
-      <div className="relative bg-surface border border-border rounded-2xl shadow-lg w-full max-w-2xl mx-4 p-7 sm:p-8 max-h-[85vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-6">
+      <div className="relative bg-surface border border-border rounded-2xl shadow-lg w-full max-w-lg mx-4 max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between p-4 pb-0">
           <h2 className="text-lg font-heading font-semibold text-text tracking-tight">Settings</h2>
           <button
             onClick={onClose}
@@ -123,211 +420,101 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           </button>
         </div>
 
-        <div className="space-y-6">
-
-          <div>
-            <span className="text-sm font-medium text-text">Account</span>
-            <div className="mt-3 space-y-4">
-
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <svg className="w-4 h-4 text-text-muted" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
-                  </svg>
-                  <span className="text-xs text-text-muted">
-                    Current: {currentEmail}
-                  </span>
-                </div>
-                {emailStatus && (
-                  <div className={`mb-2 p-2.5 rounded-lg text-xs ${
-                    emailStatus.type === 'success'
-                      ? 'bg-success-bg border border-success-border text-success'
-                      : 'bg-error-bg border border-error-border text-error'
-                  }`}>
-                    {emailStatus.message}
-                  </div>
-                )}
-                <form onSubmit={handleEmailChange} className="flex gap-2">
-                  <input
-                    type="email"
-                    required
-                    value={newEmail}
-                    onChange={(e) => setNewEmail(e.target.value)}
-                    className="flex-1 px-3 py-2 bg-surface-alt border border-border rounded-lg text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 text-sm"
-                    placeholder="New email address"
-                  />
-                  <button
-                    type="submit"
-                    disabled={emailLoading || !newEmail}
-                    className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
-                  >
-                    {emailLoading ? 'Sending...' : 'Change Email'}
-                  </button>
-                </form>
-              </div>
-
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <svg className="w-4 h-4 text-text-muted" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
-                  </svg>
-                  <span className="text-xs text-text-muted">
-                    Change password
-                  </span>
-                </div>
-                {passwordStatus && (
-                  <div className={`mb-2 p-2.5 rounded-lg text-xs ${
-                    passwordStatus.type === 'success'
-                      ? 'bg-success-bg border border-success-border text-success'
-                      : 'bg-error-bg border border-error-border text-error'
-                  }`}>
-                    {passwordStatus.message}
-                  </div>
-                )}
-                <form onSubmit={handlePasswordChange} className="space-y-2">
-                  <div className="flex gap-2">
-                    <input
-                      type="password"
-                      required
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      className="flex-1 px-3 py-2 bg-surface-alt border border-border rounded-lg text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 text-sm"
-                      placeholder="New password"
-                    />
-                    <input
-                      type="password"
-                      required
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="flex-1 px-3 py-2 bg-surface-alt border border-border rounded-lg text-text placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 text-sm"
-                      placeholder="Confirm password"
-                    />
-                  </div>
-                  {newPassword.length > 0 && (
-                    <ul className="space-y-0.5">
-                      {getPasswordRules(newPassword).map((rule) => (
-                        <li
-                          key={rule.label}
-                          className={`flex items-center gap-1.5 text-xs ${
-                            rule.met ? 'text-success' : 'text-text-muted'
-                          }`}
-                        >
-                          {rule.met ? (
-                            <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                            </svg>
-                          ) : (
-                            <svg className="w-3 h-3 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                            </svg>
-                          )}
-                          {rule.label}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  {confirmPassword.length > 0 && newPassword !== confirmPassword && (
-                    <p className="text-xs text-error">Passwords do not match.</p>
-                  )}
-                  <button
-                    type="submit"
-                    disabled={passwordLoading || !newPassword || !confirmPassword || validatePassword(newPassword).length > 0 || newPassword !== confirmPassword}
-                    className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {passwordLoading ? 'Updating...' : 'Update Password'}
-                  </button>
-                </form>
-              </div>
-
-            </div>
-          </div>
-
-          <div className="pt-6 border-t border-border">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-text">Theme</span>
-              <div className="flex bg-surface-alt border border-border rounded-lg p-0.5">
-                <button
-                  onClick={() => setTheme('light')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                    effective === 'light'
-                      ? 'bg-surface text-text shadow-sm border border-border'
-                      : 'text-text-muted hover:text-text'
-                  }`}
+        {!showAccountSettings ? (
+          <div className="p-4">
+            <div className="bg-surface-alt/60 border border-border rounded-xl p-4">
+              <p className="text-sm font-medium text-text">Sign in to manage your account</p>
+              <p className="text-xs text-text-muted mt-1">
+                Log in to update your email, password, and preferences.
+              </p>
+              <div className="mt-3">
+                <Link
+                  to="/login"
+                  onClick={onClose}
+                  className="inline-flex items-center justify-center bg-accent text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-accent-hover transition-colors"
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
-                  </svg>
-                  Light
-                </button>
-                <button
-                  onClick={() => setTheme('dark')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                    effective === 'dark'
-                      ? 'bg-surface text-text shadow-sm border border-border'
-                      : 'text-text-muted hover:text-text'
-                  }`}
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
-                  </svg>
-                  Dark
-                </button>
+                  Login
+                </Link>
               </div>
             </div>
-          </div>
 
-          <div className="pt-6 border-t border-border">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-text">Default Form Fields</span>
-              {saving && (
-                <span className="text-xs text-text-muted">Saving...</span>
-              )}
-            </div>
-            <p className="text-xs text-text-muted mb-3">
-              Choose which optional fields appear by default on the generation form.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {OPTIONAL_FIELDS.map(({ key, label }) => {
-                const visibleFields = user?.preferences?.visible_fields || [];
-                const isActive = visibleFields.includes(key);
-
-                return (
+            <div className="mt-4 pt-4 border-t border-border">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-text">Theme</span>
+                <div className="flex bg-surface-alt border border-border rounded-lg p-0.5">
                   <button
-                    key={key}
-                    type="button"
-                    aria-pressed={isActive}
-                    onClick={async () => {
-                      const newFields = isActive
-                        ? visibleFields.filter((f) => f !== key)
-                        : [...visibleFields, key];
-                      setSaving(true);
-                      try {
-                        await updatePreferences({ visible_fields: newFields });
-                      } catch {
-
-                      } finally {
-                        setSaving(false);
-                      }
-                    }}
-                    className={`group flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
-                      isActive
-                        ? 'bg-accent text-white border-accent shadow-sm'
-                        : 'bg-surface-alt text-text-secondary border-border hover:border-accent/40 hover:text-text'
+                    onClick={() => setTheme('light')}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-sm font-medium transition-colors ${
+                      effective === 'light'
+                        ? 'bg-surface text-text shadow-sm border border-border'
+                        : 'text-text-muted hover:text-text'
                     }`}
                   >
-                    <span
-                      className={`h-2 w-2 rounded-full transition-colors ${
-                        isActive ? 'bg-white' : 'bg-border-strong group-hover:bg-accent/40'
-                      }`}
-                    />
-                    {label}
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
+                    </svg>
+                    Light
                   </button>
-                );
-              })}
+                  <button
+                    onClick={() => setTheme('dark')}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-sm font-medium transition-colors ${
+                      effective === 'dark'
+                        ? 'bg-surface text-text shadow-sm border border-border'
+                        : 'text-text-muted hover:text-text'
+                    }`}
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
+                    </svg>
+                    Dark
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
+        ) : (
+          <>
+            <div className="px-4 pt-4">
+              <div className="flex bg-surface-alt/60 border border-border rounded-lg p-0.5">
+                <button
+                  onClick={() => setActiveTab('account')}
+                  className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    activeTab === 'account'
+                      ? 'bg-surface text-text shadow-sm'
+                      : 'text-text-muted hover:text-text'
+                  }`}
+                >
+                  Account
+                </button>
+                <button
+                  onClick={() => setActiveTab('preferences')}
+                  className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    activeTab === 'preferences'
+                      ? 'bg-surface text-text shadow-sm'
+                      : 'text-text-muted hover:text-text'
+                  }`}
+                >
+                  Preferences
+                </button>
+              </div>
+            </div>
 
-        </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {activeTab === 'account' && renderAccountTab()}
+              {activeTab === 'preferences' && renderPreferencesTab()}
+            </div>
+
+            <div className="border-t border-border p-4 flex justify-end">
+              <button
+                type="button"
+                onClick={logout}
+                className="text-sm text-text-muted hover:text-accent transition-colors"
+              >
+                Log out
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
