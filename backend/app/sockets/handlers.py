@@ -157,6 +157,8 @@ def handle_start_generation(data):
     if reference_mode not in VALID_REFERENCE_MODES:
         reference_mode = 'both'
 
+    two_step_generation = bool(data.get('two_step_generation', True))
+
     gen_data = {
         'user_id': user.id,
         'book_title': sanitized.get('book_title', '') or ('Untitled' if base_image_only else ''),
@@ -173,6 +175,7 @@ def handle_start_generation(data):
         'use_style_image': bool(data.get('use_style_image', False)),
         'base_image_only': base_image_only,
         'reference_mode': reference_mode,
+        'two_step_generation': two_step_generation,
         'status': 'generating',
     }
 
@@ -262,6 +265,7 @@ def handle_start_regeneration(data):
         'use_style_image': original.use_style_image,
         'base_image_only': original.base_image_only,
         'reference_mode': original.reference_mode,
+        'two_step_generation': original.two_step_generation,
         'status': 'generating',
     }
 

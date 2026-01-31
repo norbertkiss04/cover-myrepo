@@ -85,89 +85,155 @@ def ensure_reference_variant(style_ref, variant_type, user_id):
         raise ValueError(f"Invalid variant type: {variant_type}")
 
 
-def run_standard_pipeline(gen_id, generation, book_data, aspect_ratio, on_progress=None, base_image_only=False):
-    total_steps = 2 if base_image_only else 4
+def run_standard_pipeline(gen_id, generation, book_data, aspect_ratio, on_progress=None, base_image_only=False, two_step_generation=True):
+    if base_image_only:
+        total_steps = 2
+    elif two_step_generation:
+        total_steps = 3
+    else:
+        total_steps = 4
 
     def progress(step, total, message):
         _check_cancelled(gen_id)
         if on_progress:
             on_progress(step, total, message)
 
-    progress(1, total_steps, "Generating image prompt...")
-    base_prompt = llm_service.generate_base_image_prompt(book_data, base_image_only=base_image_only)
-    if base_image_only:
+    if two_step_generation and not base_image_only:
+        progress(1, total_steps, "Generating base image prompt...")
+        base_prompt = llm_service.generate_base_image_prompt(book_data, base_image_only=True)
         base_prompt += " Do not include any text, words, letters, titles, or typography anywhere in the image."
 
-    logger.info("Gen #%s Step 1/%d done. Prompt length: %d chars", gen_id, total_steps, len(base_prompt))
-    get_supabase().table('generations').update(
-        {'base_prompt': base_prompt}
-    ).eq('id', generation.id).execute()
+        logger.info("Gen #%s Step 1/%d done. Prompt length: %d chars", gen_id, total_steps, len(base_prompt))
+        get_supabase().table('generations').update(
+            {'base_prompt': base_prompt}
+        ).eq('id', generation.id).execute()
 
-    progress(2, total_steps, "Creating base image...")
-    base_result = image_service.generate_base_image(base_prompt, aspect_ratio)
-    base_image_url = base_result['image_url']
-    base_image_url = _check_and_remove_border(base_image_url, gen_id)
-    logger.info("Gen #%s Step 2/%d done. Base image URL received", gen_id, total_steps)
+        progress(2, total_steps, "Creating base image...")
+        base_result = image_service.generate_base_image(base_prompt, aspect_ratio)
+        base_image_url = base_result['image_url']
+        base_image_url = _check_and_remove_border(base_image_url, gen_id)
+        logger.info("Gen #%s Step 2/%d done. Base image URL received", gen_id, total_steps)
 
-    base_upload = storage_service.upload_from_url(base_image_url, folder='base')
-    storage_base_url = base_upload['public_url']
-    base_storage_path = base_upload['path']
-    get_supabase().table('generations').update(
-        {'base_image_url': storage_base_url}
-    ).eq('id', generation.id).execute()
+        base_upload = storage_service.upload_from_url(base_image_url, folder='base')
+        storage_base_url = base_upload['public_url']
+        base_storage_path = base_upload['path']
+        get_supabase().table('generations').update(
+            {'base_image_url': storage_base_url}
+        ).eq('id', generation.id).execute()
 
-    if base_image_only:
+        progress(3, total_steps, "Adding text to cover...")
+        text_prompt = llm_service.generate_text_overlay_prompt(book_data)
+        get_supabase().table('generations').update(
+            {'text_prompt': text_prompt}
+        ).eq('id', generation.id).execute()
+        logger.info("Gen #%s Step 3/%d done. Text prompt generated", gen_id, total_steps)
+
+        signed_base_url = storage_service.get_signed_url(base_storage_path, expires_in=600)
+        final_prompt = f"Add the following text to the book cover using this base image as reference: {text_prompt}"
+        final_result = image_service.generate_image_with_text(
+            signed_base_url,
+            final_prompt,
+            aspect_ratio
+        )
+        final_image_url = final_result['image_url']
+        final_image_url = _check_and_remove_border(final_image_url, gen_id)
+
+        final_upload = storage_service.upload_from_url(final_image_url, folder='covers')
+        storage_final_url = final_upload['public_url']
         now = datetime.now(timezone.utc).isoformat()
         update_result = get_supabase().table('generations').update({
-            'final_image_url': storage_base_url,
+            'final_image_url': storage_final_url,
             'status': 'completed',
             'completed_at': now,
         }).eq('id', generation.id).execute()
+
         final_gen = Generation.from_row(update_result.data[0])
-        logger.info("Gen #%s COMPLETED successfully (base image only)", gen_id)
+        logger.info("Gen #%s COMPLETED successfully (two-step mode)", gen_id)
         return final_gen
+    else:
+        progress(1, total_steps, "Generating image prompt...")
+        base_prompt = llm_service.generate_base_image_prompt(book_data, base_image_only=base_image_only)
+        if base_image_only:
+            base_prompt += " Do not include any text, words, letters, titles, or typography anywhere in the image."
 
-    progress(3, total_steps, "Designing typography...")
-    text_prompt = llm_service.generate_text_overlay_prompt(book_data)
-    logger.info("Gen #%s Step 3/4 done. Prompt length: %d chars", gen_id, len(text_prompt))
-    get_supabase().table('generations').update(
-        {'text_prompt': text_prompt}
-    ).eq('id', generation.id).execute()
+        logger.info("Gen #%s Step 1/%d done. Prompt length: %d chars", gen_id, total_steps, len(base_prompt))
+        get_supabase().table('generations').update(
+            {'base_prompt': base_prompt}
+        ).eq('id', generation.id).execute()
 
-    progress(4, total_steps, "Adding text to cover...")
-    signed_base_url = storage_service.get_signed_url(base_storage_path, expires_in=600)
-    final_prompt = f"{base_prompt}\n\nText overlay: {text_prompt}"
-    final_result = image_service.generate_image_with_text(
-        signed_base_url,
-        final_prompt,
-        aspect_ratio
-    )
-    final_image_url = final_result['image_url']
-    final_image_url = _check_and_remove_border(final_image_url, gen_id)
+        progress(2, total_steps, "Creating base image...")
+        base_result = image_service.generate_base_image(base_prompt, aspect_ratio)
+        base_image_url = base_result['image_url']
+        base_image_url = _check_and_remove_border(base_image_url, gen_id)
+        logger.info("Gen #%s Step 2/%d done. Base image URL received", gen_id, total_steps)
 
-    final_upload = storage_service.upload_from_url(final_image_url, folder='covers')
-    storage_final_url = final_upload['public_url']
-    now = datetime.now(timezone.utc).isoformat()
-    update_result = get_supabase().table('generations').update({
-        'final_image_url': storage_final_url,
-        'status': 'completed',
-        'completed_at': now,
-    }).eq('id', generation.id).execute()
+        base_upload = storage_service.upload_from_url(base_image_url, folder='base')
+        storage_base_url = base_upload['public_url']
+        base_storage_path = base_upload['path']
+        get_supabase().table('generations').update(
+            {'base_image_url': storage_base_url}
+        ).eq('id', generation.id).execute()
 
-    final_gen = Generation.from_row(update_result.data[0])
-    logger.info("Gen #%s COMPLETED successfully", gen_id)
-    return final_gen
+        if base_image_only:
+            now = datetime.now(timezone.utc).isoformat()
+            update_result = get_supabase().table('generations').update({
+                'final_image_url': storage_base_url,
+                'status': 'completed',
+                'completed_at': now,
+            }).eq('id', generation.id).execute()
+            final_gen = Generation.from_row(update_result.data[0])
+            logger.info("Gen #%s COMPLETED successfully (base image only)", gen_id)
+            return final_gen
+
+        progress(3, total_steps, "Designing typography...")
+        text_prompt = llm_service.generate_text_overlay_prompt(book_data)
+        logger.info("Gen #%s Step 3/4 done. Prompt length: %d chars", gen_id, len(text_prompt))
+        get_supabase().table('generations').update(
+            {'text_prompt': text_prompt}
+        ).eq('id', generation.id).execute()
+
+        progress(4, total_steps, "Adding text to cover...")
+        signed_base_url = storage_service.get_signed_url(base_storage_path, expires_in=600)
+        final_prompt = f"{base_prompt}\n\nText overlay: {text_prompt}"
+        final_result = image_service.generate_image_with_text(
+            signed_base_url,
+            final_prompt,
+            aspect_ratio
+        )
+        final_image_url = final_result['image_url']
+        final_image_url = _check_and_remove_border(final_image_url, gen_id)
+
+        final_upload = storage_service.upload_from_url(final_image_url, folder='covers')
+        storage_final_url = final_upload['public_url']
+        now = datetime.now(timezone.utc).isoformat()
+        update_result = get_supabase().table('generations').update({
+            'final_image_url': storage_final_url,
+            'status': 'completed',
+            'completed_at': now,
+        }).eq('id', generation.id).execute()
+
+        final_gen = Generation.from_row(update_result.data[0])
+        logger.info("Gen #%s COMPLETED successfully", gen_id)
+        return final_gen
 
 
 def run_style_ref_pipeline(
     gen_id, generation, book_data,
     style_reference_id, aspect_ratio, user_id, on_progress=None,
-    base_image_only=False, reference_mode='both',
+    base_image_only=False, reference_mode='both', two_step_generation=True,
 ):
     if reference_mode not in VALID_REFERENCE_MODES:
         reference_mode = 'both'
 
-    total_steps = 3 if reference_mode in ('background', 'text') else 2
+    if base_image_only:
+        total_steps = 3 if reference_mode in ('background', 'text') else 2
+    elif two_step_generation:
+        if reference_mode == 'both':
+            total_steps = 5
+        else:
+            total_steps = 4
+    else:
+        total_steps = 3 if reference_mode in ('background', 'text') else 2
 
     def progress(step, total_steps, message):
         _check_cancelled(gen_id)
@@ -187,54 +253,163 @@ def run_style_ref_pipeline(
 
     current_step = 1
 
-    if reference_mode == 'background':
-        progress(current_step, total_steps, "Preparing background reference...")
-        signed_ref_url = ensure_reference_variant(style_ref, 'clean', user_id)
+    if not two_step_generation or base_image_only:
+        if reference_mode == 'background':
+            progress(current_step, total_steps, "Preparing background reference...")
+            signed_ref_url = ensure_reference_variant(style_ref, 'clean', user_id)
+            current_step += 1
+        elif reference_mode == 'text':
+            progress(current_step, total_steps, "Preparing text reference...")
+            signed_ref_url = ensure_reference_variant(style_ref, 'text', user_id)
+            current_step += 1
+        else:
+            signed_ref_url = storage_service.get_signed_url(style_ref.image_path, expires_in=600)
+
+        progress(current_step, total_steps, "Generating image prompt...")
+        if base_image_only:
+            unified_prompt = llm_service.generate_style_referenced_prompt_no_text(book_data, style_analysis=style_analysis, reference_mode=reference_mode)
+        else:
+            unified_prompt = llm_service.generate_style_referenced_prompt(book_data, style_analysis=style_analysis, reference_mode=reference_mode)
+
+        logger.info("Gen #%s Step %d/%d done. Prompt length: %d chars", gen_id, current_step, total_steps, len(unified_prompt))
+        get_supabase().table('generations').update(
+            {'base_prompt': unified_prompt}
+        ).eq('id', generation.id).execute()
         current_step += 1
-    elif reference_mode == 'text':
-        progress(current_step, total_steps, "Preparing text reference...")
-        signed_ref_url = ensure_reference_variant(style_ref, 'text', user_id)
+
+        progress(current_step, total_steps, "Generating final cover...")
+
+        reference_mode_prefix_key = f'reference_mode_prefix_{reference_mode}'
+        reference_mode_prefix = get_prompt('style_reference', reference_mode_prefix_key)
+        final_prompt_with_prefix = reference_mode_prefix + unified_prompt
+
+        logger.info("Gen #%s Using reference_mode=%s, prefix length=%d chars", gen_id, reference_mode, len(reference_mode_prefix))
+
+        final_result = image_service.generate_image_with_text(
+            [signed_ref_url],
+            final_prompt_with_prefix,
+            aspect_ratio,
+        )
+        final_image_url = final_result['image_url']
+        final_image_url = _check_and_remove_border(final_image_url, gen_id)
+
+        final_upload = storage_service.upload_from_url(final_image_url, folder='covers')
+        storage_final_url = final_upload['public_url']
+        now = datetime.now(timezone.utc).isoformat()
+        update_result = get_supabase().table('generations').update({
+            'final_image_url': storage_final_url,
+            'status': 'completed',
+            'completed_at': now,
+        }).eq('id', generation.id).execute()
+
+        final_gen = Generation.from_row(update_result.data[0])
+        logger.info("Gen #%s COMPLETED successfully (style-referenced, mode=%s)", gen_id, reference_mode)
+        return final_gen
+    else:
+        signed_clean_url = None
+        signed_text_url = None
+
+        if reference_mode == 'both':
+            progress(current_step, total_steps, "Preparing clean background reference...")
+            signed_clean_url = ensure_reference_variant(style_ref, 'clean', user_id)
+            current_step += 1
+
+            progress(current_step, total_steps, "Preparing text layer reference...")
+            signed_text_url = ensure_reference_variant(style_ref, 'text', user_id)
+            current_step += 1
+        elif reference_mode == 'background':
+            progress(current_step, total_steps, "Preparing background reference...")
+            signed_clean_url = ensure_reference_variant(style_ref, 'clean', user_id)
+            current_step += 1
+        elif reference_mode == 'text':
+            progress(current_step, total_steps, "Preparing text reference...")
+            signed_text_url = ensure_reference_variant(style_ref, 'text', user_id)
+            current_step += 1
+
+        progress(current_step, total_steps, "Generating base image prompt...")
+        base_prompt = llm_service.generate_style_referenced_prompt_no_text(
+            book_data,
+            style_analysis=style_analysis,
+            reference_mode=reference_mode if reference_mode != 'text' else 'background'
+        )
+        base_prompt += " Do not include any text, words, letters, titles, or typography anywhere in the image."
+
+        logger.info("Gen #%s Step %d/%d done. Prompt length: %d chars", gen_id, current_step, total_steps, len(base_prompt))
+        get_supabase().table('generations').update(
+            {'base_prompt': base_prompt}
+        ).eq('id', generation.id).execute()
         current_step += 1
-    else:
-        signed_ref_url = storage_service.get_signed_url(style_ref.image_path, expires_in=600)
 
-    progress(current_step, total_steps, "Generating image prompt...")
-    if base_image_only:
-        unified_prompt = llm_service.generate_style_referenced_prompt_no_text(book_data, style_analysis=style_analysis, reference_mode=reference_mode)
-    else:
-        unified_prompt = llm_service.generate_style_referenced_prompt(book_data, style_analysis=style_analysis, reference_mode=reference_mode)
+        progress(current_step, total_steps, "Creating base image...")
 
-    logger.info("Gen #%s Step %d/%d done. Prompt length: %d chars", gen_id, current_step, total_steps, len(unified_prompt))
-    get_supabase().table('generations').update(
-        {'base_prompt': unified_prompt}
-    ).eq('id', generation.id).execute()
-    current_step += 1
+        if reference_mode == 'both':
+            reference_images = [signed_clean_url]
+        elif reference_mode == 'background':
+            reference_images = [signed_clean_url]
+        else:
+            reference_images = []
 
-    progress(current_step, total_steps, "Generating final cover...")
+        if reference_images:
+            reference_mode_prefix_key = f'reference_mode_prefix_{reference_mode if reference_mode != "text" else "background"}'
+            reference_mode_prefix = get_prompt('style_reference', reference_mode_prefix_key)
+            base_prompt_with_prefix = reference_mode_prefix + base_prompt
 
-    reference_mode_prefix_key = f'reference_mode_prefix_{reference_mode}'
-    reference_mode_prefix = get_prompt('style_reference', reference_mode_prefix_key)
-    final_prompt_with_prefix = reference_mode_prefix + unified_prompt
+            base_result = image_service.generate_image_with_text(
+                reference_images,
+                base_prompt_with_prefix,
+                aspect_ratio,
+            )
+        else:
+            base_result = image_service.generate_base_image(base_prompt, aspect_ratio)
 
-    logger.info("Gen #%s Using reference_mode=%s, prefix length=%d chars", gen_id, reference_mode, len(reference_mode_prefix))
+        base_image_url = base_result['image_url']
+        base_image_url = _check_and_remove_border(base_image_url, gen_id)
+        logger.info("Gen #%s Step %d/%d done. Base image URL received", gen_id, current_step, total_steps)
 
-    final_result = image_service.generate_image_with_text(
-        [signed_ref_url],
-        final_prompt_with_prefix,
-        aspect_ratio,
-    )
-    final_image_url = final_result['image_url']
-    final_image_url = _check_and_remove_border(final_image_url, gen_id)
+        base_upload = storage_service.upload_from_url(base_image_url, folder='base')
+        storage_base_url = base_upload['public_url']
+        base_storage_path = base_upload['path']
+        get_supabase().table('generations').update(
+            {'base_image_url': storage_base_url}
+        ).eq('id', generation.id).execute()
+        current_step += 1
 
-    final_upload = storage_service.upload_from_url(final_image_url, folder='covers')
-    storage_final_url = final_upload['public_url']
-    now = datetime.now(timezone.utc).isoformat()
-    update_result = get_supabase().table('generations').update({
-        'final_image_url': storage_final_url,
-        'status': 'completed',
-        'completed_at': now,
-    }).eq('id', generation.id).execute()
+        progress(current_step, total_steps, "Adding text to cover...")
+        text_prompt = llm_service.generate_text_overlay_prompt(book_data)
+        get_supabase().table('generations').update(
+            {'text_prompt': text_prompt}
+        ).eq('id', generation.id).execute()
+        logger.info("Gen #%s Step %d/%d done. Text prompt generated", gen_id, current_step, total_steps)
 
-    final_gen = Generation.from_row(update_result.data[0])
-    logger.info("Gen #%s COMPLETED successfully (style-referenced, mode=%s)", gen_id, reference_mode)
-    return final_gen
+        signed_base_url = storage_service.get_signed_url(base_storage_path, expires_in=600)
+
+        if reference_mode == 'both':
+            final_reference_images = [signed_base_url, signed_text_url]
+            final_prompt = f"Add the following text to the book cover, matching the typography style from the text reference: {text_prompt}"
+        elif reference_mode == 'background':
+            final_reference_images = [signed_base_url]
+            final_prompt = f"Add the following text to the book cover: {text_prompt}"
+        else:
+            final_reference_images = [signed_base_url, signed_text_url]
+            final_prompt = f"Add the following text to the book cover, matching the typography style from the reference: {text_prompt}"
+
+        final_result = image_service.generate_image_with_text(
+            final_reference_images,
+            final_prompt,
+            aspect_ratio,
+        )
+        final_image_url = final_result['image_url']
+        final_image_url = _check_and_remove_border(final_image_url, gen_id)
+
+        final_upload = storage_service.upload_from_url(final_image_url, folder='covers')
+        storage_final_url = final_upload['public_url']
+        now = datetime.now(timezone.utc).isoformat()
+        update_result = get_supabase().table('generations').update({
+            'final_image_url': storage_final_url,
+            'status': 'completed',
+            'completed_at': now,
+        }).eq('id', generation.id).execute()
+
+        final_gen = Generation.from_row(update_result.data[0])
+        logger.info("Gen #%s COMPLETED successfully (style-referenced, two-step, mode=%s)", gen_id, reference_mode)
+        return final_gen

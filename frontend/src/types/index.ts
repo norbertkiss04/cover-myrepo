@@ -47,6 +47,7 @@ export interface Generation {
   use_style_image: boolean;
   base_image_only: boolean;
   reference_mode: ReferenceMode;
+  two_step_generation: boolean;
   aspect_ratio: string;
   aspect_ratio_info: AspectRatioInfo | null;
   base_prompt: string | null;
@@ -71,6 +72,7 @@ export interface GenerationInput {
   use_style_image?: boolean;
   base_image_only?: boolean;
   reference_mode?: ReferenceMode;
+  two_step_generation?: boolean;
 }
 
 export interface PaginatedResponse<T> {

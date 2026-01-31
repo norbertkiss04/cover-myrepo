@@ -64,6 +64,7 @@ export default function GeneratePage() {
     if (fieldsToShow.size > 0) form.setTempFields(fieldsToShow);
 
     form.setBaseImageOnly(Boolean(gen.base_image_only));
+    form.setTwoStepGeneration(gen.two_step_generation !== false);
     if (gen.reference_mode) {
       form.setReferenceMode(gen.reference_mode);
     }
@@ -110,6 +111,8 @@ export default function GeneratePage() {
 
     if (form.baseImageOnly) {
       payload.base_image_only = true;
+    } else {
+      payload.two_step_generation = form.twoStepGeneration;
     }
 
     if (form.formData.cover_ideas) {
@@ -315,6 +318,19 @@ export default function GeneratePage() {
                 disabled={isGenerating}
               />
             </div>
+
+            {!form.baseImageOnly && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-text-secondary">
+                  Two-step generation
+                </span>
+                <Toggle
+                  checked={form.twoStepGeneration}
+                  onChange={form.setTwoStepGeneration}
+                  disabled={isGenerating}
+                />
+              </div>
+            )}
 
             {!form.baseImageOnly && (
               <div className="grid grid-cols-2 gap-3">

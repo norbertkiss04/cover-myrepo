@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 _running_tasks = set()
 
 
-def _run_generation_task(app, generation, user_id, style_reference_id, use_style_image, aspect_ratio, base_image_only=False, reference_mode='both'):
+def _run_generation_task(app, generation, user_id, style_reference_id, use_style_image, aspect_ratio, base_image_only=False, reference_mode='both', two_step_generation=True):
     with app.app_context():
         gen_id = generation.id
         room = _room_for(user_id)
@@ -62,12 +62,14 @@ def _run_generation_task(app, generation, user_id, style_reference_id, use_style
                     on_progress=on_progress,
                     base_image_only=base_image_only,
                     reference_mode=reference_mode,
+                    two_step_generation=two_step_generation,
                 )
             else:
                 final_gen = run_standard_pipeline(
                     gen_id, generation, book_data, aspect_ratio,
                     on_progress=on_progress,
                     base_image_only=base_image_only,
+                    two_step_generation=two_step_generation,
                 )
 
             from app.services.storage_service import storage_service

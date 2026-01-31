@@ -6,6 +6,7 @@ interface GenerationFormState {
   selectedRefId: number | null;
   baseImageOnly: boolean;
   referenceMode: ReferenceMode;
+  twoStepGeneration: boolean;
   tempFields: Set<string>;
 }
 
@@ -14,6 +15,7 @@ interface GenerationFormContextType extends GenerationFormState {
   setSelectedRefId: (id: number | null) => void;
   setBaseImageOnly: (value: boolean) => void;
   setReferenceMode: (mode: ReferenceMode) => void;
+  setTwoStepGeneration: (value: boolean) => void;
   setTempFields: (fields: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
   clearForm: () => void;
 }
@@ -35,6 +37,7 @@ export function GenerationFormProvider({ children }: { children: ReactNode }) {
   const [selectedRefId, setSelectedRefIdRaw] = useState<number | null>(null);
   const [baseImageOnly, setBaseImageOnly] = useState(false);
   const [referenceMode, setReferenceMode] = useState<ReferenceMode>('both');
+  const [twoStepGeneration, setTwoStepGeneration] = useState(true);
   const [tempFields, setTempFieldsRaw] = useState<Set<string>>(new Set());
 
   const setSelectedRefId = useCallback((id: number | null) => {
@@ -57,6 +60,7 @@ export function GenerationFormProvider({ children }: { children: ReactNode }) {
     setSelectedRefIdRaw(null);
     setBaseImageOnly(false);
     setReferenceMode('both');
+    setTwoStepGeneration(true);
     setTempFieldsRaw(new Set());
   }, []);
 
@@ -65,11 +69,13 @@ export function GenerationFormProvider({ children }: { children: ReactNode }) {
     selectedRefId,
     baseImageOnly,
     referenceMode,
+    twoStepGeneration,
     tempFields,
     setFormData,
     setSelectedRefId,
     setBaseImageOnly,
     setReferenceMode,
+    setTwoStepGeneration,
     setTempFields,
     clearForm,
   }), [
@@ -77,11 +83,13 @@ export function GenerationFormProvider({ children }: { children: ReactNode }) {
     selectedRefId,
     baseImageOnly,
     referenceMode,
+    twoStepGeneration,
     tempFields,
     setFormData,
     setSelectedRefId,
     setBaseImageOnly,
     setReferenceMode,
+    setTwoStepGeneration,
     setTempFields,
     clearForm,
   ]);
