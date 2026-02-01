@@ -449,22 +449,36 @@ def run_style_ref_pipeline(
 
         else:
             logger.info("Gen #%s Using AI blending mode", gen_id)
-            if reference_mode == 'both':
-                final_reference_images = [signed_base_url, signed_text_url]
-                final_prompt = f"Add the following text to the book cover, matching the typography style from the text reference: {text_prompt}"
-            elif reference_mode == 'background':
+
+            if reference_mode in ('both', 'text') and signed_text_url is not None:
+                blend_prompt = "Overlay the text from the second image onto the first image, preserving the typography style and positioning."
+                blend_result = image_service.generate_image_with_text(
+                    [signed_base_url, signed_text_url],
+                    blend_prompt,
+                    aspect_ratio,
+                )
+                blended_url = blend_result['image_url']
+
+                blended_upload = storage_service.upload_from_url(blended_url, folder='covers')
+                signed_blended_url = storage_service.get_signed_url(blended_upload['path'], expires_in=600)
+
+                adjust_prompt = f"Replace the text on this cover with: {text_prompt}"
+                final_result = image_service.generate_image_with_text(
+                    [signed_blended_url],
+                    adjust_prompt,
+                    aspect_ratio,
+                )
+                final_image_url = final_result['image_url']
+
+            else:
                 final_reference_images = [signed_base_url]
                 final_prompt = f"Add the following text to the book cover: {text_prompt}"
-            else:
-                final_reference_images = [signed_base_url, signed_text_url]
-                final_prompt = f"Add the following text to the book cover, matching the typography style from the reference: {text_prompt}"
-
-            final_result = image_service.generate_image_with_text(
-                final_reference_images,
-                final_prompt,
-                aspect_ratio,
-            )
-            final_image_url = final_result['image_url']
+                final_result = image_service.generate_image_with_text(
+                    final_reference_images,
+                    final_prompt,
+                    aspect_ratio,
+                )
+                final_image_url = final_result['image_url']
 
         final_image_url = _check_and_remove_border(final_image_url, gen_id)
 
