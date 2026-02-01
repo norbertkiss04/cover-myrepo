@@ -6,7 +6,6 @@ from flask import Blueprint, request, jsonify, make_response
 from app.models.generation import Generation, ASPECT_RATIOS
 from app.models.style_reference import StyleReference
 from app.routes.auth import token_required
-from app.services.image_service import detect_and_crop_border
 from app.services.llm_service import llm_service
 from app.services.storage_service import storage_service
 from app.utils.db import get_supabase
@@ -79,33 +78,14 @@ def upload_style_reference(current_user):
         image_bytes = base64.b64decode(b64_data)
         logger.info("Decoded image: %.1f KB (%s)", len(image_bytes) / 1024, content_type)
 
-        original_upload = storage_service.upload_file(
+        upload_result = storage_service.upload_file(
             file_data=image_bytes,
-            filename=f"original.{ext}",
+            filename=f"reference.{ext}",
             content_type=content_type,
             folder='references',
         )
-        original_image_path = storage_service.extract_path(original_upload) or ''
-        logger.info("Original image uploaded: %s", original_image_path)
-
-        cropped_bytes = detect_and_crop_border(image_bytes)
-        if cropped_bytes:
-            original_size = len(image_bytes)
-            image_bytes = cropped_bytes
-            logger.info("Border detected and removed: %.1f KB -> %.1f KB", original_size / 1024, len(image_bytes) / 1024)
-
-            upload_result = storage_service.upload_file(
-                file_data=image_bytes,
-                filename=f"reference.{ext}",
-                content_type=content_type,
-                folder='references',
-            )
-            image_url = upload_result
-            image_path = storage_service.extract_path(image_url) or ''
-        else:
-            logger.info("No border detected in image")
-            image_url = original_upload
-            image_path = original_image_path
+        image_url = upload_result
+        image_path = storage_service.extract_path(image_url) or ''
 
         logger.info("Reference image uploaded: %s", image_path)
 
@@ -129,7 +109,6 @@ def upload_style_reference(current_user):
             'user_id': current_user.id,
             'image_url': image_url,
             'image_path': image_path,
-            'original_image_path': original_image_path,
             'title': sanitized_title,
             'feeling': analysis.get('feeling', ''),
             'layout': analysis.get('layout', ''),
@@ -337,13 +316,30 @@ def redetect_text(current_user, ref_id):
     return jsonify(storage_service.sign_style_ref_dict(style_ref.to_dict(), style_ref))
 
 
-@generate_bp.route('/style-references/<int:ref_id>/remove-border', methods=['POST'])
+@generate_bp.route('/style-references/<int:ref_id>/crop', methods=['POST'])
 @token_required
-def remove_border(current_user, ref_id):
+def crop_image(current_user, ref_id):
+    from app.services.image_service import image_service
+
     logger.info(
-        "Removing border for style reference #%d from user id=%s",
+        "Cropping image for style reference #%d from user id=%s",
         ref_id, current_user.id,
     )
+
+    data = request.get_json()
+    if not data or 'crop' not in data:
+        return jsonify({'error': 'Missing crop data'}), 400
+
+    crop = data['crop']
+    required_fields = ['x', 'y', 'width', 'height']
+    for field in required_fields:
+        if field not in crop:
+            return jsonify({'error': f'Missing crop field: {field}'}), 400
+        if not isinstance(crop[field], (int, float)):
+            return jsonify({'error': f'Invalid crop field type: {field}'}), 400
+
+    if crop['width'] <= 0 or crop['height'] <= 0:
+        return jsonify({'error': 'Crop dimensions must be positive'}), 400
 
     result = get_supabase().table('style_references').select('*').eq(
         'id', ref_id
@@ -372,13 +368,16 @@ def remove_border(current_user, ref_id):
     response.raise_for_status()
     image_bytes = response.content
 
-    cropped_bytes = detect_and_crop_border(image_bytes, tolerance=60, min_border_size=2)
+    logger.info("Cropping ref #%d: x=%.1f%%, y=%.1f%%, w=%.1f%%, h=%.1f%%",
+                ref_id, crop['x'], crop['y'], crop['width'], crop['height'])
 
-    if not cropped_bytes:
-        logger.info("No border detected in ref #%d", ref_id)
-        return jsonify({'error': 'No border detected in image'}), 400
-
-    logger.info("Border detected and removed for ref #%d", ref_id)
+    cropped_bytes = image_service.crop_image_by_percent(
+        image_bytes,
+        x=crop['x'],
+        y=crop['y'],
+        width=crop['width'],
+        height=crop['height'],
+    )
 
     upload_result = storage_service.upload_file(
         file_data=cropped_bytes,
@@ -407,6 +406,7 @@ def remove_border(current_user, ref_id):
     ).eq('id', ref_id).eq('user_id', current_user.id).execute()
 
     style_ref = StyleReference.from_row(updated.data[0])
+    logger.info("Image cropped successfully for ref #%d", ref_id)
     return jsonify(storage_service.sign_style_ref_dict(style_ref.to_dict(), style_ref))
 
 

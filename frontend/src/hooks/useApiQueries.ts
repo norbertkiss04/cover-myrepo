@@ -188,13 +188,14 @@ export function useRedetectText() {
   });
 }
 
-export function useRemoveBorder() {
+export function useCropImage() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: number) => generationApi.removeBorder(id),
+    mutationFn: ({ id, crop }: { id: number; crop: { x: number; y: number; width: number; height: number } }) =>
+      generationApi.cropImage(id, crop),
     onError: (error: Error & { response?: { data?: { error?: string } } }) => {
-      const message = error.response?.data?.error || 'Failed to remove border';
+      const message = error.response?.data?.error || 'Failed to crop image';
       toast.error(message);
     },
     onSuccess: (updated) => {
@@ -202,7 +203,7 @@ export function useRemoveBorder() {
         queryKeys.styleReferences,
         (old) => old?.map((r) => (r.id === updated.id ? updated : r)) ?? []
       );
-      toast.success('Border removed successfully');
+      toast.success('Image cropped successfully');
     },
   });
 }

@@ -3,10 +3,11 @@ import type { StyleReference, DetectedText } from '../../types';
 import {
   useUpdateTextSelection,
   useRedetectText,
-  useRemoveBorder,
+  useCropImage,
   useRegenerateCleanBackground,
   useRegenerateTextLayer,
 } from '../../hooks/useApiQueries';
+import ImageCropModal from './ImageCropModal';
 
 interface StyleReferenceModalProps {
   isOpen: boolean;
@@ -154,10 +155,11 @@ export default function StyleReferenceModal({ isOpen, onClose, styleReference }:
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const [localRef, setLocalRef] = useState<StyleReference>(styleReference);
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
 
   const updateTextMutation = useUpdateTextSelection();
   const redetectTextMutation = useRedetectText();
-  const removeBorderMutation = useRemoveBorder();
+  const cropImageMutation = useCropImage();
   const regenerateCleanMutation = useRegenerateCleanBackground();
   const regenerateTextLayerMutation = useRegenerateTextLayer();
 
@@ -220,8 +222,20 @@ export default function StyleReferenceModal({ isOpen, onClose, styleReference }:
     redetectTextMutation.mutate(localRef.id, { onSuccess: handleMutationSuccess });
   };
 
-  const handleRemoveBorder = () => {
-    removeBorderMutation.mutate(localRef.id, { onSuccess: handleMutationSuccess });
+  const handleOpenCropModal = () => {
+    setIsCropModalOpen(true);
+  };
+
+  const handleCropComplete = (crop: { x: number; y: number; width: number; height: number }) => {
+    cropImageMutation.mutate(
+      { id: localRef.id, crop },
+      {
+        onSuccess: (updated) => {
+          handleMutationSuccess(updated);
+          setIsCropModalOpen(false);
+        },
+      }
+    );
   };
 
   const handleGenerateClean = () => {
@@ -321,11 +335,10 @@ export default function StyleReferenceModal({ isOpen, onClose, styleReference }:
                   <div className="mt-2">
                     <button
                       type="button"
-                      onClick={handleRemoveBorder}
-                      disabled={removeBorderMutation.isPending}
-                      className="w-full px-2 py-1.5 text-xs font-medium text-text-secondary border border-border rounded-lg hover:bg-surface-alt hover:text-text disabled:opacity-40 transition-colors"
+                      onClick={handleOpenCropModal}
+                      className="w-full px-2 py-1.5 text-xs font-medium text-text-secondary border border-border rounded-lg hover:bg-surface-alt hover:text-text transition-colors"
                     >
-                      {removeBorderMutation.isPending ? 'Removing...' : 'Remove Border'}
+                      Crop Image
                     </button>
                   </div>
                 </div>
@@ -466,6 +479,14 @@ export default function StyleReferenceModal({ isOpen, onClose, styleReference }:
       </div>
 
       <Lightbox imageUrl={lightboxUrl} onClose={() => setLightboxUrl(null)} />
+
+      <ImageCropModal
+        isOpen={isCropModalOpen}
+        onClose={() => setIsCropModalOpen(false)}
+        imageUrl={originalImageUrl}
+        onCropComplete={handleCropComplete}
+        isLoading={cropImageMutation.isPending}
+      />
     </>
   );
 }

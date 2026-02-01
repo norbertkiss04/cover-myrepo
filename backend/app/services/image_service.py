@@ -288,6 +288,29 @@ class ImageService:
         logger.info("Text layer cleanup complete")
         return {'image_url': result_url}
 
+    def crop_image_by_percent(self, image_bytes, x, y, width, height):
+        img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
+        img_width, img_height = img.size
+
+        left = int(img_width * x / 100)
+        top = int(img_height * y / 100)
+        right = int(img_width * (x + width) / 100)
+        bottom = int(img_height * (y + height) / 100)
+
+        left = max(0, min(left, img_width))
+        top = max(0, min(top, img_height))
+        right = max(left + 1, min(right, img_width))
+        bottom = max(top + 1, min(bottom, img_height))
+
+        logger.info("Cropping image: (%d, %d) to (%d, %d) from %dx%d",
+                    left, top, right, bottom, img_width, img_height)
+
+        cropped = img.crop((left, top, right, bottom))
+
+        output = io.BytesIO()
+        cropped.save(output, format='PNG')
+        return output.getvalue()
+
 
 def blend_images_programmatic(base_image_url, text_layer_url, white_threshold=240):
     logger.info("Blending images programmatically...")

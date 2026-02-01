@@ -192,8 +192,8 @@ export const generationApi = {
     return response.data;
   },
 
-  removeBorder: async (id: number): Promise<StyleReference> => {
-    const response = await api.post(`/api/style-references/${id}/remove-border`);
+  cropImage: async (id: number, crop: { x: number; y: number; width: number; height: number }): Promise<StyleReference> => {
+    const response = await api.post(`/api/style-references/${id}/crop`, { crop });
     return response.data;
   },
 
