@@ -193,6 +193,32 @@ class LLMService:
         logger.info("Text detection complete: found %d text segments", len(detected_texts))
         return detected_texts
 
+    def verify_text_layer(self, image_url):
+        system_prompt = get_prompt('text_layer_verification', 'system')
+        user_text = get_prompt('text_layer_verification', 'user_template')
+
+        messages = [
+            {'role': 'system', 'content': system_prompt},
+            {
+                'role': 'user',
+                'content': [
+                    {'type': 'text', 'text': user_text},
+                    {'type': 'image_url', 'image_url': {'url': image_url}},
+                ],
+            },
+        ]
+
+        logger.info("Verifying text layer cleanliness with %s", STYLE_ANALYSIS_MODEL)
+        result = self._make_request(
+            messages,
+            schema=get_prompt_schema('text_layer_verification'),
+            model=STYLE_ANALYSIS_MODEL,
+        )
+        is_clean = result.get('is_clean', True)
+        artifacts = result.get('artifacts', [])
+        logger.info("Text layer verification: is_clean=%s, artifacts=%d", is_clean, len(artifacts))
+        return result
+
     def generate_base_image_prompt(self, book_data, base_image_only=False):
         text_rules = get_prompt('base_image', 'text_rules')
         text_rule = text_rules['base_image_only'] if base_image_only else text_rules['standard']

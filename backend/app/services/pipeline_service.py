@@ -80,12 +80,25 @@ def ensure_reference_variant(style_ref, variant_type, user_id):
         result = image_service.generate_text_layer(signed_original, selected_texts=selected_texts)
         variant_url = result['image_url']
 
+        text_layer_cleaned = False
+        verification = llm_service.verify_text_layer(variant_url)
+        if not verification.get('is_clean', True) and verification.get('artifacts'):
+            artifacts = verification['artifacts']
+            artifacts_desc = ', '.join([f"{a['description']} ({a['location']})" for a in artifacts])
+            logger.info("Text layer has %d artifacts for ref #%s: %s", len(artifacts), style_ref.id, artifacts_desc[:200])
+
+            cleanup_result = image_service.cleanup_text_layer(variant_url, artifacts_desc)
+            variant_url = cleanup_result['image_url']
+            text_layer_cleaned = True
+            logger.info("Text layer cleanup complete for ref #%s", style_ref.id)
+
         upload = storage_service.upload_from_url(variant_url, folder='references')
         get_supabase().table('style_references').update({
-            'text_layer_path': upload['path']
+            'text_layer_path': upload['path'],
+            'text_layer_cleaned': text_layer_cleaned,
         }).eq('id', style_ref.id).eq('user_id', user_id).execute()
 
-        logger.info("Text layer image cached for ref #%s", style_ref.id)
+        logger.info("Text layer image cached for ref #%s (cleaned=%s)", style_ref.id, text_layer_cleaned)
         return storage_service.get_signed_url(upload['path'], expires_in=600)
 
     else:

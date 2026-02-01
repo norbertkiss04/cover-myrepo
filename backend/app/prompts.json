@@ -86,6 +86,40 @@
         "required": ["feeling", "layout", "illustration_rules", "typography", "suggested_title"],
         "additionalProperties": false
       }
+    },
+    "text_layer_verification": {
+      "name": "text_layer_verification",
+      "strict": true,
+      "schema": {
+        "type": "object",
+        "properties": {
+          "is_clean": {
+            "type": "boolean",
+            "description": "True if image contains ONLY text on white background, false if non-text elements remain"
+          },
+          "artifacts": {
+            "type": "array",
+            "description": "List of non-text elements found (empty if is_clean is true)",
+            "items": {
+              "type": "object",
+              "properties": {
+                "description": {
+                  "type": "string",
+                  "description": "What the artifact is (e.g., 'female character silhouette', 'partial dragon illustration', 'decorative border')"
+                },
+                "location": {
+                  "type": "string",
+                  "description": "Where on the image (e.g., 'center-left', 'bottom-right', 'behind title')"
+                }
+              },
+              "required": ["description", "location"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["is_clean", "artifacts"],
+        "additionalProperties": false
+      }
     }
   },
   "prompts": {
@@ -120,6 +154,10 @@
     "text_detection": {
       "system": "You are an expert OCR and typography analyst. Your task is to detect and catalog ALL visible text on a book cover image.\n\nFor each piece of text you find, identify:\n1. The exact text content as it appears (preserve capitalization, line breaks represented as spaces)\n2. The type of text (title, subtitle, author_name, tagline, series_name, publisher, other)\n3. Its position on the cover (top, top-center, center, bottom-center, bottom, or combinations like top-left)\n4. A brief description of its visual style (font type, color, any effects like shadows/gradients/distressing)\n\nBe thorough - include ALL visible text, even small text like publisher names or series indicators.\nAssign sequential IDs starting from 1.\n\nReturn your response as JSON with a \"detected_texts\" array.",
       "user_template": "Detect and catalog all visible text on this book cover image. List every piece of text you can see, no matter how small."
+    },
+    "text_layer_verification": {
+      "system": "You are a quality control analyst for book cover typography extraction. Your task is to verify that an extracted text layer contains ONLY text on a white background.\n\nAnalyze the image and determine if it is CLEAN (only text visible) or if it contains ARTIFACTS that should not be there.\n\nARTIFACTS to look for (these should NOT be present):\n- Character silhouettes or figures (people, creatures, etc.)\n- Partial illustrations or objects from the original cover\n- Decorative elements that are not part of the typography\n- Background imagery or patterns that weren't fully removed\n- Any non-text visual elements\n\nIGNORE these (they are acceptable):\n- The text itself (titles, author names, etc.)\n- Text effects like shadows, gradients, or outlines that are part of the typography\n- Minor imperfections like tiny dots or very small pixel artifacts\n\nFocus on NOTICEABLE elements that would be distracting when overlaid on a new book cover.\n\nReturn your response as JSON with:\n- is_clean: true if only text is visible, false if artifacts exist\n- artifacts: array of objects describing each non-text element found (empty array if clean)",
+      "user_template": "Verify this extracted text layer image. It should contain ONLY text on a white background. Check if any non-text elements (characters, illustrations, objects, decorative elements) remain and need to be removed."
     }
   }
 }

@@ -6,6 +6,7 @@ from flask import Blueprint, request, jsonify, make_response
 from app.models.generation import Generation, ASPECT_RATIOS
 from app.models.style_reference import StyleReference
 from app.routes.auth import token_required
+from app.services.image_service import detect_and_crop_border
 from app.services.llm_service import llm_service
 from app.services.storage_service import storage_service
 from app.utils.db import get_supabase
@@ -77,6 +78,14 @@ def upload_style_reference(current_user):
 
         image_bytes = base64.b64decode(b64_data)
         logger.info("Decoded image: %.1f KB (%s)", len(image_bytes) / 1024, content_type)
+
+        cropped_bytes = detect_and_crop_border(image_bytes)
+        if cropped_bytes:
+            original_size = len(image_bytes)
+            image_bytes = cropped_bytes
+            logger.info("Border detected and removed: %.1f KB -> %.1f KB", original_size / 1024, len(image_bytes) / 1024)
+        else:
+            logger.info("No border detected in image")
 
         upload_result = storage_service.upload_file(
             file_data=image_bytes,

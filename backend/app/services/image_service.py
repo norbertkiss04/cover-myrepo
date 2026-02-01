@@ -258,6 +258,37 @@ class ImageService:
         result_url = self._poll(job_id)
         return {'image_url': result_url}
 
+    def cleanup_text_layer(self, image_url, artifacts_description, aspect_ratio='2:3'):
+        self._get_config()
+
+        size = self._get_size_string(aspect_ratio)
+
+        prompt = (
+            f"Remove the following non-text elements from this image while keeping ALL text intact: {artifacts_description}. "
+            "The result should contain ONLY the text/typography on a pure solid white background (#FFFFFF). "
+            "Preserve the exact font style, size, color, effects, and positioning of all text. "
+            "Remove any characters, illustrations, decorative elements, or background artifacts completely. "
+            "The background must be pure solid white with no gradients or textures."
+        )
+
+        payload = {
+            'prompt': prompt,
+            'images': [image_url],
+            'size': size,
+            'enable_base64_output': False,
+            'enable_sync_mode': False,
+        }
+
+        logger.info("Cleaning up text layer, removing: %s", artifacts_description[:100])
+        job_id = self._submit(
+            f'{self.base_url}/bytedance/seedream-v4.5/edit',
+            payload
+        )
+        result_url = self._poll(job_id)
+        logger.info("Text layer cleanup complete")
+        return {'image_url': result_url}
+
+
 def blend_images_programmatic(base_image_url, text_layer_url, white_threshold=240):
     logger.info("Blending images programmatically...")
 
