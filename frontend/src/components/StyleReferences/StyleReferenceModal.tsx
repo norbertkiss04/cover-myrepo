@@ -244,8 +244,8 @@ export default function StyleReferenceModal({ isOpen, onClose, styleReference }:
     return false;
   })();
 
-  const hasOriginalImage = !!localRef.original_image_url;
-  const hasDifferentCurrentImage = hasOriginalImage && localRef.original_image_url !== localRef.image_url;
+  const originalImageUrl = localRef.original_image_url || localRef.image_url;
+  const hasBorderRemoved = localRef.original_image_url && localRef.original_image_url !== localRef.image_url;
 
   return (
     <>
@@ -279,13 +279,31 @@ export default function StyleReferenceModal({ isOpen, onClose, styleReference }:
           <div className="flex-1 overflow-y-auto p-4 space-y-6">
             <div>
               <h3 className="text-sm font-medium text-text mb-3">Images</h3>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="flex flex-col">
+              <div className="flex gap-4 overflow-x-auto pb-2">
+                <div className="flex-shrink-0 w-40 flex flex-col">
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-medium text-text-secondary">Current Image</span>
-                    {hasDifferentCurrentImage && (
+                    <span className="text-xs font-medium text-text-secondary">Original</span>
+                  </div>
+                  <div
+                    className="relative aspect-[2/3] bg-surface-alt border border-border rounded-lg overflow-hidden cursor-pointer"
+                    onClick={() => setLightboxUrl(originalImageUrl)}
+                  >
+                    <img
+                      src={originalImageUrl}
+                      alt="Original"
+                      className="w-full h-full object-cover"
+                      crossOrigin="anonymous"
+                    />
+                  </div>
+                  <div className="mt-2 h-[30px]" />
+                </div>
+
+                <div className="flex-shrink-0 w-40 flex flex-col">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-medium text-text-secondary">Current</span>
+                    {hasBorderRemoved && (
                       <span className="text-[10px] px-1.5 py-0.5 bg-green-500/10 text-green-600 rounded">
-                        Border Removed
+                        Cropped
                       </span>
                     )}
                   </div>
@@ -301,39 +319,41 @@ export default function StyleReferenceModal({ isOpen, onClose, styleReference }:
                     />
                   </div>
                   <div className="mt-2">
-                    {hasOriginalImage && (
-                      <button
-                        type="button"
-                        onClick={handleRemoveBorder}
-                        disabled={removeBorderMutation.isPending}
-                        className="w-full px-2 py-1.5 text-xs font-medium text-text-secondary border border-border rounded-lg hover:bg-surface-alt hover:text-text disabled:opacity-40 transition-colors"
-                      >
-                        {removeBorderMutation.isPending ? 'Removing...' : 'Remove Border'}
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={handleRemoveBorder}
+                      disabled={removeBorderMutation.isPending}
+                      className="w-full px-2 py-1.5 text-xs font-medium text-text-secondary border border-border rounded-lg hover:bg-surface-alt hover:text-text disabled:opacity-40 transition-colors"
+                    >
+                      {removeBorderMutation.isPending ? 'Removing...' : 'Remove Border'}
+                    </button>
                   </div>
                 </div>
 
-                <ImagePreview
-                  label="Clean Background"
-                  imageUrl={localRef.clean_image_url}
-                  isLoading={regenerateCleanMutation.isPending}
-                  onGenerate={handleGenerateClean}
-                  onRegenerate={handleGenerateClean}
-                  canGenerate={true}
-                  onImageClick={setLightboxUrl}
-                />
+                <div className="flex-shrink-0 w-40">
+                  <ImagePreview
+                    label="Clean Background"
+                    imageUrl={localRef.clean_image_url}
+                    isLoading={regenerateCleanMutation.isPending}
+                    onGenerate={handleGenerateClean}
+                    onRegenerate={handleGenerateClean}
+                    canGenerate={true}
+                    onImageClick={setLightboxUrl}
+                  />
+                </div>
 
-                <ImagePreview
-                  label="Text Layer"
-                  imageUrl={localRef.text_layer_url}
-                  isLoading={regenerateTextLayerMutation.isPending}
-                  onGenerate={handleGenerateTextLayer}
-                  onRegenerate={handleGenerateTextLayer}
-                  canGenerate={detectedTexts.length > 0 && selectedIds.size > 0}
-                  badge={localRef.text_layer_cleaned ? 'Cleaned' : undefined}
-                  onImageClick={setLightboxUrl}
-                />
+                <div className="flex-shrink-0 w-40">
+                  <ImagePreview
+                    label="Text Layer"
+                    imageUrl={localRef.text_layer_url}
+                    isLoading={regenerateTextLayerMutation.isPending}
+                    onGenerate={handleGenerateTextLayer}
+                    onRegenerate={handleGenerateTextLayer}
+                    canGenerate={detectedTexts.length > 0 && selectedIds.size > 0}
+                    badge={localRef.text_layer_cleaned ? 'Cleaned' : undefined}
+                    onImageClick={setLightboxUrl}
+                  />
+                </div>
               </div>
             </div>
 

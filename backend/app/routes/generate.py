@@ -358,8 +358,14 @@ def remove_border(current_user, ref_id):
 
     style_ref = StyleReference.from_row(result.data[0])
 
-    source_path = style_ref.original_image_path or style_ref.image_path
-    signed_url = storage_service.get_signed_url(source_path, expires_in=300)
+    if not style_ref.original_image_path:
+        logger.info("No original_image_path for ref #%d, saving current image as original", ref_id)
+        get_supabase().table('style_references').update({
+            'original_image_path': style_ref.image_path
+        }).eq('id', ref_id).eq('user_id', current_user.id).execute()
+        style_ref.original_image_path = style_ref.image_path
+
+    signed_url = storage_service.get_signed_url(style_ref.original_image_path, expires_in=300)
 
     import requests as http_requests
     response = http_requests.get(signed_url, timeout=60)
