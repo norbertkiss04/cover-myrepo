@@ -312,7 +312,10 @@ export default function GeneratePage() {
           <div className="bg-surface border border-border rounded-2xl p-4 sm:p-5">
           <form onSubmit={handleSubmit} className="space-y-3.5">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-text-secondary">
+              <span
+                className="text-sm text-text-secondary cursor-help"
+                title="Generate only the background artwork without any text. Uses the clean background from your style reference."
+              >
                 Image only (no title or author text)
               </span>
               <Toggle
@@ -324,7 +327,10 @@ export default function GeneratePage() {
 
             {!form.baseImageOnly && (
               <div className="flex items-center justify-between">
-                <span className="text-sm text-text-secondary">
+                <span
+                  className="text-sm text-text-secondary cursor-help"
+                  title="First generates base artwork, then adds text separately. Generally produces better results than single-step generation."
+                >
                   Two-step generation
                 </span>
                 <Toggle
