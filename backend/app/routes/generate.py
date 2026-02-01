@@ -94,6 +94,12 @@ def upload_style_reference(current_user):
         analysis = llm_service.analyze_style_reference(signed_url)
         logger.info("Style analysis complete: %s", analysis.get('suggested_title', ''))
 
+        logger.info("Detecting text in style reference image...")
+        detected_text = llm_service.detect_text_in_image(signed_url)
+        logger.info("Text detection complete: found %d segments", len(detected_text))
+
+        all_text_ids = [t['id'] for t in detected_text]
+
         if title:
             sanitized_title = sanitize_text(title, max_length=MAX_SHORT_TEXT_LENGTH)
         else:
@@ -108,6 +114,8 @@ def upload_style_reference(current_user):
             'layout': analysis.get('layout', ''),
             'illustration_rules': analysis.get('illustration_rules', ''),
             'typography': analysis.get('typography', ''),
+            'detected_text': detected_text,
+            'selected_text_ids': all_text_ids,
         }
 
         result = get_supabase().table('style_references').insert(ref_data).execute()
@@ -205,6 +213,58 @@ def update_style_reference(current_user, ref_id):
 
     style_ref = StyleReference.from_row(updated.data[0])
     logger.info("Style reference #%d updated", ref_id)
+
+    return jsonify(storage_service.sign_style_ref_dict(style_ref.to_dict(), style_ref))
+
+
+@generate_bp.route('/style-references/<int:ref_id>/text-selection', methods=['PUT'])
+@token_required
+def update_text_selection(current_user, ref_id):
+    logger.info(
+        "Update text selection for style reference #%d from user id=%s",
+        ref_id, current_user.id,
+    )
+
+    result = get_supabase().table('style_references').select('*').eq(
+        'id', ref_id
+    ).eq('user_id', current_user.id).execute()
+
+    if not result.data:
+        logger.warning(
+            "Style reference #%d not found for user id=%s",
+            ref_id, current_user.id,
+        )
+        return jsonify({'error': 'Style reference not found'}), 404
+
+    style_ref = StyleReference.from_row(result.data[0])
+
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+
+    selected_text_ids = data.get('selected_text_ids')
+    if selected_text_ids is None:
+        return jsonify({'error': 'selected_text_ids is required'}), 400
+
+    if not isinstance(selected_text_ids, list):
+        return jsonify({'error': 'selected_text_ids must be an array'}), 400
+
+    valid_ids = {t['id'] for t in (style_ref.detected_text or [])}
+    invalid_ids = [tid for tid in selected_text_ids if tid not in valid_ids]
+    if invalid_ids:
+        return jsonify({'error': f'Invalid text IDs: {invalid_ids}'}), 400
+
+    if style_ref.text_layer_path:
+        logger.info("Clearing cached text layer for ref #%d due to selection change", ref_id)
+        storage_service.delete_file_by_path(style_ref.text_layer_path)
+
+    updated = get_supabase().table('style_references').update({
+        'selected_text_ids': selected_text_ids,
+        'text_layer_path': None,
+    }).eq('id', ref_id).eq('user_id', current_user.id).execute()
+
+    style_ref = StyleReference.from_row(updated.data[0])
+    logger.info("Text selection updated for ref #%d: %d texts selected", ref_id, len(selected_text_ids))
 
     return jsonify(storage_service.sign_style_ref_dict(style_ref.to_dict(), style_ref))
 

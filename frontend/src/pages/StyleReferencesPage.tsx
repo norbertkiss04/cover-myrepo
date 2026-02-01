@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import Masonry from 'react-masonry-css';
-import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { PencilIcon, TrashIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
 import { generationApi } from '../services/api';
 import { useStyleReferences, useDeleteStyleReference, useUpdateStyleReference, queryKeys } from '../hooks/useApiQueries';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import ErrorState from '../components/common/ErrorState';
+import TextSelectionModal from '../components/StyleReferences/TextSelectionModal';
 import type { StyleReference } from '../types';
 import { MASONRY_BREAKPOINTS } from '../constants';
 
@@ -119,6 +120,7 @@ export default function StyleReferencesPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [textConfigRef, setTextConfigRef] = useState<StyleReference | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageFile = useCallback(async (file: File) => {
@@ -303,13 +305,24 @@ export default function StyleReferencesPage() {
                       onStopEdit={() => setRenamingId(null)}
                     />
                     {renamingId !== ref.id && (
-                      <button
-                        onClick={() => setRenamingId(ref.id)}
-                        className="flex-shrink-0 p-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors cursor-pointer"
-                        title="Rename"
-                      >
-                        <PencilIcon className="w-5 h-5 text-white" />
-                      </button>
+                      <>
+                        <button
+                          onClick={() => setRenamingId(ref.id)}
+                          className="flex-shrink-0 p-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors cursor-pointer"
+                          title="Rename"
+                        >
+                          <PencilIcon className="w-5 h-5 text-white" />
+                        </button>
+                        {ref.detected_text && ref.detected_text.length > 0 && (
+                          <button
+                            onClick={() => setTextConfigRef(ref)}
+                            className="flex-shrink-0 p-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors cursor-pointer"
+                            title="Configure text selection"
+                          >
+                            <Cog6ToothIcon className="w-5 h-5 text-white" />
+                          </button>
+                        )}
+                      </>
                     )}
                     <button
                       onClick={() => { if (confirm('Delete this style reference? This cannot be undone.')) handleDelete(ref.id); }}
@@ -324,6 +337,14 @@ export default function StyleReferencesPage() {
             </div>
           ))}
         </Masonry>
+      )}
+
+      {textConfigRef && (
+        <TextSelectionModal
+          isOpen={!!textConfigRef}
+          onClose={() => setTextConfigRef(null)}
+          styleReference={textConfigRef}
+        />
       )}
     </div>
   );

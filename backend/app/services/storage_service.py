@@ -155,6 +155,18 @@ class StorageService:
             logger.error("Failed to delete file: %s", e)
             return False
 
+    def delete_file_by_path(self, path: str) -> bool:
+        client = self._get_client()
+
+        try:
+            logger.info("Deleting file from storage by path: %s", path)
+            client.storage.from_(self._bucket).remove([path])
+            logger.info("File deleted: %s", path)
+            return True
+        except Exception as e:
+            logger.error("Failed to delete file: %s", e)
+            return False
+
     def get_signed_url(self, path: str, expires_in: int = 3600) -> str:
         client = self._get_client()
         

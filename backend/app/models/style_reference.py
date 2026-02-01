@@ -1,5 +1,5 @@
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import Optional, List
 
 @dataclass
 class StyleReference:
@@ -14,6 +14,8 @@ class StyleReference:
     typography: Optional[str] = None
     clean_image_path: Optional[str] = None
     text_layer_path: Optional[str] = None
+    detected_text: Optional[List[dict]] = field(default_factory=list)
+    selected_text_ids: Optional[List[int]] = field(default_factory=list)
     created_at: Optional[str] = None
 
     @classmethod
@@ -30,6 +32,8 @@ class StyleReference:
             typography=row.get('typography'),
             clean_image_path=row.get('clean_image_path'),
             text_layer_path=row.get('text_layer_path'),
+            detected_text=row.get('detected_text') or [],
+            selected_text_ids=row.get('selected_text_ids') or [],
             created_at=row.get('created_at'),
         )
 
@@ -44,6 +48,8 @@ class StyleReference:
             'typography': self.typography,
             'clean_image_url': None,
             'text_layer_url': None,
+            'detected_text': self.detected_text,
+            'selected_text_ids': self.selected_text_ids,
             'created_at': self.created_at,
         }
 

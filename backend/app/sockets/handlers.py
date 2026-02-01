@@ -26,9 +26,10 @@ logger = logging.getLogger(__name__)
 
 
 VALID_REFERENCE_MODES = ('both', 'background', 'text')
+VALID_BLENDING_MODES = ('ai', 'programmatic')
 
 
-def _launch_generation(generation, user, credit_result):
+def _launch_generation(generation, user, credit_result, text_blending_mode='ai'):
     emit('generation_started', {
         'generation_id': generation.id,
         'book_title': generation.book_title,
@@ -46,6 +47,7 @@ def _launch_generation(generation, user, credit_result):
         generation.aspect_ratio,
         generation.base_image_only,
         generation.reference_mode,
+        text_blending_mode,
     )
 
 
@@ -157,6 +159,10 @@ def handle_start_generation(data):
     if reference_mode not in VALID_REFERENCE_MODES:
         reference_mode = 'both'
 
+    text_blending_mode = data.get('text_blending_mode', 'ai')
+    if text_blending_mode not in VALID_BLENDING_MODES:
+        text_blending_mode = 'ai'
+
     two_step_generation = bool(data.get('two_step_generation', True))
 
     gen_data = {
@@ -183,11 +189,11 @@ def handle_start_generation(data):
     generation = Generation.from_row(result.data[0])
 
     logger.info(
-        "Gen #%s created via socket (user id=%s, use_style_image=%s)",
-        generation.id, user.id, generation.use_style_image,
+        "Gen #%s created via socket (user id=%s, use_style_image=%s, blending=%s)",
+        generation.id, user.id, generation.use_style_image, text_blending_mode,
     )
 
-    _launch_generation(generation, user, credit_result)
+    _launch_generation(generation, user, credit_result, text_blending_mode)
 
 
 @socketio.on('cancel_generation')

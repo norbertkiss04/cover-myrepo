@@ -137,3 +137,35 @@ export function useUpdateStyleReference() {
     },
   });
 }
+
+export function useUpdateTextSelection() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, selectedTextIds }: { id: number; selectedTextIds: number[] }) =>
+      generationApi.updateTextSelection(id, selectedTextIds),
+    onMutate: async ({ id, selectedTextIds }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.styleReferences });
+
+      const previous = queryClient.getQueryData<StyleReference[]>(queryKeys.styleReferences);
+
+      queryClient.setQueryData<StyleReference[]>(
+        queryKeys.styleReferences,
+        (old) => old?.map((r) => (r.id === id ? { ...r, selected_text_ids: selectedTextIds, text_layer_url: null } : r)) ?? []
+      );
+
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      queryClient.setQueryData(queryKeys.styleReferences, context?.previous);
+      toast.error('Failed to update text selection');
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData<StyleReference[]>(
+        queryKeys.styleReferences,
+        (old) => old?.map((r) => (r.id === updated.id ? updated : r)) ?? []
+      );
+      toast.success('Text selection saved');
+    },
+  });
+}

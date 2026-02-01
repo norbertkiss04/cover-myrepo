@@ -22,12 +22,24 @@ export interface AspectRatioInfo {
 
 export type ReferenceMode = 'both' | 'background' | 'text';
 
+export type TextBlendingMode = 'ai' | 'programmatic';
+
+export interface DetectedText {
+  id: number;
+  text: string;
+  text_type: 'title' | 'subtitle' | 'author_name' | 'tagline' | 'series_name' | 'publisher' | 'other';
+  position: string;
+  style_description: string;
+}
+
 export interface StyleReference {
   id: number;
   title: string;
   image_url: string;
   clean_image_url: string | null;
   text_layer_url: string | null;
+  detected_text: DetectedText[];
+  selected_text_ids: number[];
   created_at: string;
 }
 
@@ -73,6 +85,7 @@ export interface GenerationInput {
   base_image_only?: boolean;
   reference_mode?: ReferenceMode;
   two_step_generation?: boolean;
+  text_blending_mode?: TextBlendingMode;
 }
 
 export interface PaginatedResponse<T> {

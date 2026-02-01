@@ -1,5 +1,46 @@
 {
   "schemas": {
+    "text_detection": {
+      "name": "text_detection",
+      "strict": true,
+      "schema": {
+        "type": "object",
+        "properties": {
+          "detected_texts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "description": "Unique identifier for this text segment (1, 2, 3, etc.)"
+                },
+                "text": {
+                  "type": "string",
+                  "description": "The actual text content exactly as it appears"
+                },
+                "text_type": {
+                  "type": "string",
+                  "description": "Type of text: title, subtitle, author_name, tagline, series_name, publisher, other"
+                },
+                "position": {
+                  "type": "string",
+                  "description": "Location on the cover: top, top-center, center, bottom-center, bottom, left, right, etc."
+                },
+                "style_description": {
+                  "type": "string",
+                  "description": "Brief description of the text style: font type, color, effects"
+                }
+              },
+              "required": ["id", "text", "text_type", "position", "style_description"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["detected_texts"],
+        "additionalProperties": false
+      }
+    },
     "cover_prompt": {
       "name": "cover_prompt",
       "strict": true,
@@ -75,6 +116,10 @@
     "style_analysis": {
       "system": "Act as an expert Senior Art Director and Book Cover Designer. Analyze the visual style of the provided image to create a transferable design brief.\n\nIgnore the specific subject matter (e.g., do not describe \"a dog\" or \"a mermaid\"); instead, describe the artistic techniques and design choices so they can be applied to a completely different subject.\n\nReturn your response as JSON with exactly these five fields:\n\n1. feeling: Describe the emotional resonance and atmosphere. What is the psychological hook? (e.g., whimsical, terrifying, authoritative, romantic). Who is the target audience and what promise does the cover make to them?\n\n2. layout: Analyze the composition structure. How is the space divided (e.g., rule of thirds, central symmetry, top-heavy)? Where is the negative space? How does the text interact with the imagery (framed by it, overlapping it, isolated from it)?\n\n3. illustration_rules: Describe the medium and artistic technique. If illustrated: Analyze the line work (clean vs. sketchy), shading (cel-shaded, gradient, cross-hatched), and texture (grainy, paper, smooth digital). If photographic: Describe the lighting (soft, harsh, cinematic), depth of field, and color grading. Include the color palette: dominant colors, saturation levels, and contrast.\n\n4. typography: Analyze the font choices and hierarchy. Describe the Title font (Serif, Sans-Serif, Display, Handwritten, Grunge). Describe the treatments (embossing, drop shadows, distressing, glowing, interlocking letters). How does the Author Name compare to the Title in size and weight?\n\n5. suggested_title: Create a short, evocative name (2-4 words) for this style that captures its essence (e.g., \"Dark Fantasy Painterly\", \"Clean Modern Minimalist\", \"Vintage Noir\").",
       "user_template": "Analyze this book cover image and extract its transferable visual style."
+    },
+    "text_detection": {
+      "system": "You are an expert OCR and typography analyst. Your task is to detect and catalog ALL visible text on a book cover image.\n\nFor each piece of text you find, identify:\n1. The exact text content as it appears (preserve capitalization, line breaks represented as spaces)\n2. The type of text (title, subtitle, author_name, tagline, series_name, publisher, other)\n3. Its position on the cover (top, top-center, center, bottom-center, bottom, or combinations like top-left)\n4. A brief description of its visual style (font type, color, any effects like shadows/gradients/distressing)\n\nBe thorough - include ALL visible text, even small text like publisher names or series indicators.\nAssign sequential IDs starting from 1.\n\nReturn your response as JSON with a \"detected_texts\" array.",
+      "user_template": "Detect and catalog all visible text on this book cover image. List every piece of text you can see, no matter how small."
     }
   }
 }

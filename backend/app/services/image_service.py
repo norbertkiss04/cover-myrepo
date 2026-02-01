@@ -216,17 +216,32 @@ class ImageService:
         result_url = self._poll(job_id)
         return {'image_url': result_url}
 
-    def generate_text_layer(self, image_url, aspect_ratio='2:3'):
+    def generate_text_layer(self, image_url, aspect_ratio='2:3', selected_texts=None):
         self._get_config()
 
         size = self._get_size_string(aspect_ratio)
 
-        prompt = (
-            "Extract only the text, titles, and typography from this image. "
-            "Remove all background imagery, illustrations, and photos. "
-            "Place the extracted text on a solid neutral background that provides good contrast. "
-            "Keep the original font style, size, and arrangement of the text."
-        )
+        if selected_texts and len(selected_texts) > 0:
+            text_descriptions = []
+            for t in selected_texts:
+                text_descriptions.append(f'- "{t["text"]}" ({t["text_type"]} at {t["position"]})')
+            texts_list = '\n'.join(text_descriptions)
+
+            prompt = (
+                f"Extract ONLY these specific text elements from this image:\n{texts_list}\n\n"
+                "Remove ALL other text, background imagery, illustrations, and photos. "
+                "Place the extracted text on a solid white background. "
+                "Keep the original font style, size, color, effects, and arrangement of the specified text. "
+                "The background must be pure solid white (#FFFFFF) with no gradients or textures."
+            )
+        else:
+            prompt = (
+                "Extract only the text, titles, and typography from this image. "
+                "Remove all background imagery, illustrations, and photos. "
+                "Place the extracted text on a solid white background. "
+                "Keep the original font style, size, and arrangement of the text. "
+                "The background must be pure solid white (#FFFFFF) with no gradients or textures."
+            )
 
         payload = {
             'prompt': prompt,
@@ -242,5 +257,44 @@ class ImageService:
         )
         result_url = self._poll(job_id)
         return {'image_url': result_url}
+
+def blend_images_programmatic(base_image_url, text_layer_url, white_threshold=240):
+    logger.info("Blending images programmatically...")
+
+    base_response = requests.get(base_image_url, timeout=60)
+    base_response.raise_for_status()
+    base_img = Image.open(io.BytesIO(base_response.content)).convert('RGBA')
+
+    text_response = requests.get(text_layer_url, timeout=60)
+    text_response.raise_for_status()
+    text_img = Image.open(io.BytesIO(text_response.content)).convert('RGBA')
+
+    if text_img.size != base_img.size:
+        logger.info("Resizing text layer from %s to %s", text_img.size, base_img.size)
+        text_img = text_img.resize(base_img.size, Image.Resampling.LANCZOS)
+
+    text_data = text_img.load()
+    width, height = text_img.size
+
+    for y in range(height):
+        for x in range(width):
+            r, g, b, a = text_data[x, y]
+            if r >= white_threshold and g >= white_threshold and b >= white_threshold:
+                text_data[x, y] = (r, g, b, 0)
+            else:
+                brightness = (r + g + b) / 3
+                opacity = int(255 * (1 - brightness / 255))
+                opacity = max(opacity, a)
+                text_data[x, y] = (r, g, b, min(255, opacity + 50))
+
+    result = Image.alpha_composite(base_img, text_img)
+    result = result.convert('RGB')
+
+    output = io.BytesIO()
+    result.save(output, format='PNG', quality=95)
+    logger.info("Programmatic blend complete, output size: %.1f KB", len(output.getvalue()) / 1024)
+
+    return output.getvalue()
+
 
 image_service = ImageService()

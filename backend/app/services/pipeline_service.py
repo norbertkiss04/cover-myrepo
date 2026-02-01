@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from app.models.generation import Generation
 from app.models.style_reference import StyleReference
 from app.services.llm_service import llm_service, get_prompt
-from app.services.image_service import image_service, detect_and_crop_border
+from app.services.image_service import image_service, detect_and_crop_border, blend_images_programmatic
 from app.services.storage_service import storage_service
 from app.utils.db import get_supabase
 
@@ -70,7 +70,14 @@ def ensure_reference_variant(style_ref, variant_type, user_id):
 
         logger.info("Generating text layer image for ref #%s", style_ref.id)
         signed_original = storage_service.get_signed_url(style_ref.image_path, expires_in=600)
-        result = image_service.generate_text_layer(signed_original)
+
+        selected_texts = None
+        if style_ref.detected_text and style_ref.selected_text_ids:
+            selected_ids = set(style_ref.selected_text_ids)
+            selected_texts = [t for t in style_ref.detected_text if t.get('id') in selected_ids]
+            logger.info("Using %d/%d selected texts for extraction", len(selected_texts), len(style_ref.detected_text))
+
+        result = image_service.generate_text_layer(signed_original, selected_texts=selected_texts)
         variant_url = result['image_url']
 
         upload = storage_service.upload_from_url(variant_url, folder='references')
@@ -217,10 +224,14 @@ def run_standard_pipeline(gen_id, generation, book_data, aspect_ratio, on_progre
         return final_gen
 
 
+VALID_BLENDING_MODES = ('ai', 'programmatic')
+
+
 def run_style_ref_pipeline(
     gen_id, generation, book_data,
     style_reference_id, aspect_ratio, user_id, on_progress=None,
     base_image_only=False, reference_mode='both', two_step_generation=True,
+    text_blending_mode='ai',
 ):
     if reference_mode not in VALID_REFERENCE_MODES:
         reference_mode = 'both'
@@ -383,22 +394,52 @@ def run_style_ref_pipeline(
 
         signed_base_url = storage_service.get_signed_url(base_storage_path, expires_in=600)
 
-        if reference_mode == 'both':
-            final_reference_images = [signed_base_url, signed_text_url]
-            final_prompt = f"Add the following text to the book cover, matching the typography style from the text reference: {text_prompt}"
-        elif reference_mode == 'background':
-            final_reference_images = [signed_base_url]
-            final_prompt = f"Add the following text to the book cover: {text_prompt}"
-        else:
-            final_reference_images = [signed_base_url, signed_text_url]
-            final_prompt = f"Add the following text to the book cover, matching the typography style from the reference: {text_prompt}"
-
-        final_result = image_service.generate_image_with_text(
-            final_reference_images,
-            final_prompt,
-            aspect_ratio,
+        use_programmatic = (
+            text_blending_mode == 'programmatic' and
+            signed_text_url is not None and
+            reference_mode in ('both', 'text')
         )
-        final_image_url = final_result['image_url']
+
+        if use_programmatic:
+            logger.info("Gen #%s Using programmatic blending mode", gen_id)
+            blended_bytes = blend_images_programmatic(signed_base_url, signed_text_url)
+            blended_upload = storage_service.upload_bytes(blended_bytes, folder='covers')
+            blended_url = blended_upload['public_url']
+            blended_path = blended_upload['path']
+
+            signed_blended_url = storage_service.get_signed_url(blended_path, expires_in=600)
+            cleanup_prompt = (
+                f"Clean up any artifacts or imperfections in this book cover image. "
+                f"The text should read: {text_prompt}. "
+                f"Fix any visual issues with the text overlay, ensure text is crisp and readable, "
+                f"and blend the text naturally with the background. Keep the overall design intact."
+            )
+
+            final_result = image_service.generate_image_with_text(
+                [signed_blended_url],
+                cleanup_prompt,
+                aspect_ratio,
+            )
+            final_image_url = final_result['image_url']
+        else:
+            logger.info("Gen #%s Using AI blending mode", gen_id)
+            if reference_mode == 'both':
+                final_reference_images = [signed_base_url, signed_text_url]
+                final_prompt = f"Add the following text to the book cover, matching the typography style from the text reference: {text_prompt}"
+            elif reference_mode == 'background':
+                final_reference_images = [signed_base_url]
+                final_prompt = f"Add the following text to the book cover: {text_prompt}"
+            else:
+                final_reference_images = [signed_base_url, signed_text_url]
+                final_prompt = f"Add the following text to the book cover, matching the typography style from the reference: {text_prompt}"
+
+            final_result = image_service.generate_image_with_text(
+                final_reference_images,
+                final_prompt,
+                aspect_ratio,
+            )
+            final_image_url = final_result['image_url']
+
         final_image_url = _check_and_remove_border(final_image_url, gen_id)
 
         final_upload = storage_service.upload_from_url(final_image_url, folder='covers')

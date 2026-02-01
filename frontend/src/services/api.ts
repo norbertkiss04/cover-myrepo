@@ -173,6 +173,16 @@ export const generationApi = {
     return response.data;
   },
 
+  updateTextSelection: async (
+    id: number,
+    selectedTextIds: number[],
+  ): Promise<StyleReference> => {
+    const response = await api.put(`/api/style-references/${id}/text-selection`, {
+      selected_text_ids: selectedTextIds,
+    });
+    return response.data;
+  },
+
   deleteStyleReference: async (id: number): Promise<void> => {
     await api.delete(`/api/style-references/${id}`);
   },

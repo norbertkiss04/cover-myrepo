@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useGeneration } from '../context/GenerationContext';
 import { useGenerationForm } from '../context/GenerationFormContext';
 import { useGenres, useAspectRatios, useStyleReferences } from '../hooks/useApiQueries';
-import { Toggle, ReferenceModeToggle, PlaceholderPanel, ProgressPanel, ResultPanel } from '../components/Generate';
+import { Toggle, ReferenceModeToggle, PlaceholderPanel, ProgressPanel, ResultPanel, BlendingModeToggle } from '../components/Generate';
 import type { Generation, GenerationInput } from '../types';
 
 const OPTIONAL_FIELD_DEFS = [
@@ -134,6 +134,9 @@ export default function GeneratePage() {
         payload.style_reference_id = ref.id;
         payload.use_style_image = true;
         payload.reference_mode = form.referenceMode;
+        if (form.twoStepGeneration && (form.referenceMode === 'both' || form.referenceMode === 'text')) {
+          payload.text_blending_mode = form.textBlendingMode;
+        }
       }
     }
 
@@ -448,6 +451,14 @@ export default function GeneratePage() {
                   {form.referenceMode === 'text' && 'Use only the typography/text style.'}
                 </p>
               </div>
+            )}
+
+            {form.selectedRefId !== null && form.twoStepGeneration && !form.baseImageOnly && (form.referenceMode === 'both' || form.referenceMode === 'text') && (
+              <BlendingModeToggle
+                value={form.textBlendingMode}
+                onChange={form.setTextBlendingMode}
+                disabled={isGenerating}
+              />
             )}
 
             {visibleOptionalFields.length > 0 && (

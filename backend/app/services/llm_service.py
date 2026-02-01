@@ -168,6 +168,31 @@ class LLMService:
         logger.info("Style analysis complete: suggested_title='%s'", result.get('suggested_title', ''))
         return result
 
+    def detect_text_in_image(self, image_url):
+        system_prompt = get_prompt('text_detection', 'system')
+        user_text = get_prompt('text_detection', 'user_template')
+
+        messages = [
+            {'role': 'system', 'content': system_prompt},
+            {
+                'role': 'user',
+                'content': [
+                    {'type': 'text', 'text': user_text},
+                    {'type': 'image_url', 'image_url': {'url': image_url}},
+                ],
+            },
+        ]
+
+        logger.info("Detecting text in image with %s", STYLE_ANALYSIS_MODEL)
+        result = self._make_request(
+            messages,
+            schema=get_prompt_schema('text_detection'),
+            model=STYLE_ANALYSIS_MODEL,
+        )
+        detected_texts = result.get('detected_texts', [])
+        logger.info("Text detection complete: found %d text segments", len(detected_texts))
+        return detected_texts
+
     def generate_base_image_prompt(self, book_data, base_image_only=False):
         text_rules = get_prompt('base_image', 'text_rules')
         text_rule = text_rules['base_image_only'] if base_image_only else text_rules['standard']
