@@ -505,6 +505,7 @@ def regenerate_text_layer(current_user, ref_id):
         updated = get_supabase().table('style_references').update({
             'text_layer_path': upload['path'],
             'text_layer_cleaned': text_layer_cleaned,
+            'text_layer_selected_texts': selected_texts,
         }).eq('id', ref_id).eq('user_id', current_user.id).execute()
 
         style_ref = StyleReference.from_row(updated.data[0])

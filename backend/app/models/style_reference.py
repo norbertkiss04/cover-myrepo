@@ -16,6 +16,7 @@ class StyleReference:
     clean_image_path: Optional[str] = None
     text_layer_path: Optional[str] = None
     text_layer_cleaned: bool = False
+    text_layer_selected_texts: Optional[List[dict]] = field(default_factory=list)
     detected_text: Optional[List[dict]] = field(default_factory=list)
     selected_text_ids: Optional[List[int]] = field(default_factory=list)
     created_at: Optional[str] = None
@@ -36,6 +37,7 @@ class StyleReference:
             clean_image_path=row.get('clean_image_path'),
             text_layer_path=row.get('text_layer_path'),
             text_layer_cleaned=row.get('text_layer_cleaned', False) or False,
+            text_layer_selected_texts=row.get('text_layer_selected_texts') or [],
             detected_text=row.get('detected_text') or [],
             selected_text_ids=row.get('selected_text_ids') or [],
             created_at=row.get('created_at'),

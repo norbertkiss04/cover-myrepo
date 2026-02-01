@@ -462,7 +462,12 @@ def run_style_ref_pipeline(
                 blended_upload = storage_service.upload_from_url(blended_url, folder='covers')
                 signed_blended_url = storage_service.get_signed_url(blended_upload['path'], expires_in=600)
 
-                adjust_prompt = f"Replace the text on this cover with: {text_prompt}"
+                adjust_prompt = llm_service.generate_simple_text_replacement_prompt(
+                    book_data=book_data,
+                    selected_texts=style_ref.text_layer_selected_texts or [],
+                    cover_ideas=book_data.get('cover_ideas'),
+                )
+                logger.info("Gen #%s AI Blend Step 2 prompt: %s", gen_id, adjust_prompt[:200])
                 final_result = image_service.generate_image_with_text(
                     [signed_blended_url],
                     adjust_prompt,

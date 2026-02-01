@@ -336,4 +336,58 @@ class LLMService:
     def generate_style_referenced_prompt_no_text(self, book_data, style_analysis=None, reference_mode='both'):
         return self.generate_style_referenced_prompt(book_data, include_text=False, style_analysis=style_analysis, reference_mode=reference_mode)
 
+    def generate_simple_text_replacement_prompt(self, book_data, selected_texts, cover_ideas=None):
+        if not selected_texts:
+            book_title = book_data.get('book_title', '')
+            author_name = book_data.get('author_name', '')
+            return f"Replace the text on this book cover with title '{book_title}' and author '{author_name}'. Preserve the existing typography style, fonts, colors, and positioning."
+
+        text_elements_list = []
+        for t in selected_texts:
+            text_elements_list.append(f"- \"{t.get('text', '')}\" (type: {t.get('text_type', 'unknown')}, position: {t.get('position', 'unknown')})")
+        text_elements_formatted = "\n".join(text_elements_list)
+
+        system_prompt = """You generate simple text replacement instructions for book covers.
+
+Given:
+1. Text elements currently on a book cover (with their type and position)
+2. New book title and author name
+3. Optional cover ideas from the user
+
+Generate a clear, concise instruction to replace the text while preserving the typography style.
+
+Rules:
+- Replace "title" type text with the new book title
+- Replace "author_name" type text with the new author name
+- Remove any other text types (tagline, subtitle, series_name, publisher, other) - do not keep or replace them
+- If cover_ideas contains relevant context, use it to inform your decisions
+- Keep the instruction simple and focused on WHAT text to change, not HOW it should look
+- Always emphasize preserving the existing typography style, fonts, colors, and positioning
+
+Output format example:
+Replace the text on this book cover while preserving the exact typography style, fonts, colors, effects, and positioning:
+- Replace "[original text]" with "[new text]"
+- Remove the text "[text to remove]"
+Keep all other visual elements unchanged."""
+
+        user_content = f"""Current text elements on the cover:
+{text_elements_formatted}
+
+New book details:
+- Title: {book_data.get('book_title', '')}
+- Author: {book_data.get('author_name', '')}
+
+Cover ideas (for context):
+{cover_ideas or "None provided"}
+
+Generate the replacement instruction."""
+
+        messages = [
+            {'role': 'system', 'content': system_prompt},
+            {'role': 'user', 'content': user_content}
+        ]
+
+        result = self._make_request(messages)
+        return result
+
 llm_service = LLMService()
