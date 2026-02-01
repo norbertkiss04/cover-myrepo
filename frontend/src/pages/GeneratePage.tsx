@@ -435,7 +435,7 @@ export default function GeneratePage() {
               </div>
             </div>
 
-            {form.selectedRefId !== null && (
+            {form.selectedRefId !== null && !form.baseImageOnly && (
               <div>
                 <label className="block text-sm font-medium text-text-secondary mb-1.5">
                   Reference Mode

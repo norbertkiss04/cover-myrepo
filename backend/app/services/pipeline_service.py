@@ -278,7 +278,11 @@ def run_style_ref_pipeline(
     current_step = 1
 
     if not two_step_generation or base_image_only:
-        if reference_mode == 'background':
+        if base_image_only:
+            progress(current_step, total_steps, "Preparing clean background reference...")
+            signed_ref_url = ensure_reference_variant(style_ref, 'clean', user_id)
+            current_step += 1
+        elif reference_mode == 'background':
             progress(current_step, total_steps, "Preparing background reference...")
             signed_ref_url = ensure_reference_variant(style_ref, 'clean', user_id)
             current_step += 1
@@ -291,7 +295,7 @@ def run_style_ref_pipeline(
 
         progress(current_step, total_steps, "Generating image prompt...")
         if base_image_only:
-            unified_prompt = llm_service.generate_style_referenced_prompt_no_text(book_data, style_analysis=style_analysis, reference_mode=reference_mode)
+            unified_prompt = llm_service.generate_style_referenced_prompt_no_text(book_data, style_analysis=style_analysis, reference_mode='background')
         else:
             unified_prompt = llm_service.generate_style_referenced_prompt(book_data, style_analysis=style_analysis, reference_mode=reference_mode)
 
@@ -303,11 +307,12 @@ def run_style_ref_pipeline(
 
         progress(current_step, total_steps, "Generating final cover...")
 
-        reference_mode_prefix_key = f'reference_mode_prefix_{reference_mode}'
+        effective_ref_mode = 'background' if base_image_only else reference_mode
+        reference_mode_prefix_key = f'reference_mode_prefix_{effective_ref_mode}'
         reference_mode_prefix = get_prompt('style_reference', reference_mode_prefix_key)
         final_prompt_with_prefix = reference_mode_prefix + unified_prompt
 
-        logger.info("Gen #%s Using reference_mode=%s, prefix length=%d chars", gen_id, reference_mode, len(reference_mode_prefix))
+        logger.info("Gen #%s Using reference_mode=%s (effective=%s), prefix length=%d chars", gen_id, reference_mode, effective_ref_mode, len(reference_mode_prefix))
 
         final_result = image_service.generate_image_with_text(
             [signed_ref_url],
