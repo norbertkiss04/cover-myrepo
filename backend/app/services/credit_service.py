@@ -85,37 +85,39 @@ def calculate_generation_cost(
     if base_image_only:
         llm_calls = 1
         image_calls = 1
+
+    elif not two_step_generation:
+        llm_calls = 1
+        image_calls = 1
+
+        if use_style_image:
+            if reference_mode == 'background' and not style_ref_has_clean:
+                image_calls += 1
+            elif reference_mode == 'text' and not style_ref_has_text:
+                image_calls += 1
+                llm_calls += 1
+                image_calls += 1
+
     elif use_style_image:
-        if two_step_generation:
-            llm_calls = 2
-            image_calls = 2
+        llm_calls = 2
+        image_calls = 2
 
-            if reference_mode in ('both', 'background') and not style_ref_has_clean:
-                image_calls += 1
+        if reference_mode in ('both', 'background') and not style_ref_has_clean:
+            image_calls += 1
 
-            if reference_mode in ('both', 'text') and not style_ref_has_text:
-                image_calls += 1
-                llm_calls += 1
-                image_calls += 1
+        if reference_mode in ('both', 'text') and not style_ref_has_text:
+            image_calls += 1
+            llm_calls += 1
+            image_calls += 1
 
-            if text_blending_mode == 'ai' and reference_mode in ('both', 'text'):
-                llm_calls += 1
-                image_calls += 2
-            elif text_blending_mode == 'programmatic' and reference_mode in ('both', 'text'):
-                image_calls += 1
-            else:
-                pass
-        else:
-            llm_calls = 1
-            image_calls = 1
+        if text_blending_mode == 'ai_blend' and reference_mode in ('both', 'text'):
+            llm_calls += 1
+            image_calls += 2
+        elif text_blending_mode == 'direct_overlay' and reference_mode in ('both', 'text'):
+            image_calls += 1
+        elif text_blending_mode == 'separate_reference' and reference_mode in ('both', 'text'):
+            pass
 
-            if reference_mode in ('both', 'background') and not style_ref_has_clean:
-                image_calls += 1
-
-            if reference_mode in ('both', 'text') and not style_ref_has_text:
-                image_calls += 1
-                llm_calls += 1
-                image_calls += 1
     else:
         llm_calls = 2
         image_calls = 2
