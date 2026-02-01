@@ -237,14 +237,14 @@ def run_standard_pipeline(gen_id, generation, book_data, aspect_ratio, on_progre
         return final_gen
 
 
-VALID_BLENDING_MODES = ('ai', 'programmatic')
+VALID_BLENDING_MODES = ('ai_blend', 'direct_overlay', 'separate_reference')
 
 
 def run_style_ref_pipeline(
     gen_id, generation, book_data,
     style_reference_id, aspect_ratio, user_id, on_progress=None,
     base_image_only=False, reference_mode='both', two_step_generation=True,
-    text_blending_mode='ai',
+    text_blending_mode='ai_blend',
 ):
     if reference_mode not in VALID_REFERENCE_MODES:
         reference_mode = 'both'
@@ -407,14 +407,8 @@ def run_style_ref_pipeline(
 
         signed_base_url = storage_service.get_signed_url(base_storage_path, expires_in=600)
 
-        use_programmatic = (
-            text_blending_mode == 'programmatic' and
-            signed_text_url is not None and
-            reference_mode in ('both', 'text')
-        )
-
-        if use_programmatic:
-            logger.info("Gen #%s Using programmatic blending mode", gen_id)
+        if text_blending_mode == 'direct_overlay' and signed_text_url is not None and reference_mode in ('both', 'text'):
+            logger.info("Gen #%s Using direct overlay blending mode", gen_id)
             blended_bytes = blend_images_programmatic(signed_base_url, signed_text_url)
             blended_upload = storage_service.upload_bytes(blended_bytes, folder='covers')
             blended_url = blended_upload['public_url']
@@ -434,6 +428,20 @@ def run_style_ref_pipeline(
                 aspect_ratio,
             )
             final_image_url = final_result['image_url']
+
+        elif text_blending_mode == 'separate_reference':
+            logger.info("Gen #%s Using separate reference blending mode", gen_id)
+            signed_style_ref_url = storage_service.get_signed_url(style_ref.image_path, expires_in=600)
+            final_reference_images = [signed_base_url, signed_style_ref_url]
+            final_prompt = f"Add text to this book cover, matching the typography style and layout from the style reference image: {text_prompt}"
+
+            final_result = image_service.generate_image_with_text(
+                final_reference_images,
+                final_prompt,
+                aspect_ratio,
+            )
+            final_image_url = final_result['image_url']
+
         else:
             logger.info("Gen #%s Using AI blending mode", gen_id)
             if reference_mode == 'both':
@@ -465,5 +473,5 @@ def run_style_ref_pipeline(
         }).eq('id', generation.id).execute()
 
         final_gen = Generation.from_row(update_result.data[0])
-        logger.info("Gen #%s COMPLETED successfully (style-referenced, two-step, mode=%s)", gen_id, reference_mode)
+        logger.info("Gen #%s COMPLETED successfully (style-referenced, two-step, ref_mode=%s, blend_mode=%s)", gen_id, reference_mode, text_blending_mode)
         return final_gen

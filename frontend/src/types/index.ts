@@ -22,7 +22,7 @@ export interface AspectRatioInfo {
 
 export type ReferenceMode = 'both' | 'background' | 'text';
 
-export type TextBlendingMode = 'ai' | 'programmatic';
+export type TextBlendingMode = 'ai_blend' | 'direct_overlay' | 'separate_reference';
 
 export interface DetectedText {
   id: number;

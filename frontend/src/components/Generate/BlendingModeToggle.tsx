@@ -1,5 +1,23 @@
 import type { TextBlendingMode } from '../../types';
 
+const OPTIONS: { value: TextBlendingMode; label: string; tooltip: string }[] = [
+  {
+    value: 'ai_blend',
+    label: 'AI Blend',
+    tooltip: 'AI combines the generated base image with the extracted text layer. Most creative results.',
+  },
+  {
+    value: 'direct_overlay',
+    label: 'Direct Overlay',
+    tooltip: 'Text layer is programmatically overlaid onto the base image, then cleaned up by AI. More precise text placement.',
+  },
+  {
+    value: 'separate_reference',
+    label: 'Style Reference',
+    tooltip: 'Sends the generated base image with the original style reference to AI for final styling. Best style matching.',
+  },
+];
+
 interface BlendingModeToggleProps {
   value: TextBlendingMode;
   onChange: (mode: TextBlendingMode) => void;
@@ -8,40 +26,26 @@ interface BlendingModeToggleProps {
 
 export default function BlendingModeToggle({ value, onChange, disabled }: BlendingModeToggleProps) {
   return (
-    <div className={`space-y-2 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-text-secondary">Text Blending</span>
+    <div className={`space-y-1.5 ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
+      <span className="text-xs font-medium text-text-secondary">Text Blending</span>
+      <div className="flex rounded-lg bg-surface-alt p-0.5 border border-border">
+        {OPTIONS.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            disabled={disabled}
+            onClick={() => onChange(option.value)}
+            title={option.tooltip}
+            className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-colors duration-150 disabled:cursor-not-allowed ${
+              value === option.value
+                ? 'bg-accent text-white shadow-sm'
+                : 'text-text-secondary hover:text-text disabled:opacity-40'
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
       </div>
-      <div className="flex bg-surface-alt border border-border rounded-lg p-0.5">
-        <button
-          type="button"
-          onClick={() => onChange('ai')}
-          className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-            value === 'ai'
-              ? 'bg-surface text-text shadow-sm'
-              : 'text-text-muted hover:text-text'
-          }`}
-        >
-          AI Blending
-        </button>
-        <button
-          type="button"
-          onClick={() => onChange('programmatic')}
-          className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-            value === 'programmatic'
-              ? 'bg-surface text-text shadow-sm'
-              : 'text-text-muted hover:text-text'
-          }`}
-        >
-          Direct Overlay
-        </button>
-      </div>
-      <p className="text-[10px] text-text-muted">
-        {value === 'ai' 
-          ? 'AI generates text matching the reference style (more creative, less precise)'
-          : 'Text layer is overlaid directly onto base image, then cleaned up by AI (more precise)'
-        }
-      </p>
     </div>
   );
 }

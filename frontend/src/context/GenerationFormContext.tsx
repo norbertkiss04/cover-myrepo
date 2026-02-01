@@ -40,7 +40,7 @@ export function GenerationFormProvider({ children }: { children: ReactNode }) {
   const [baseImageOnly, setBaseImageOnly] = useState(false);
   const [referenceMode, setReferenceMode] = useState<ReferenceMode>('both');
   const [twoStepGeneration, setTwoStepGeneration] = useState(true);
-  const [textBlendingMode, setTextBlendingMode] = useState<TextBlendingMode>('ai');
+  const [textBlendingMode, setTextBlendingMode] = useState<TextBlendingMode>('ai_blend');
   const [tempFields, setTempFieldsRaw] = useState<Set<string>>(new Set());
 
   const setSelectedRefId = useCallback((id: number | null) => {
@@ -64,7 +64,7 @@ export function GenerationFormProvider({ children }: { children: ReactNode }) {
     setBaseImageOnly(false);
     setReferenceMode('both');
     setTwoStepGeneration(true);
-    setTextBlendingMode('ai');
+    setTextBlendingMode('ai_blend');
     setTempFieldsRaw(new Set());
   }, []);
 
