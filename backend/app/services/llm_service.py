@@ -132,17 +132,42 @@ class LLMService:
         return content
 
     def _parse_json(self, content):
+        import json_repair
+        import re
+
         try:
             return json.loads(content)
         except json.JSONDecodeError:
-            import re
-            match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', content)
-            if match:
-                return json.loads(match.group(1))
-            match = re.search(r'\{[\s\S]*\}', content)
-            if match:
-                return json.loads(match.group(0))
-            raise ValueError(f"Could not parse JSON from LLM response: {content[:200]}")
+            logger.debug("Standard JSON parsing failed, attempting repair...")
+
+        match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', content)
+        if match:
+            extracted = match.group(1)
+            try:
+                return json.loads(extracted)
+            except json.JSONDecodeError:
+                try:
+                    result = json_repair.loads(extracted)
+                    logger.info("JSON repair successful (from code block)")
+                    return result
+                except Exception:
+                    pass
+
+        match = re.search(r'\{[\s\S]*\}', content)
+        if match:
+            raw_json = match.group(0)
+            try:
+                return json.loads(raw_json)
+            except json.JSONDecodeError:
+                try:
+                    result = json_repair.loads(raw_json)
+                    logger.info("JSON repair successful (from raw extraction)")
+                    return result
+                except Exception as e:
+                    logger.warning("JSON repair failed: %s", e)
+                    raise ValueError(f"Could not parse or repair JSON from LLM response: {content[:200]}")
+
+        raise ValueError(f"Could not find JSON in LLM response: {content[:200]}")
 
     def analyze_style_reference(self, image_url):
         system_prompt = get_prompt('style_analysis', 'system')
