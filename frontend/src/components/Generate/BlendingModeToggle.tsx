@@ -13,8 +13,8 @@ const OPTIONS: { value: TextBlendingMode; label: string; tooltip: string }[] = [
   },
   {
     value: 'separate_reference',
-    label: 'Style Reference',
-    tooltip: 'Sends the generated base image with the original style reference to AI for final styling. Best style matching.',
+    label: 'No Blend',
+    tooltip: 'Sends the generated base image and text layer separately to AI. Typography is matched without blending.',
   },
 ];
 

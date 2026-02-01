@@ -435,10 +435,11 @@ def run_style_ref_pipeline(
             final_image_url = final_result['image_url']
 
         elif text_blending_mode == 'separate_reference':
-            logger.info("Gen #%s Using separate reference blending mode", gen_id)
-            signed_style_ref_url = storage_service.get_signed_url(style_ref.image_path, expires_in=600)
-            final_reference_images = [signed_base_url, signed_style_ref_url]
-            final_prompt = f"Add text to this book cover, matching the typography style and layout from the style reference image: {text_prompt}"
+            logger.info("Gen #%s Using no blend mode (separate references)", gen_id)
+            if signed_text_url is None:
+                raise ValueError("Text layer is required for 'No Blend' mode. Please generate a text layer first.")
+            final_reference_images = [signed_base_url, signed_text_url]
+            final_prompt = f"Add text to this book cover, matching the typography style from the text reference: {text_prompt}"
 
             final_result = image_service.generate_image_with_text(
                 final_reference_images,
