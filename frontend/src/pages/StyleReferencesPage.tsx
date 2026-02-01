@@ -6,7 +6,7 @@ import { generationApi } from '../services/api';
 import { useStyleReferences, useDeleteStyleReference, useUpdateStyleReference, queryKeys } from '../hooks/useApiQueries';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import ErrorState from '../components/common/ErrorState';
-import TextSelectionModal from '../components/StyleReferences/TextSelectionModal';
+import StyleReferenceModal from '../components/StyleReferences/StyleReferenceModal';
 import type { StyleReference } from '../types';
 import { MASONRY_BREAKPOINTS } from '../constants';
 
@@ -313,15 +313,13 @@ export default function StyleReferencesPage() {
                         >
                           <PencilIcon className="w-5 h-5 text-white" />
                         </button>
-                        {ref.detected_text && ref.detected_text.length > 0 && (
-                          <button
-                            onClick={() => setTextConfigRef(ref)}
-                            className="flex-shrink-0 p-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors cursor-pointer"
-                            title="Configure text selection"
-                          >
-                            <Cog6ToothIcon className="w-5 h-5 text-white" />
-                          </button>
-                        )}
+                        <button
+                          onClick={() => setTextConfigRef(ref)}
+                          className="flex-shrink-0 p-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors cursor-pointer"
+                          title="Manage style reference"
+                        >
+                          <Cog6ToothIcon className="w-5 h-5 text-white" />
+                        </button>
                       </>
                     )}
                     <button
@@ -340,7 +338,7 @@ export default function StyleReferencesPage() {
       )}
 
       {textConfigRef && (
-        <TextSelectionModal
+        <StyleReferenceModal
           isOpen={!!textConfigRef}
           onClose={() => setTextConfigRef(null)}
           styleReference={textConfigRef}

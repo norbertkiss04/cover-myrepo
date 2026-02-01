@@ -58,7 +58,7 @@ def _find_content_start_right(pixels, width, height, tolerance, min_border):
     return width
 
 
-def detect_and_crop_border(image_bytes, tolerance=30, min_border_size=5):
+def detect_and_crop_border(image_bytes, tolerance=50, min_border_size=3):
     img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
     width, height = img.size
     pixels = img.load()

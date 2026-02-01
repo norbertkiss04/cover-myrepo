@@ -169,3 +169,77 @@ export function useUpdateTextSelection() {
     },
   });
 }
+
+export function useRedetectText() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: number) => generationApi.redetectText(id),
+    onError: () => {
+      toast.error('Failed to re-detect text');
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData<StyleReference[]>(
+        queryKeys.styleReferences,
+        (old) => old?.map((r) => (r.id === updated.id ? updated : r)) ?? []
+      );
+      toast.success(`Detected ${updated.detected_text?.length || 0} text segments`);
+    },
+  });
+}
+
+export function useRemoveBorder() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: number) => generationApi.removeBorder(id),
+    onError: (error: Error & { response?: { data?: { error?: string } } }) => {
+      const message = error.response?.data?.error || 'Failed to remove border';
+      toast.error(message);
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData<StyleReference[]>(
+        queryKeys.styleReferences,
+        (old) => old?.map((r) => (r.id === updated.id ? updated : r)) ?? []
+      );
+      toast.success('Border removed successfully');
+    },
+  });
+}
+
+export function useRegenerateCleanBackground() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: number) => generationApi.regenerateCleanBackground(id),
+    onError: () => {
+      toast.error('Failed to generate clean background');
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData<StyleReference[]>(
+        queryKeys.styleReferences,
+        (old) => old?.map((r) => (r.id === updated.id ? updated : r)) ?? []
+      );
+      toast.success('Clean background generated');
+    },
+  });
+}
+
+export function useRegenerateTextLayer() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: number) => generationApi.regenerateTextLayer(id),
+    onError: () => {
+      toast.error('Failed to generate text layer');
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData<StyleReference[]>(
+        queryKeys.styleReferences,
+        (old) => old?.map((r) => (r.id === updated.id ? updated : r)) ?? []
+      );
+      const cleanedMsg = updated.text_layer_cleaned ? ' (cleaned)' : '';
+      toast.success(`Text layer generated${cleanedMsg}`);
+    },
+  });
+}

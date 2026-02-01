@@ -12,6 +12,7 @@ class StyleReference:
     layout: Optional[str] = None
     illustration_rules: Optional[str] = None
     typography: Optional[str] = None
+    original_image_path: Optional[str] = None
     clean_image_path: Optional[str] = None
     text_layer_path: Optional[str] = None
     text_layer_cleaned: bool = False
@@ -31,6 +32,7 @@ class StyleReference:
             layout=row.get('layout'),
             illustration_rules=row.get('illustration_rules'),
             typography=row.get('typography'),
+            original_image_path=row.get('original_image_path'),
             clean_image_path=row.get('clean_image_path'),
             text_layer_path=row.get('text_layer_path'),
             text_layer_cleaned=row.get('text_layer_cleaned', False) or False,
@@ -44,12 +46,14 @@ class StyleReference:
             'id': self.id,
             'title': self.title,
             'image_url': self.image_url,
+            'original_image_url': None,
             'feeling': self.feeling,
             'layout': self.layout,
             'illustration_rules': self.illustration_rules,
             'typography': self.typography,
             'clean_image_url': None,
             'text_layer_url': None,
+            'text_layer_cleaned': self.text_layer_cleaned,
             'detected_text': self.detected_text,
             'selected_text_ids': self.selected_text_ids,
             'created_at': self.created_at,

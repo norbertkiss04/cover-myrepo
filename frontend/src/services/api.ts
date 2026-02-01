@@ -186,6 +186,26 @@ export const generationApi = {
   deleteStyleReference: async (id: number): Promise<void> => {
     await api.delete(`/api/style-references/${id}`);
   },
+
+  redetectText: async (id: number): Promise<StyleReference> => {
+    const response = await api.post(`/api/style-references/${id}/detect-text`);
+    return response.data;
+  },
+
+  removeBorder: async (id: number): Promise<StyleReference> => {
+    const response = await api.post(`/api/style-references/${id}/remove-border`);
+    return response.data;
+  },
+
+  regenerateCleanBackground: async (id: number): Promise<StyleReference> => {
+    const response = await api.post(`/api/style-references/${id}/regenerate-clean`);
+    return response.data;
+  },
+
+  regenerateTextLayer: async (id: number): Promise<StyleReference> => {
+    const response = await api.post(`/api/style-references/${id}/regenerate-text-layer`);
+    return response.data;
+  },
 };
 
 export default api;

@@ -36,8 +36,10 @@ export interface StyleReference {
   id: number;
   title: string;
   image_url: string;
+  original_image_url: string | null;
   clean_image_url: string | null;
   text_layer_url: string | null;
+  text_layer_cleaned: boolean;
   detected_text: DetectedText[];
   selected_text_ids: number[];
   created_at: string;

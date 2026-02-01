@@ -129,6 +129,10 @@ class StorageService:
             signed = self.get_signed_url(style_ref.image_path, expires_in=3600)
             if signed:
                 ref_dict['image_url'] = signed
+        if style_ref.original_image_path:
+            signed = self.get_signed_url(style_ref.original_image_path, expires_in=3600)
+            if signed:
+                ref_dict['original_image_url'] = signed
         if style_ref.clean_image_path:
             signed = self.get_signed_url(style_ref.clean_image_path, expires_in=3600)
             if signed:

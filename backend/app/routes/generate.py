@@ -79,22 +79,33 @@ def upload_style_reference(current_user):
         image_bytes = base64.b64decode(b64_data)
         logger.info("Decoded image: %.1f KB (%s)", len(image_bytes) / 1024, content_type)
 
+        original_upload = storage_service.upload_file(
+            file_data=image_bytes,
+            filename=f"original.{ext}",
+            content_type=content_type,
+            folder='references',
+        )
+        original_image_path = storage_service.extract_path(original_upload) or ''
+        logger.info("Original image uploaded: %s", original_image_path)
+
         cropped_bytes = detect_and_crop_border(image_bytes)
         if cropped_bytes:
             original_size = len(image_bytes)
             image_bytes = cropped_bytes
             logger.info("Border detected and removed: %.1f KB -> %.1f KB", original_size / 1024, len(image_bytes) / 1024)
+
+            upload_result = storage_service.upload_file(
+                file_data=image_bytes,
+                filename=f"reference.{ext}",
+                content_type=content_type,
+                folder='references',
+            )
+            image_url = upload_result
+            image_path = storage_service.extract_path(image_url) or ''
         else:
             logger.info("No border detected in image")
-
-        upload_result = storage_service.upload_file(
-            file_data=image_bytes,
-            filename=f"reference.{ext}",
-            content_type=content_type,
-            folder='references',
-        )
-        image_url = upload_result
-        image_path = storage_service.extract_path(image_url) or ''
+            image_url = original_upload
+            image_path = original_image_path
 
         logger.info("Reference image uploaded: %s", image_path)
 
@@ -118,6 +129,7 @@ def upload_style_reference(current_user):
             'user_id': current_user.id,
             'image_url': image_url,
             'image_path': image_path,
+            'original_image_path': original_image_path,
             'title': sanitized_title,
             'feeling': analysis.get('feeling', ''),
             'layout': analysis.get('layout', ''),
@@ -276,6 +288,226 @@ def update_text_selection(current_user, ref_id):
     logger.info("Text selection updated for ref #%d: %d texts selected", ref_id, len(selected_text_ids))
 
     return jsonify(storage_service.sign_style_ref_dict(style_ref.to_dict(), style_ref))
+
+
+@generate_bp.route('/style-references/<int:ref_id>/detect-text', methods=['POST'])
+@token_required
+def redetect_text(current_user, ref_id):
+    logger.info(
+        "Re-detecting text for style reference #%d from user id=%s",
+        ref_id, current_user.id,
+    )
+
+    result = get_supabase().table('style_references').select('*').eq(
+        'id', ref_id
+    ).eq('user_id', current_user.id).execute()
+
+    if not result.data:
+        logger.warning(
+            "Style reference #%d not found for user id=%s",
+            ref_id, current_user.id,
+        )
+        return jsonify({'error': 'Style reference not found'}), 404
+
+    style_ref = StyleReference.from_row(result.data[0])
+
+    signed_url = storage_service.get_signed_url(style_ref.image_path, expires_in=300)
+    logger.info("Running text detection on ref #%d...", ref_id)
+    detected_text = llm_service.detect_text_in_image(signed_url)
+    logger.info("Text detection complete: found %d segments", len(detected_text))
+
+    all_text_ids = [t['id'] for t in detected_text]
+
+    update_data = {
+        'detected_text': detected_text,
+        'selected_text_ids': all_text_ids,
+    }
+
+    if style_ref.text_layer_path:
+        logger.info("Clearing cached text layer for ref #%d", ref_id)
+        storage_service.delete_file_by_path(style_ref.text_layer_path)
+        update_data['text_layer_path'] = None
+        update_data['text_layer_cleaned'] = False
+
+    updated = get_supabase().table('style_references').update(
+        update_data
+    ).eq('id', ref_id).eq('user_id', current_user.id).execute()
+
+    style_ref = StyleReference.from_row(updated.data[0])
+    return jsonify(storage_service.sign_style_ref_dict(style_ref.to_dict(), style_ref))
+
+
+@generate_bp.route('/style-references/<int:ref_id>/remove-border', methods=['POST'])
+@token_required
+def remove_border(current_user, ref_id):
+    logger.info(
+        "Removing border for style reference #%d from user id=%s",
+        ref_id, current_user.id,
+    )
+
+    result = get_supabase().table('style_references').select('*').eq(
+        'id', ref_id
+    ).eq('user_id', current_user.id).execute()
+
+    if not result.data:
+        logger.warning(
+            "Style reference #%d not found for user id=%s",
+            ref_id, current_user.id,
+        )
+        return jsonify({'error': 'Style reference not found'}), 404
+
+    style_ref = StyleReference.from_row(result.data[0])
+
+    source_path = style_ref.original_image_path or style_ref.image_path
+    signed_url = storage_service.get_signed_url(source_path, expires_in=300)
+
+    import requests as http_requests
+    response = http_requests.get(signed_url, timeout=60)
+    response.raise_for_status()
+    image_bytes = response.content
+
+    cropped_bytes = detect_and_crop_border(image_bytes, tolerance=60, min_border_size=2)
+
+    if not cropped_bytes:
+        logger.info("No border detected in ref #%d", ref_id)
+        return jsonify({'error': 'No border detected in image'}), 400
+
+    logger.info("Border detected and removed for ref #%d", ref_id)
+
+    upload_result = storage_service.upload_file(
+        file_data=cropped_bytes,
+        filename="reference.png",
+        content_type="image/png",
+        folder='references',
+    )
+    new_image_path = storage_service.extract_path(upload_result) or ''
+
+    update_data = {
+        'image_url': upload_result,
+        'image_path': new_image_path,
+    }
+
+    if style_ref.clean_image_path:
+        storage_service.delete_file_by_path(style_ref.clean_image_path)
+        update_data['clean_image_path'] = None
+
+    if style_ref.text_layer_path:
+        storage_service.delete_file_by_path(style_ref.text_layer_path)
+        update_data['text_layer_path'] = None
+        update_data['text_layer_cleaned'] = False
+
+    updated = get_supabase().table('style_references').update(
+        update_data
+    ).eq('id', ref_id).eq('user_id', current_user.id).execute()
+
+    style_ref = StyleReference.from_row(updated.data[0])
+    return jsonify(storage_service.sign_style_ref_dict(style_ref.to_dict(), style_ref))
+
+
+@generate_bp.route('/style-references/<int:ref_id>/regenerate-clean', methods=['POST'])
+@token_required
+def regenerate_clean_background(current_user, ref_id):
+    from app.services.image_service import image_service
+
+    logger.info(
+        "Regenerating clean background for style reference #%d from user id=%s",
+        ref_id, current_user.id,
+    )
+
+    result = get_supabase().table('style_references').select('*').eq(
+        'id', ref_id
+    ).eq('user_id', current_user.id).execute()
+
+    if not result.data:
+        return jsonify({'error': 'Style reference not found'}), 404
+
+    style_ref = StyleReference.from_row(result.data[0])
+
+    if style_ref.clean_image_path:
+        storage_service.delete_file_by_path(style_ref.clean_image_path)
+
+    signed_url = storage_service.get_signed_url(style_ref.image_path, expires_in=600)
+    logger.info("Generating clean background for ref #%d...", ref_id)
+
+    try:
+        result_img = image_service.generate_clean_background(signed_url)
+        variant_url = result_img['image_url']
+
+        upload = storage_service.upload_from_url(variant_url, folder='references')
+
+        updated = get_supabase().table('style_references').update({
+            'clean_image_path': upload['path']
+        }).eq('id', ref_id).eq('user_id', current_user.id).execute()
+
+        style_ref = StyleReference.from_row(updated.data[0])
+        logger.info("Clean background regenerated for ref #%d", ref_id)
+        return jsonify(storage_service.sign_style_ref_dict(style_ref.to_dict(), style_ref))
+
+    except Exception as e:
+        logger.error("Failed to regenerate clean background: %s", e, exc_info=True)
+        return jsonify({'error': 'Failed to generate clean background. Please try again.'}), 500
+
+
+@generate_bp.route('/style-references/<int:ref_id>/regenerate-text-layer', methods=['POST'])
+@token_required
+def regenerate_text_layer(current_user, ref_id):
+    from app.services.image_service import image_service
+
+    logger.info(
+        "Regenerating text layer for style reference #%d from user id=%s",
+        ref_id, current_user.id,
+    )
+
+    result = get_supabase().table('style_references').select('*').eq(
+        'id', ref_id
+    ).eq('user_id', current_user.id).execute()
+
+    if not result.data:
+        return jsonify({'error': 'Style reference not found'}), 404
+
+    style_ref = StyleReference.from_row(result.data[0])
+
+    if style_ref.text_layer_path:
+        storage_service.delete_file_by_path(style_ref.text_layer_path)
+
+    signed_url = storage_service.get_signed_url(style_ref.image_path, expires_in=600)
+
+    selected_texts = None
+    if style_ref.detected_text and style_ref.selected_text_ids:
+        selected_ids = set(style_ref.selected_text_ids)
+        selected_texts = [t for t in style_ref.detected_text if t.get('id') in selected_ids]
+
+    logger.info("Generating text layer for ref #%d...", ref_id)
+
+    try:
+        result_img = image_service.generate_text_layer(signed_url, selected_texts=selected_texts)
+        variant_url = result_img['image_url']
+
+        text_layer_cleaned = False
+        verification = llm_service.verify_text_layer(variant_url)
+        if not verification.get('is_clean', True) and verification.get('artifacts'):
+            artifacts = verification['artifacts']
+            artifacts_desc = ', '.join([f"{a['description']} ({a['location']})" for a in artifacts])
+            logger.info("Text layer has %d artifacts, cleaning up...", len(artifacts))
+
+            cleanup_result = image_service.cleanup_text_layer(variant_url, artifacts_desc)
+            variant_url = cleanup_result['image_url']
+            text_layer_cleaned = True
+
+        upload = storage_service.upload_from_url(variant_url, folder='references')
+
+        updated = get_supabase().table('style_references').update({
+            'text_layer_path': upload['path'],
+            'text_layer_cleaned': text_layer_cleaned,
+        }).eq('id', ref_id).eq('user_id', current_user.id).execute()
+
+        style_ref = StyleReference.from_row(updated.data[0])
+        logger.info("Text layer regenerated for ref #%d (cleaned=%s)", ref_id, text_layer_cleaned)
+        return jsonify(storage_service.sign_style_ref_dict(style_ref.to_dict(), style_ref))
+
+    except Exception as e:
+        logger.error("Failed to regenerate text layer: %s", e, exc_info=True)
+        return jsonify({'error': 'Failed to generate text layer. Please try again.'}), 500
 
 
 @generate_bp.route('/generations', methods=['GET'])
