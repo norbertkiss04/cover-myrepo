@@ -8,7 +8,7 @@ from app.sockets.helpers import (
     _refresh_user,
     _require_authenticated_user,
     _require_no_active_generation,
-    _deduct_and_refresh,
+    _validate_generation_credits,
     STALE_TIMEOUT_MINUTES,
 )
 from app.sockets.tasks import _run_generation_task
