@@ -1,69 +1,152 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/VSPuLl7_)
-# Szakdolgozat 2.0 – Sprint 1 Kickoff
+# InstaCover
 
-Szia! Üdv a kurzus első, legfontosabb sprintjében. A következő három hétben nem kódot írsz, hanem feltárod a valódi problémát: interjúzol, piacot elemzel és döntéseket dokumentálsz. Ha jól dolgozol, a sprint végére bizonyítod, hogy létező igényre építesz – ez a teljes projekt alapja.
+Mesterséges intelligenciával működő könyvborító-generátor indie szerzők számára.
 
-## Fájlstruktúra (Sprint 1)
-- `course.yaml`: hallgatói metaadatok és track választás (root szinten marad).
-- `sprints/01/prd.yaml`: a Product Requirements Document (PRD) 0.1-es verziója.
-- `sprints/01/interviews/`: legalább **5** felhasználói interjú JSON jegyzőkönyve.
-- `sprints/01/market/competitors.csv`: legalább **3** versenytárs elemzése.
-- `sprints/01/architecture/adr/`: legalább **1** Architecture Decision Record.
-- `sprints/01/ai/usage_plan.yaml`: MI-használati terv (mire és mire nem használod a copilotot).
-- `sprints/01/ai/ai_log.jsonl`: MI-használat naplója, legalább **N** bejegyzéssel (N a `course.yaml`-ból).
-- `scripts/validate.py`: helyi validátor a sprint leadása előtt.
-- `scripts/schemas/`: JSON sémák (pl. interjúk) a gépi ellenőrzéshez.
+## Áttekintés
 
-> **Fontos:** minden Sprint 1-specifikus artefaktum a `sprints/01/` mappában él, a validátor is itt keresi őket.
+Az InstaCover lehetővé teszi önálló kiadású szerzők számára, hogy percek alatt professzionális minőségű könyvborítókat készítsenek mesterséges intelligencia segítségével. Ahelyett, hogy grafikusokat bíznának meg (20-200 dollár/borító) vagy bonyolult tervezőeszközökkel küzdenének, a szerzők egyszerűen leírják könyvüket, és az AI piacra kész borítókat generál.
 
-## Leadási folyamat
-1. Dolgozz a saját (forkolt) repository-ban, töltsd ki a `course.yaml`-t.
-2. Készíts Pull Requestet (`main` ágra). A PR ugyanaz, mint a beadás.
-3. A CI automatikusan lefut, és PASS / FAIL eredményt ad a sprint követelményeire.
-4. Csak a PASS státuszú PR tekinthető leadottnak.
-5. Leadás előtt futtasd helyben: `python scripts/validate.py --sprint 1`.
+Az alkalmazás nagy nyelvi modelleket (LLM) kombinál kreatív promptgeneráláshoz, valamint korszerű képgenerálási technológiát a borítók elkészítéséhez, professzionális tipográfiával kiegészítve.
 
-## Heti ütemterv (javaslat)
-**1. hét – Alapozás**
-- Repository klónozása, `course.yaml` kitöltése (track dokumentálása).
-- `sprints/01/prd.yaml` első verziója: probléma, célcsoport, értékajánlat, scope.
-- `sprints/01/ai/usage_plan.yaml` megírása: célok, guardrail-ek, eszközök.
+## Főbb funkciók
 
-**2. hét – Kutatás**
-- Végezz legalább **5** interjút; rögzítsd a jegyzőkönyveket `sprints/01/interviews/` alatt.
-- Etika: csak engedéllyel rögzíts, anonimizáld a résztvevőket (pszeudonim), PII-t ne adj át MI-nek.
-- Elemezz legalább **3** versenytársat a `sprints/01/market/competitors.csv` fájlban.
-- Hozd meg az első technológiai döntést és dokumentáld az `architecture/adr/` mappában.
+- **AI-alapú generálás**: Írd le a könyvedet, és kapj professzionálisan megtervezett borítót
+- **Stílusreferenciák**: Tölts fel példaborítókat a generálás vizuális stílusának irányításához
+- **Többféle képarány**: Kindle, papírkötés, négyzet és egyéni méretek támogatása
+- **Valós idejű visszajelzés**: WebSocket-alapú frissítések mutatják az egyes generálási lépéseket
+- **Tipográfia integráció**: Automatikus cím- és szerzőnév-elhelyezés AI-optimalizált stílussal
+- **Generálási előzmények**: Hozzáférés és letöltés az összes korábban generált borítóhoz
+- **Kreditrendszer**: Generálásonkénti fizetési modell kezdeti ingyenes kreditekkel
 
-**3. hét – Véglegesítés és leadás**
-- Frissítsd a PRD-t az interjú- és piackutatási insightokkal.
-- Frissítsd az `ai/ai_log.jsonl`-t, hogy elérje a minimum bejegyzésszámot.
-- Futtasd a helyi validátort, javítsd a hibákat, majd készíts PR-t.
+## Architektúra
 
-## Interjú-etika és MI guardrail-ek
-- Kérj kifejezett hozzájárulást a felvételhez és jegyzeteléshez.
-- Anonimizáld a jegyzőkönyveket (csak pszeudonim és szegmens szerepeljen).
-- Ne illessz be személyazonosító adatot (PII) külső MI eszközbe.
-- Minden MI kimenetet kritikusan ellenőrizz, a végső döntés mindig a tiéd.
+### Rendszerkomponensek
 
-## Definition of Done – Sprint 1
-| Tétel | Minimum elvárás | Ellenőrzés |
-| --- | --- | --- |
-| PRD (`sprints/01/prd.yaml`) | `problem.statement`, `target_audience`, `value_proposition`, `scope.in/out` kitöltve | YAML validáció + kulcsok (CI) |
-| Interjúk (`sprints/01/interviews/*.json`) | ≥ **5** fájl, séma szerint | JSON sémaellenőrzés (CI) |
-| Versenytársak (`sprints/01/market/competitors.csv`) | ≥ **3** sor a fejlécen túl | Sorok száma, fejléc (CI) |
-| ADR (`sprints/01/architecture/adr/*.md`) | ≥ **1** Markdown fájl | Fájl léte (CI) |
-| MI dokumentáció (`sprints/01/ai/*`) | Usage plan + napló ≥ **N** bejegyzés | Fájl léte + bejegyzésszám (CI) |
-| Leadás | PR a `main` ágra, zöld CI | PASS szükséges |
+Az alkalmazás három fő rétegből áll:
 
-## Használat
-```bash
-python scripts/validate.py --sprint 1
+**Frontend (React SPA)**: Egyoldalas alkalmazás, amely kezeli a felhasználói interakciókat, az autentikációt és a valós idejű kommunikációt a backenddel. A GenerationContext tartja karban a WebSocket kapcsolatot és a generálási állapotot, míg az AuthContext a Supabase-alapú session kezelésért felelős.
+
+**Backend (Flask API)**: REST végpontokat és WebSocket eseménykezelőket biztosít. A szolgáltatások rétegben (services) található az üzleti logika: az LLM szolgáltatás promptokat generál, az Image szolgáltatás képeket kér a WaveSpeed API-tól, a Storage szolgáltatás pedig a Supabase tárolót kezeli.
+
+**Külső szolgáltatások**:
+
+- Supabase szolgáltatja az adatbázist (PostgreSQL), az autentikációt és az objektumtárolást
+- OpenRouter biztosítja az LLM hozzáférést (Grok, Gemini modellek)
+- WaveSpeed AI végzi a képgenerálást (Seedream V4.5 modell)
+
+### Generálási folyamat
+
+1. **Bevitel feldolgozása**: A felhasználó megadja a könyv adatait (cím, szerző, borítóötletek, műfaj). A frontend WebSocketen keresztül elküldi a `start_generation` eseményt a backendnek.
+2. **Kredit ellenőrzés és levonás**: A backend ellenőrzi a felhasználó kreditegyenlegét, levonja a generálási költséget (3 kredit), majd létrehozza a Generation rekordot az adatbázisban "generating" státusszal.
+3. **Prompt generálás**: Az LLM szolgáltatás elküldi a könyv adatait az OpenRouter API-nak, amely egy részletes, könyvborító-esztétikára optimalizált képgenerálási promptot ad vissza.
+4. **Alapkép létrehozása**: Az Image szolgáltatás a WaveSpeed API-hoz küldi a promptot. A kép generálása aszinkron: a rendszer job ID-t kap vissza, majd polling-gal ellenőrzi az állapotot a kép elkészültéig.
+5. **Tipográfia réteg**: Ha nem csak alapképet kér a felhasználó, egy második LLM hívás tipográfiai promptot generál, majd a WaveSpeed újabb képet készít a címmel és szerzőnévvel.
+6. **Tárolás és kézbesítés**: A végleges kép feltöltődik a Supabase tárolóba, a Generation rekord frissül "completed" státuszra, és a frontend megkapja a `generation_completed` eseményt a signed URL-lel.
+
+Minden lépésnél a backend `generation_progress` eseményeket küld, így a felhasználó valós időben látja a haladást.
+
+### Stílusreferencia rendszer
+
+A felhasználók feltölthetnek meglévő könyvborítókat stílusreferenciának. Feltöltéskor az LLM elemzi a képet és kinyeri:
+
+- A vizuális hangulatot és színvilágot
+- Az elrendezési mintákat
+- Az illusztrációs szabályokat
+- A tipográfiai jellemzőket
+
+Generáláskor három referencia mód közül választhat a felhasználó:
+
+- **Mindkettő**: A teljes stílus (vizuális + tipográfia) átvétele
+- **Háttér**: Csak a vizuális elemek átvétele, új tipográfiával
+- **Szöveg**: Csak a tipográfiai stílus átvétele, új vizuális elemekkel
+
+### Valós idejű kommunikáció
+
+A WebSocket kapcsolat (Socket.IO) biztosítja az azonnali visszajelzést:
+
+- `connect`: Autentikáció JWT tokennel, aktív generálás visszaállítása
+- `start_generation`: Új generálás indítása
+- `generation_started`: Visszaigazolás a generálás megkezdéséről
+- `generation_progress`: Lépésenkénti haladási információ
+- `generation_completed`: Végleges eredmény signed URL-lel
+- `generation_failed`: Hibajelzés
+- `cancel_generation`: Generálás megszakítása (kredit visszatérítéssel)
+
+## Technológiai stack
+
+### Frontend
+
+- React 19 TypeScript-tel
+- Vite build eszköz
+- TailwindCSS stílusokhoz
+- Socket.IO valós idejű kommunikációhoz
+- React Query adatlekéréshez
+- Framer Motion animációkhoz
+
+### Backend
+
+- Flask és Flask-SocketIO
+- Gunicorn production deploymenthez
+- Pillow képfeldolgozáshoz
+- Flask-Limiter rate limitinghez
+
+### Külső szolgáltatások
+
+- **Supabase**: PostgreSQL adatbázis, autentikáció és objektumtárolás
+- **OpenRouter**: LLM gateway (Grok, Gemini modellek) promptgeneráláshoz
+- **WaveSpeed AI**: Képgenerálás (Seedream V4.5 modell)
+
+### Infrastruktúra
+
+- Docker és Docker Compose konténerizációhoz
+- Nginx frontend statikus fájlok kiszolgálásához
+- GitHub Actions CI/CD-hez
+
+## Projekt struktúra
+
 ```
-A szkript ellenőrzi, hogy minden kötelező Sprint 1 artefaktum a megfelelő helyen és formátumban megtalálható-e, továbbá az AI napló eléri-e a `course.yaml`-ban megadott minimumot.
+├── backend/
+│   ├── app/
+│   │   ├── models/       # Adatmodellek (Generation, User, StyleReference)
+│   │   ├── routes/       # REST API végpontok (auth, generate)
+│   │   ├── services/     # Üzleti logika
+│   │   │   ├── llm_service.py      # OpenRouter API integráció
+│   │   │   ├── image_service.py    # WaveSpeed API integráció
+│   │   │   ├── storage_service.py  # Supabase tároló kezelés
+│   │   │   ├── pipeline_service.py # Generálási folyamat orkesztráció
+│   │   │   └── credit_service.py   # Kreditrendszer kezelés
+│   │   ├── sockets/      # WebSocket kezelők és háttérfeladatok
+│   │   └── utils/        # Validáció és adatbázis segédeszközök
+│   └── tests/
+├── frontend/
+│   └── src/
+│       ├── components/   # React UI komponensek
+│       ├── context/      # Állapotkezelők
+│       │   ├── AuthContext.tsx       # Autentikáció és session
+│       │   ├── GenerationContext.tsx # WebSocket és generálási állapot
+│       │   └── GenerationFormContext.tsx # Űrlap állapot
+│       ├── hooks/        # Egyéni React hookök
+│       ├── pages/        # Route oldal komponensek
+│       ├── services/     # API kliens (Axios)
+│       └── lib/          # Supabase és Socket.IO kliensek
+├── sprints/              # Projekt dokumentáció sprintenként
+└── scripts/              # Validációs és segédeszközök
+```
 
-## Forrás
-A tartalom a kurzus hivatalos Hallgatói útmutatója (Sprint 1 fejezet) alapján készült.
+## Adatmodell
 
-## License
-MIT
+### Users
+
+Felhasználói adatok tárolása: azonosító, email, név, profilkép, preferenciák, kreditegyenleg, admin státusz.
+
+### Generations
+
+Generálási rekordok: könyv adatok (cím, szerző, ötletek, műfaj), képarány, stílusreferencia kapcsolat, generált promptok, kép URL-ek, státusz és haladási információk.
+
+### StyleReferences
+
+Stílusreferencia képek: feltöltött kép elérési útja, LLM által generált stíluselemzés (hangulat, elrendezés, illusztrációs szabályok, tipográfia).
+
+### Invites
+
+Meghívókódok a zárt béta hozzáféréshez: kód, létrehozó, lejárat, felhasználás időpontja.

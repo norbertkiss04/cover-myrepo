@@ -4,9 +4,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 INITIAL_CREDITS = 30
-GENERATION_COST = 3
-ANALYSIS_COST = 3
-REGENERATION_COST = 1
+LLM_CALL_COST = 1
+IMAGE_CALL_COST = 6
 
 class Config:
     SECRET_KEY = os.getenv('SECRET_KEY')

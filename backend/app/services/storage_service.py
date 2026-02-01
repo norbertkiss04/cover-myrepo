@@ -125,11 +125,22 @@ class StorageService:
         return gen_dict
 
     def sign_style_ref_dict(self, ref_dict: dict, style_ref) -> dict:
-        """Sign the image_url in a style reference dict."""
         if style_ref.image_path:
             signed = self.get_signed_url(style_ref.image_path, expires_in=3600)
             if signed:
                 ref_dict['image_url'] = signed
+        if style_ref.original_image_path:
+            signed = self.get_signed_url(style_ref.original_image_path, expires_in=3600)
+            if signed:
+                ref_dict['original_image_url'] = signed
+        if style_ref.clean_image_path:
+            signed = self.get_signed_url(style_ref.clean_image_path, expires_in=3600)
+            if signed:
+                ref_dict['clean_image_url'] = signed
+        if style_ref.text_layer_path:
+            signed = self.get_signed_url(style_ref.text_layer_path, expires_in=3600)
+            if signed:
+                ref_dict['text_layer_url'] = signed
         return ref_dict
 
     def delete_file(self, file_url: str) -> bool:
@@ -144,6 +155,18 @@ class StorageService:
                 return True
             logger.warning("Could not extract path from URL: %s", file_url)
             return False
+        except Exception as e:
+            logger.error("Failed to delete file: %s", e)
+            return False
+
+    def delete_file_by_path(self, path: str) -> bool:
+        client = self._get_client()
+
+        try:
+            logger.info("Deleting file from storage by path: %s", path)
+            client.storage.from_(self._bucket).remove([path])
+            logger.info("File deleted: %s", path)
+            return True
         except Exception as e:
             logger.error("Failed to delete file: %s", e)
             return False

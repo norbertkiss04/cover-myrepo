@@ -1,10 +1,13 @@
 import { createContext, useContext, useState, useCallback, useMemo, type ReactNode } from 'react';
-import type { GenerationInput } from '../types';
+import type { GenerationInput, ReferenceMode, TextBlendingMode } from '../types';
 
 interface GenerationFormState {
   formData: GenerationInput;
   selectedRefId: number | null;
   baseImageOnly: boolean;
+  referenceMode: ReferenceMode;
+  twoStepGeneration: boolean;
+  textBlendingMode: TextBlendingMode;
   tempFields: Set<string>;
 }
 
@@ -12,6 +15,9 @@ interface GenerationFormContextType extends GenerationFormState {
   setFormData: (data: GenerationInput | ((prev: GenerationInput) => GenerationInput)) => void;
   setSelectedRefId: (id: number | null) => void;
   setBaseImageOnly: (value: boolean) => void;
+  setReferenceMode: (mode: ReferenceMode) => void;
+  setTwoStepGeneration: (value: boolean) => void;
+  setTextBlendingMode: (mode: TextBlendingMode) => void;
   setTempFields: (fields: Set<string> | ((prev: Set<string>) => Set<string>)) => void;
   clearForm: () => void;
 }
@@ -30,9 +36,19 @@ const GenerationFormContext = createContext<GenerationFormContextType | undefine
 
 export function GenerationFormProvider({ children }: { children: ReactNode }) {
   const [formData, setFormDataRaw] = useState<GenerationInput>({ ...defaultFormData });
-  const [selectedRefId, setSelectedRefId] = useState<number | null>(null);
+  const [selectedRefId, setSelectedRefIdRaw] = useState<number | null>(null);
   const [baseImageOnly, setBaseImageOnly] = useState(false);
+  const [referenceMode, setReferenceMode] = useState<ReferenceMode>('both');
+  const [twoStepGeneration, setTwoStepGeneration] = useState(true);
+  const [textBlendingMode, setTextBlendingMode] = useState<TextBlendingMode>('ai_blend');
   const [tempFields, setTempFieldsRaw] = useState<Set<string>>(new Set());
+
+  const setSelectedRefId = useCallback((id: number | null) => {
+    setSelectedRefIdRaw(id);
+    if (id === null) {
+      setReferenceMode('both');
+    }
+  }, []);
 
   const setFormData = useCallback((data: GenerationInput | ((prev: GenerationInput) => GenerationInput)) => {
     setFormDataRaw(data);
@@ -44,8 +60,11 @@ export function GenerationFormProvider({ children }: { children: ReactNode }) {
 
   const clearForm = useCallback(() => {
     setFormDataRaw({ ...defaultFormData });
-    setSelectedRefId(null);
+    setSelectedRefIdRaw(null);
     setBaseImageOnly(false);
+    setReferenceMode('both');
+    setTwoStepGeneration(true);
+    setTextBlendingMode('ai_blend');
     setTempFieldsRaw(new Set());
   }, []);
 
@@ -53,20 +72,32 @@ export function GenerationFormProvider({ children }: { children: ReactNode }) {
     formData,
     selectedRefId,
     baseImageOnly,
+    referenceMode,
+    twoStepGeneration,
+    textBlendingMode,
     tempFields,
     setFormData,
     setSelectedRefId,
     setBaseImageOnly,
+    setReferenceMode,
+    setTwoStepGeneration,
+    setTextBlendingMode,
     setTempFields,
     clearForm,
   }), [
     formData,
     selectedRefId,
     baseImageOnly,
+    referenceMode,
+    twoStepGeneration,
+    textBlendingMode,
     tempFields,
     setFormData,
     setSelectedRefId,
     setBaseImageOnly,
+    setReferenceMode,
+    setTwoStepGeneration,
+    setTextBlendingMode,
     setTempFields,
     clearForm,
   ]);

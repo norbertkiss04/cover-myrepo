@@ -4,6 +4,8 @@ import os
 import requests
 from flask import current_app
 
+from app.services.credit_service import deduct_llm_credit, InsufficientCreditsError
+
 logger = logging.getLogger(__name__)
 
 _prompts_cache = None
@@ -51,15 +53,25 @@ def _build_book_details_content(book_data, include_title=True):
     return "\n".join(parts)
 
 
-def _build_style_analysis_section(style_analysis):
+def _build_style_analysis_section(style_analysis, mode='both'):
     if not style_analysis:
         return ""
 
-    has_content = any(style_analysis.get(k) for k in ['feeling', 'layout', 'illustration_rules', 'typography'])
+    if mode == 'text':
+        template_key = 'style_analysis_template_text'
+        required_keys = ['typography']
+    elif mode == 'background':
+        template_key = 'style_analysis_template_background'
+        required_keys = ['feeling', 'layout', 'illustration_rules']
+    else:
+        template_key = 'style_analysis_template_both'
+        required_keys = ['feeling', 'layout', 'illustration_rules', 'typography']
+
+    has_content = any(style_analysis.get(k) for k in required_keys)
     if not has_content:
         return ""
 
-    template = get_prompt('style_reference', 'style_analysis_template')
+    template = get_prompt('style_reference', template_key)
     return template.format(
         feeling=style_analysis.get('feeling', ''),
         layout=style_analysis.get('layout', ''),
@@ -79,8 +91,14 @@ class LLMService:
             self.api_key = current_app.config['OPENROUTER_API_KEY']
             self.base_url = current_app.config['OPENROUTER_BASE_URL']
 
-    def _make_request(self, messages, schema=None, model='x-ai/grok-4.1-fast'):
+    def _make_request(self, messages, schema=None, model='x-ai/grok-4.1-fast', user=None):
         self._get_config()
+
+        if user is not None:
+            result = deduct_llm_credit(user)
+            if not result['success']:
+                raise InsufficientCreditsError(required=1, available=result['remaining'])
+            logger.info("Deducted 1 LLM credit for user id=%s", user.id)
 
         headers = {
             'Authorization': f'Bearer {self.api_key}',
@@ -122,19 +140,44 @@ class LLMService:
         return content
 
     def _parse_json(self, content):
+        import json_repair
+        import re
+
         try:
             return json.loads(content)
         except json.JSONDecodeError:
-            import re
-            match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', content)
-            if match:
-                return json.loads(match.group(1))
-            match = re.search(r'\{[\s\S]*\}', content)
-            if match:
-                return json.loads(match.group(0))
-            raise ValueError(f"Could not parse JSON from LLM response: {content[:200]}")
+            logger.debug("Standard JSON parsing failed, attempting repair...")
 
-    def analyze_style_reference(self, image_url):
+        match = re.search(r'```(?:json)?\s*([\s\S]*?)\s*```', content)
+        if match:
+            extracted = match.group(1)
+            try:
+                return json.loads(extracted)
+            except json.JSONDecodeError:
+                try:
+                    result = json_repair.loads(extracted)
+                    logger.info("JSON repair successful (from code block)")
+                    return result
+                except Exception:
+                    pass
+
+        match = re.search(r'\{[\s\S]*\}', content)
+        if match:
+            raw_json = match.group(0)
+            try:
+                return json.loads(raw_json)
+            except json.JSONDecodeError:
+                try:
+                    result = json_repair.loads(raw_json)
+                    logger.info("JSON repair successful (from raw extraction)")
+                    return result
+                except Exception as e:
+                    logger.warning("JSON repair failed: %s", e)
+                    raise ValueError(f"Could not parse or repair JSON from LLM response: {content[:200]}")
+
+        raise ValueError(f"Could not find JSON in LLM response: {content[:200]}")
+
+    def analyze_style_reference(self, image_url, user=None):
         system_prompt = get_prompt('style_analysis', 'system')
         user_text = get_prompt('style_analysis', 'user_template')
 
@@ -154,11 +197,65 @@ class LLMService:
             messages,
             schema=get_prompt_schema('style_analysis'),
             model=STYLE_ANALYSIS_MODEL,
+            user=user,
         )
         logger.info("Style analysis complete: suggested_title='%s'", result.get('suggested_title', ''))
         return result
 
-    def generate_base_image_prompt(self, book_data, base_image_only=False):
+    def detect_text_in_image(self, image_url, user=None):
+        system_prompt = get_prompt('text_detection', 'system')
+        user_text = get_prompt('text_detection', 'user_template')
+
+        messages = [
+            {'role': 'system', 'content': system_prompt},
+            {
+                'role': 'user',
+                'content': [
+                    {'type': 'text', 'text': user_text},
+                    {'type': 'image_url', 'image_url': {'url': image_url}},
+                ],
+            },
+        ]
+
+        logger.info("Detecting text in image with %s", STYLE_ANALYSIS_MODEL)
+        result = self._make_request(
+            messages,
+            schema=get_prompt_schema('text_detection'),
+            model=STYLE_ANALYSIS_MODEL,
+            user=user,
+        )
+        detected_texts = result.get('detected_texts', [])
+        logger.info("Text detection complete: found %d text segments", len(detected_texts))
+        return detected_texts
+
+    def verify_text_layer(self, image_url, user=None):
+        system_prompt = get_prompt('text_layer_verification', 'system')
+        user_text = get_prompt('text_layer_verification', 'user_template')
+
+        messages = [
+            {'role': 'system', 'content': system_prompt},
+            {
+                'role': 'user',
+                'content': [
+                    {'type': 'text', 'text': user_text},
+                    {'type': 'image_url', 'image_url': {'url': image_url}},
+                ],
+            },
+        ]
+
+        logger.info("Verifying text layer cleanliness with %s", STYLE_ANALYSIS_MODEL)
+        result = self._make_request(
+            messages,
+            schema=get_prompt_schema('text_layer_verification'),
+            model=STYLE_ANALYSIS_MODEL,
+            user=user,
+        )
+        is_clean = result.get('is_clean', True)
+        artifacts = result.get('artifacts', [])
+        logger.info("Text layer verification: is_clean=%s, artifacts=%d", is_clean, len(artifacts))
+        return result
+
+    def generate_base_image_prompt(self, book_data, base_image_only=False, user=None):
         text_rules = get_prompt('base_image', 'text_rules')
         text_rule = text_rules['base_image_only'] if base_image_only else text_rules['standard']
         system_prompt = get_prompt('base_image', 'system').format(text_rule=text_rule)
@@ -171,10 +268,10 @@ class LLMService:
             {'role': 'user', 'content': user_content}
         ]
 
-        result = self._make_request(messages, schema=get_prompt_schema('cover_prompt'))
+        result = self._make_request(messages, schema=get_prompt_schema('cover_prompt'), user=user)
         return result['prompt']
 
-    def generate_text_overlay_prompt(self, book_data):
+    def generate_text_overlay_prompt(self, book_data, user=None):
         system_prompt = get_prompt('text_overlay', 'system')
 
         title = book_data.get('book_title', '')
@@ -196,10 +293,10 @@ class LLMService:
             {'role': 'user', 'content': user_content}
         ]
 
-        result = self._make_request(messages, schema=get_prompt_schema('cover_prompt'))
+        result = self._make_request(messages, schema=get_prompt_schema('cover_prompt'), user=user)
         return result['prompt']
 
-    def generate_style_referenced_prompt(self, book_data, include_text=True, style_analysis=None):
+    def generate_style_referenced_prompt(self, book_data, include_text=True, style_analysis=None, reference_mode='both', user=None):
         if include_text:
             system_prompt = get_prompt('style_reference', 'system_with_text')
         else:
@@ -224,7 +321,7 @@ class LLMService:
         if extra_details:
             extra_details += "\n"
 
-        style_analysis_section = _build_style_analysis_section(style_analysis)
+        style_analysis_section = _build_style_analysis_section(style_analysis, mode=reference_mode)
 
         if include_text:
             user_content = get_prompt('style_reference', 'user_template_with_text').format(
@@ -244,10 +341,64 @@ class LLMService:
             {'role': 'user', 'content': user_content}
         ]
 
-        result = self._make_request(messages, schema=get_prompt_schema('cover_prompt'))
+        result = self._make_request(messages, schema=get_prompt_schema('cover_prompt'), user=user)
         return result['prompt']
 
-    def generate_style_referenced_prompt_no_text(self, book_data, style_analysis=None):
-        return self.generate_style_referenced_prompt(book_data, include_text=False, style_analysis=style_analysis)
+    def generate_style_referenced_prompt_no_text(self, book_data, style_analysis=None, reference_mode='both', user=None):
+        return self.generate_style_referenced_prompt(book_data, include_text=False, style_analysis=style_analysis, reference_mode=reference_mode, user=user)
+
+    def generate_simple_text_replacement_prompt(self, book_data, selected_texts, cover_ideas=None, user=None):
+        if not selected_texts:
+            book_title = book_data.get('book_title', '')
+            author_name = book_data.get('author_name', '')
+            return f"Replace the text on this book cover with title '{book_title}' and author '{author_name}'. Preserve the existing typography style, fonts, colors, and positioning."
+
+        text_elements_list = []
+        for t in selected_texts:
+            text_elements_list.append(f"- \"{t.get('text', '')}\" (type: {t.get('text_type', 'unknown')}, position: {t.get('position', 'unknown')})")
+        text_elements_formatted = "\n".join(text_elements_list)
+
+        system_prompt = """You generate simple text replacement instructions for book covers.
+
+Given:
+1. Text elements currently on a book cover (with their type and position)
+2. New book title and author name
+3. Optional cover ideas from the user
+
+Generate a clear, concise instruction to replace the text while preserving the typography style.
+
+Rules:
+- Replace "title" type text with the new book title
+- Replace "author_name" type text with the new author name
+- Remove any other text types (tagline, subtitle, series_name, publisher, other) - do not keep or replace them
+- If cover_ideas contains relevant context, use it to inform your decisions
+- Keep the instruction simple and focused on WHAT text to change, not HOW it should look
+- Always emphasize preserving the existing typography style, fonts, colors, and positioning
+
+Output format example:
+Replace the text on this book cover while preserving the exact typography style, fonts, colors, effects, and positioning:
+- Replace "[original text]" with "[new text]"
+- Remove the text "[text to remove]"
+Keep all other visual elements unchanged."""
+
+        user_content = f"""Current text elements on the cover:
+{text_elements_formatted}
+
+New book details:
+- Title: {book_data.get('book_title', '')}
+- Author: {book_data.get('author_name', '')}
+
+Cover ideas (for context):
+{cover_ideas or "None provided"}
+
+Generate the replacement instruction."""
+
+        messages = [
+            {'role': 'system', 'content': system_prompt},
+            {'role': 'user', 'content': user_content}
+        ]
+
+        result = self._make_request(messages, user=user)
+        return result
 
 llm_service = LLMService()

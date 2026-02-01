@@ -1,8 +1,6 @@
 import logging
 
 from app import socketio
-from app.config import GENERATION_COST
-from app.services.credit_service import refund_credits
 from app.sockets.helpers import _room_for
 from app.utils.db import get_supabase
 
@@ -11,9 +9,10 @@ logger = logging.getLogger(__name__)
 _running_tasks = set()
 
 
-def _run_generation_task(app, generation, user_id, style_reference_id, use_style_image, aspect_ratio, base_image_only=False):
+def _run_generation_task(app, generation, user, style_reference_id, use_style_image, aspect_ratio, base_image_only=False, reference_mode='both', text_blending_mode='ai'):
     with app.app_context():
         gen_id = generation.id
+        user_id = user.id
         room = _room_for(user_id)
 
         if gen_id in _running_tasks:
@@ -61,12 +60,18 @@ def _run_generation_task(app, generation, user_id, style_reference_id, use_style
                     style_reference_id, aspect_ratio, user_id,
                     on_progress=on_progress,
                     base_image_only=base_image_only,
+                    reference_mode=reference_mode,
+                    two_step_generation=generation.two_step_generation,
+                    text_blending_mode=text_blending_mode,
+                    user=user,
                 )
             else:
                 final_gen = run_standard_pipeline(
                     gen_id, generation, book_data, aspect_ratio,
                     on_progress=on_progress,
                     base_image_only=base_image_only,
+                    two_step_generation=generation.two_step_generation,
+                    user=user,
                 )
 
             from app.services.storage_service import storage_service
@@ -79,29 +84,27 @@ def _run_generation_task(app, generation, user_id, style_reference_id, use_style
 
         except Exception as e:
             from app.services.pipeline_service import GenerationCancelled
+            from app.services.credit_service import InsufficientCreditsError
+
             if isinstance(e, GenerationCancelled):
                 logger.info("Gen #%s was cancelled, background task stopping", gen_id)
                 return
 
-            logger.error("Gen #%s background task FAILED: %s", gen_id, e, exc_info=True)
+            if isinstance(e, InsufficientCreditsError):
+                logger.warning("Gen #%s failed due to insufficient credits: %s", gen_id, e)
+                error_message = f"Insufficient credits: need {e.required}, have {e.available}"
+            else:
+                logger.error("Gen #%s background task FAILED: %s", gen_id, e, exc_info=True)
+                error_message = 'Generation failed. Please try again.'
 
             get_supabase().table('generations').update({
                 'status': 'failed',
-                'error_message': 'Generation failed. Please try again.',
+                'error_message': error_message,
             }).eq('id', gen_id).execute()
-
-            from app.models.user import User
-            user_result = get_supabase().table('users').select('*').eq('id', user_id).execute()
-            if user_result.data:
-                failed_user = User.from_row(user_result.data[0])
-                remaining = refund_credits(failed_user, GENERATION_COST)
-            else:
-                remaining = None
 
             socketio.emit('generation_failed', {
                 'generation_id': gen_id,
-                'error': 'Generation failed. Please try again.',
-                'remaining_credits': remaining,
+                'error': error_message,
             }, room=room)
 
         finally:

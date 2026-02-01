@@ -10,6 +10,9 @@ supabase==2.27.2
 # HTTP requests
 requests==2.31.0
 
+# JSON repair for LLM responses
+json-repair==0.*
+
 # Image processing
 Pillow==12.1.0
 

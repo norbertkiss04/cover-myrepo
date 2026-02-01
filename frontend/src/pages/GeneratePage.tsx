@@ -4,7 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { useGeneration } from '../context/GenerationContext';
 import { useGenerationForm } from '../context/GenerationFormContext';
 import { useGenres, useAspectRatios, useStyleReferences } from '../hooks/useApiQueries';
-import { Toggle, PlaceholderPanel, ProgressPanel, ResultPanel } from '../components/Generate';
+import { generationApi } from '../services/api';
+import { Toggle, ReferenceModeToggle, PlaceholderPanel, ProgressPanel, ResultPanel, BlendingModeToggle } from '../components/Generate';
 import type { Generation, GenerationInput } from '../types';
 
 const OPTIONAL_FIELD_DEFS = [
@@ -29,6 +30,11 @@ export default function GeneratePage() {
   const [addFieldOpen, setAddFieldOpen] = useState(false);
   const addFieldRef = useRef<HTMLDivElement>(null);
   const pendingGenRef = useRef<Generation | null>(null);
+
+  const [estimatedCost, setEstimatedCost] = useState<number | null>(null);
+  const [canAfford, setCanAfford] = useState(true);
+  const [isFetchingCost, setIsFetchingCost] = useState(false);
+  const [costError, setCostError] = useState(false);
 
   const prefsFields = user?.preferences?.visible_fields || [];
   const visibleOptionalKeys = new Set<string>([...prefsFields, ...form.tempFields]);
@@ -64,6 +70,10 @@ export default function GeneratePage() {
     if (fieldsToShow.size > 0) form.setTempFields(fieldsToShow);
 
     form.setBaseImageOnly(Boolean(gen.base_image_only));
+    form.setTwoStepGeneration(gen.two_step_generation !== false);
+    if (gen.reference_mode) {
+      form.setReferenceMode(gen.reference_mode);
+    }
 
     navigate(location.pathname, { replace: true, state: {} });
   }, []);
@@ -76,6 +86,9 @@ export default function GeneratePage() {
       const matchingRef = styleReferences.find((r) => r.id === gen.style_reference_id);
       if (matchingRef) {
         form.setSelectedRefId(matchingRef.id);
+        if (gen.reference_mode) {
+          form.setReferenceMode(gen.reference_mode);
+        }
       }
     }
 
@@ -93,6 +106,55 @@ export default function GeneratePage() {
     return () => document.removeEventListener('mousedown', handler);
   }, [addFieldOpen]);
 
+  useEffect(() => {
+    if (!user) return;
+
+    const controller = new AbortController();
+    
+    const fetchEstimate = async () => {
+      setIsFetchingCost(true);
+      setCostError(false);
+      try {
+        const estimate = await generationApi.estimateCost({
+          use_style_image: form.selectedRefId !== null,
+          style_reference_id: form.selectedRefId,
+          base_image_only: form.baseImageOnly,
+          reference_mode: form.referenceMode,
+          text_blending_mode: form.textBlendingMode,
+          two_step_generation: form.twoStepGeneration,
+        });
+        
+        if (!controller.signal.aborted) {
+          setEstimatedCost(estimate.total);
+          setCanAfford(estimate.can_afford);
+        }
+      } catch {
+        if (!controller.signal.aborted) {
+          setCostError(true);
+          setCanAfford(false);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsFetchingCost(false);
+        }
+      }
+    };
+
+    const debounceTimer = setTimeout(fetchEstimate, 300);
+
+    return () => {
+      controller.abort();
+      clearTimeout(debounceTimer);
+    };
+  }, [
+    user,
+    form.selectedRefId,
+    form.baseImageOnly,
+    form.referenceMode,
+    form.textBlendingMode,
+    form.twoStepGeneration,
+  ]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -104,6 +166,8 @@ export default function GeneratePage() {
 
     if (form.baseImageOnly) {
       payload.base_image_only = true;
+    } else {
+      payload.two_step_generation = form.twoStepGeneration;
     }
 
     if (form.formData.cover_ideas) {
@@ -124,6 +188,10 @@ export default function GeneratePage() {
       if (ref) {
         payload.style_reference_id = ref.id;
         payload.use_style_image = true;
+        payload.reference_mode = form.referenceMode;
+        if (form.twoStepGeneration && (form.referenceMode === 'both' || form.referenceMode === 'text')) {
+          payload.text_blending_mode = form.textBlendingMode;
+        }
       }
     }
 
@@ -299,7 +367,10 @@ export default function GeneratePage() {
           <div className="bg-surface border border-border rounded-2xl p-4 sm:p-5">
           <form onSubmit={handleSubmit} className="space-y-3.5">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-text-secondary">
+              <span
+                className="text-sm text-text-secondary cursor-help"
+                title="Generate only the background artwork without any text. Uses the clean background from your style reference."
+              >
                 Image only (no title or author text)
               </span>
               <Toggle
@@ -308,6 +379,22 @@ export default function GeneratePage() {
                 disabled={isGenerating}
               />
             </div>
+
+            {!form.baseImageOnly && (
+              <div className="flex items-center justify-between">
+                <span
+                  className="text-sm text-text-secondary cursor-help"
+                  title="First generates base artwork, then adds text separately. Generally produces better results than single-step generation."
+                >
+                  Two-step generation
+                </span>
+                <Toggle
+                  checked={form.twoStepGeneration}
+                  onChange={form.setTwoStepGeneration}
+                  disabled={isGenerating}
+                />
+              </div>
+            )}
 
             {!form.baseImageOnly && (
               <div className="grid grid-cols-2 gap-3">
@@ -409,6 +496,32 @@ export default function GeneratePage() {
               </div>
             </div>
 
+            {form.selectedRefId !== null && !form.baseImageOnly && (
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-1.5">
+                  Reference Mode
+                </label>
+                <ReferenceModeToggle
+                  value={form.referenceMode}
+                  onChange={form.setReferenceMode}
+                  disabled={isGenerating}
+                />
+                <p className="mt-1 text-xs text-text-muted">
+                  {form.referenceMode === 'both' && 'Use the full reference image as style guide.'}
+                  {form.referenceMode === 'background' && 'Use only the background/artwork style (text removed).'}
+                  {form.referenceMode === 'text' && 'Use only the typography/text style.'}
+                </p>
+              </div>
+            )}
+
+            {form.selectedRefId !== null && form.twoStepGeneration && !form.baseImageOnly && (form.referenceMode === 'both' || form.referenceMode === 'text') && (
+              <BlendingModeToggle
+                value={form.textBlendingMode}
+                onChange={form.setTextBlendingMode}
+                disabled={isGenerating}
+              />
+            )}
+
             {visibleOptionalFields.length > 0 && (
               <div className="border-t border-border pt-3.5 space-y-3.5">
                 {visibleOptionalFields.map((f) => renderOptionalField(f.key))}
@@ -449,10 +562,14 @@ export default function GeneratePage() {
             <div className="flex gap-2 pt-3">
               <button
                 type="submit"
-                disabled={isGenerating || !generation.socketConnected || (!user?.unlimited_credits && (user?.credits ?? 0) < 3)}
+                disabled={isGenerating || !generation.socketConnected || isFetchingCost || costError || (!user?.unlimited_credits && !canAfford)}
                 className="flex-1 bg-accent text-white py-1.5 px-3 rounded-lg font-medium hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm"
               >
-                {isGenerating ? 'Generating...' : 'Generate (3 credits)'}
+                {isGenerating ? 'Generating...' : (
+                  isFetchingCost ? 'Calculating...' : (
+                    costError ? 'Error' : `Generate (${estimatedCost ?? '...'} credits)`
+                  )
+                )}
               </button>
               <button
                 type="button"
@@ -467,8 +584,13 @@ export default function GeneratePage() {
                 </svg>
               </button>
             </div>
-            {!user?.unlimited_credits && (user?.credits ?? 0) < 3 && (
-              <p className="text-center text-xs text-error">Not enough credits.</p>
+            {costError && (
+              <p className="text-center text-xs text-error">Failed to calculate cost. Please try again.</p>
+            )}
+            {!costError && !user?.unlimited_credits && !canAfford && estimatedCost !== null && (
+              <p className="text-center text-xs text-error">
+                Not enough credits. You need {estimatedCost}, but have {user?.credits ?? 0}.
+              </p>
             )}
           </form>
           </div>

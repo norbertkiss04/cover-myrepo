@@ -20,10 +20,28 @@ export interface AspectRatioInfo {
   name: string;
 }
 
+export type ReferenceMode = 'both' | 'background' | 'text';
+
+export type TextBlendingMode = 'ai_blend' | 'direct_overlay' | 'separate_reference';
+
+export interface DetectedText {
+  id: number;
+  text: string;
+  text_type: 'title' | 'subtitle' | 'author_name' | 'tagline' | 'series_name' | 'publisher' | 'other';
+  position: string;
+  style_description: string;
+}
+
 export interface StyleReference {
   id: number;
   title: string;
   image_url: string;
+  original_image_url: string | null;
+  clean_image_url: string | null;
+  text_layer_url: string | null;
+  text_layer_cleaned: boolean;
+  detected_text: DetectedText[];
+  selected_text_ids: number[];
   created_at: string;
 }
 
@@ -42,6 +60,8 @@ export interface Generation {
   style_reference_id: number | null;
   use_style_image: boolean;
   base_image_only: boolean;
+  reference_mode: ReferenceMode;
+  two_step_generation: boolean;
   aspect_ratio: string;
   aspect_ratio_info: AspectRatioInfo | null;
   base_prompt: string | null;
@@ -65,6 +85,9 @@ export interface GenerationInput {
   style_reference_id?: number;
   use_style_image?: boolean;
   base_image_only?: boolean;
+  reference_mode?: ReferenceMode;
+  two_step_generation?: boolean;
+  text_blending_mode?: TextBlendingMode;
 }
 
 export interface PaginatedResponse<T> {

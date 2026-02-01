@@ -173,8 +173,56 @@ export const generationApi = {
     return response.data;
   },
 
+  updateTextSelection: async (
+    id: number,
+    selectedTextIds: number[],
+  ): Promise<StyleReference> => {
+    const response = await api.put(`/api/style-references/${id}/text-selection`, {
+      selected_text_ids: selectedTextIds,
+    });
+    return response.data;
+  },
+
   deleteStyleReference: async (id: number): Promise<void> => {
     await api.delete(`/api/style-references/${id}`);
+  },
+
+  redetectText: async (id: number): Promise<StyleReference> => {
+    const response = await api.post(`/api/style-references/${id}/detect-text`);
+    return response.data;
+  },
+
+  cropImage: async (id: number, crop: { x: number; y: number; width: number; height: number }): Promise<StyleReference> => {
+    const response = await api.post(`/api/style-references/${id}/crop`, { crop });
+    return response.data;
+  },
+
+  regenerateCleanBackground: async (id: number): Promise<StyleReference> => {
+    const response = await api.post(`/api/style-references/${id}/regenerate-clean`);
+    return response.data;
+  },
+
+  regenerateTextLayer: async (id: number): Promise<StyleReference> => {
+    const response = await api.post(`/api/style-references/${id}/regenerate-text-layer`);
+    return response.data;
+  },
+
+  estimateCost: async (params: {
+    use_style_image: boolean;
+    style_reference_id?: number | null;
+    base_image_only: boolean;
+    reference_mode: string;
+    text_blending_mode: string;
+    two_step_generation: boolean;
+  }): Promise<{
+    total: number;
+    llm_calls: number;
+    image_calls: number;
+    can_afford: boolean;
+    user_credits: number;
+  }> => {
+    const response = await api.post('/api/estimate-cost', params);
+    return response.data;
   },
 };
 

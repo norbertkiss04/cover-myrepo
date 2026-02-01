@@ -5,6 +5,8 @@ import requests
 from flask import current_app
 from PIL import Image
 
+from app.services.credit_service import deduct_image_credit, InsufficientCreditsError
+
 logger = logging.getLogger(__name__)
 
 
@@ -58,7 +60,7 @@ def _find_content_start_right(pixels, width, height, tolerance, min_border):
     return width
 
 
-def detect_and_crop_border(image_bytes, tolerance=30, min_border_size=5):
+def detect_and_crop_border(image_bytes, tolerance=50, min_border_size=3):
     img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
     width, height = img.size
     pixels = img.load()
@@ -100,7 +102,13 @@ class ImageService:
         ratio_info = ASPECT_RATIOS.get(aspect_ratio, ASPECT_RATIOS['2:3'])
         return f"{ratio_info['width']}*{ratio_info['height']}"
 
-    def _submit(self, url, payload):
+    def _submit(self, url, payload, user=None):
+        if user is not None:
+            result = deduct_image_credit(user)
+            if not result['success']:
+                raise InsufficientCreditsError(required=6, available=result['remaining'])
+            logger.info("Deducted 6 image credits for user id=%s", user.id)
+
         logger.info(f"Submitting job to {url}")
 
         r = requests.post(url, headers=self._headers(), json=payload, timeout=30)
@@ -148,7 +156,7 @@ class ImageService:
 
             time.sleep(interval)
 
-    def generate_base_image(self, prompt, aspect_ratio='2:3'):
+    def generate_base_image(self, prompt, aspect_ratio='2:3', user=None):
         self._get_config()
 
         size = self._get_size_string(aspect_ratio)
@@ -162,12 +170,13 @@ class ImageService:
 
         job_id = self._submit(
             f'{self.base_url}/bytedance/seedream-v4.5',
-            payload
+            payload,
+            user=user,
         )
         image_url = self._poll(job_id)
         return {'image_url': image_url}
 
-    def generate_image_with_text(self, image_urls, text_prompt, aspect_ratio='2:3'):
+    def generate_image_with_text(self, image_urls, text_prompt, aspect_ratio='2:3', user=None):
         self._get_config()
 
         if isinstance(image_urls, str):
@@ -185,9 +194,174 @@ class ImageService:
 
         job_id = self._submit(
             f'{self.base_url}/bytedance/seedream-v4.5/edit',
-            payload
+            payload,
+            user=user,
         )
         image_url = self._poll(job_id)
         return {'image_url': image_url}
+
+    def generate_clean_background(self, image_url, aspect_ratio='2:3', user=None):
+        self._get_config()
+
+        size = self._get_size_string(aspect_ratio)
+
+        prompt = (
+            "Remove all text, titles, words, logos, symbols, and typography from this image. "
+            "Keep only the background artwork, textures, colors, and visual elements. "
+            "Output a clean image without any text or lettering."
+        )
+
+        payload = {
+            'prompt': prompt,
+            'images': [image_url],
+            'size': size,
+            'enable_base64_output': False,
+            'enable_sync_mode': False,
+        }
+
+        job_id = self._submit(
+            f'{self.base_url}/bytedance/seedream-v4.5/edit',
+            payload,
+            user=user,
+        )
+        result_url = self._poll(job_id)
+        return {'image_url': result_url}
+
+    def generate_text_layer(self, image_url, aspect_ratio='2:3', selected_texts=None, user=None):
+        self._get_config()
+
+        size = self._get_size_string(aspect_ratio)
+
+        if selected_texts and len(selected_texts) > 0:
+            text_descriptions = []
+            for t in selected_texts:
+                text_descriptions.append(f'- "{t["text"]}" ({t["text_type"]} at {t["position"]})')
+            texts_list = '\n'.join(text_descriptions)
+
+            prompt = (
+                f"Extract ONLY these specific text elements from this image:\n{texts_list}\n\n"
+                "Remove ALL other text, background imagery, illustrations, and photos. "
+                "Place the extracted text on a solid white background. "
+                "Keep the original font style, size, color, effects, and arrangement of the specified text. "
+                "The background must be pure solid white (#FFFFFF) with no gradients or textures."
+            )
+        else:
+            prompt = (
+                "Extract only the text, titles, and typography from this image. "
+                "Remove all background imagery, illustrations, and photos. "
+                "Place the extracted text on a solid white background. "
+                "Keep the original font style, size, and arrangement of the text. "
+                "The background must be pure solid white (#FFFFFF) with no gradients or textures."
+            )
+
+        payload = {
+            'prompt': prompt,
+            'images': [image_url],
+            'size': size,
+            'enable_base64_output': False,
+            'enable_sync_mode': False,
+        }
+
+        job_id = self._submit(
+            f'{self.base_url}/bytedance/seedream-v4.5/edit',
+            payload,
+            user=user,
+        )
+        result_url = self._poll(job_id)
+        return {'image_url': result_url}
+
+    def cleanup_text_layer(self, image_url, artifacts_description, aspect_ratio='2:3', user=None):
+        self._get_config()
+
+        size = self._get_size_string(aspect_ratio)
+
+        prompt = (
+            f"Remove the following non-text elements from this image while keeping ALL text intact: {artifacts_description}. "
+            "The result should contain ONLY the text/typography on a pure solid white background (#FFFFFF). "
+            "Preserve the exact font style, size, color, effects, and positioning of all text. "
+            "Remove any characters, illustrations, decorative elements, or background artifacts completely. "
+            "The background must be pure solid white with no gradients or textures."
+        )
+
+        payload = {
+            'prompt': prompt,
+            'images': [image_url],
+            'size': size,
+            'enable_base64_output': False,
+            'enable_sync_mode': False,
+        }
+
+        logger.info("Cleaning up text layer, removing: %s", artifacts_description[:100])
+        job_id = self._submit(
+            f'{self.base_url}/bytedance/seedream-v4.5/edit',
+            payload,
+            user=user,
+        )
+        result_url = self._poll(job_id)
+        logger.info("Text layer cleanup complete")
+        return {'image_url': result_url}
+
+    def crop_image_by_percent(self, image_bytes, x, y, width, height):
+        img = Image.open(io.BytesIO(image_bytes)).convert('RGB')
+        img_width, img_height = img.size
+
+        left = int(img_width * x / 100)
+        top = int(img_height * y / 100)
+        right = int(img_width * (x + width) / 100)
+        bottom = int(img_height * (y + height) / 100)
+
+        left = max(0, min(left, img_width))
+        top = max(0, min(top, img_height))
+        right = max(left + 1, min(right, img_width))
+        bottom = max(top + 1, min(bottom, img_height))
+
+        logger.info("Cropping image: (%d, %d) to (%d, %d) from %dx%d",
+                    left, top, right, bottom, img_width, img_height)
+
+        cropped = img.crop((left, top, right, bottom))
+
+        output = io.BytesIO()
+        cropped.save(output, format='PNG')
+        return output.getvalue()
+
+
+def blend_images_programmatic(base_image_url, text_layer_url, white_threshold=240):
+    logger.info("Blending images programmatically...")
+
+    base_response = requests.get(base_image_url, timeout=60)
+    base_response.raise_for_status()
+    base_img = Image.open(io.BytesIO(base_response.content)).convert('RGBA')
+
+    text_response = requests.get(text_layer_url, timeout=60)
+    text_response.raise_for_status()
+    text_img = Image.open(io.BytesIO(text_response.content)).convert('RGBA')
+
+    if text_img.size != base_img.size:
+        logger.info("Resizing text layer from %s to %s", text_img.size, base_img.size)
+        text_img = text_img.resize(base_img.size, Image.Resampling.LANCZOS)
+
+    text_data = text_img.load()
+    width, height = text_img.size
+
+    for y in range(height):
+        for x in range(width):
+            r, g, b, a = text_data[x, y]
+            if r >= white_threshold and g >= white_threshold and b >= white_threshold:
+                text_data[x, y] = (r, g, b, 0)
+            else:
+                brightness = (r + g + b) / 3
+                opacity = int(255 * (1 - brightness / 255))
+                opacity = max(opacity, a)
+                text_data[x, y] = (r, g, b, min(255, opacity + 50))
+
+    result = Image.alpha_composite(base_img, text_img)
+    result = result.convert('RGB')
+
+    output = io.BytesIO()
+    result.save(output, format='PNG', quality=95)
+    logger.info("Programmatic blend complete, output size: %.1f KB", len(output.getvalue()) / 1024)
+
+    return output.getvalue()
+
 
 image_service = ImageService()
