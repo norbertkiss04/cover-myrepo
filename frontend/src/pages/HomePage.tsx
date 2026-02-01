@@ -56,7 +56,7 @@ export default function HomePage() {
                 Start Creating
               </Link>
             )}
-            <span className="text-sm text-text-muted">3 credits per cover</span>
+            <span className="text-sm text-text-muted">7-27 credits per cover</span>
           </div>
         </div>
 

@@ -206,6 +206,24 @@ export const generationApi = {
     const response = await api.post(`/api/style-references/${id}/regenerate-text-layer`);
     return response.data;
   },
+
+  estimateCost: async (params: {
+    use_style_image: boolean;
+    style_reference_id?: number | null;
+    base_image_only: boolean;
+    reference_mode: string;
+    text_blending_mode: string;
+    two_step_generation: boolean;
+  }): Promise<{
+    total: number;
+    llm_calls: number;
+    image_calls: number;
+    can_afford: boolean;
+    user_credits: number;
+  }> => {
+    const response = await api.post('/api/estimate-cost', params);
+    return response.data;
+  },
 };
 
 export default api;
