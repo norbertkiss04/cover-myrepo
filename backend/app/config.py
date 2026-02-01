@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-INITIAL_CREDITS = 30
+INITIAL_CREDITS = 200
 LLM_CALL_COST = 1
 IMAGE_CALL_COST = 6
 
