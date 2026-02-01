@@ -6,8 +6,7 @@ from flask import request
 from flask_socketio import emit
 
 from app.models.generation import Generation
-from app.config import GENERATION_COST
-from app.services.credit_service import deduct_credits
+from app.services.credit_service import validate_generation_credits
 from app.utils.db import get_supabase
 
 logger = logging.getLogger(__name__)
@@ -137,13 +136,35 @@ def _require_no_active_generation(user):
     return True
 
 
-def _deduct_and_refresh(user):
+def _validate_generation_credits(
+    user,
+    use_style_image,
+    base_image_only,
+    reference_mode,
+    text_blending_mode,
+    style_ref_has_clean,
+    style_ref_has_text,
+    two_step_generation,
+):
     user = _refresh_user(user)
-    credit_result = deduct_credits(user, GENERATION_COST)
-    if not credit_result['success']:
+    validation = validate_generation_credits(
+        user=user,
+        use_style_image=use_style_image,
+        base_image_only=base_image_only,
+        reference_mode=reference_mode,
+        text_blending_mode=text_blending_mode,
+        style_ref_has_clean=style_ref_has_clean,
+        style_ref_has_text=style_ref_has_text,
+        two_step_generation=two_step_generation,
+    )
+
+    if not validation['can_afford']:
         emit('generation_error', {
-            'error': 'Not enough credits to generate a cover.',
+            'error': f"Not enough credits. This generation costs {validation['total']} credits.",
+            'required': validation['total'],
+            'available': validation['user_credits'],
         })
         return None, None
-    connected_users[request.sid] = _refresh_user(user)
-    return user, credit_result
+
+    connected_users[request.sid] = user
+    return user, validation

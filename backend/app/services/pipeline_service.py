@@ -44,7 +44,7 @@ def _check_cancelled(gen_id):
         raise GenerationCancelled(f"Generation #{gen_id} was cancelled")
 
 
-def ensure_reference_variant(style_ref, variant_type, user_id):
+def ensure_reference_variant(style_ref, variant_type, user_id, user=None):
     if variant_type == 'clean':
         if style_ref.clean_image_path:
             logger.info("Using cached clean background image for ref #%s", style_ref.id)
@@ -52,7 +52,7 @@ def ensure_reference_variant(style_ref, variant_type, user_id):
 
         logger.info("Generating clean background image for ref #%s", style_ref.id)
         signed_original = storage_service.get_signed_url(style_ref.image_path, expires_in=600)
-        result = image_service.generate_clean_background(signed_original)
+        result = image_service.generate_clean_background(signed_original, user=user)
         variant_url = result['image_url']
 
         upload = storage_service.upload_from_url(variant_url, folder='references')
@@ -77,17 +77,17 @@ def ensure_reference_variant(style_ref, variant_type, user_id):
             selected_texts = [t for t in style_ref.detected_text if t.get('id') in selected_ids]
             logger.info("Using %d/%d selected texts for extraction", len(selected_texts), len(style_ref.detected_text))
 
-        result = image_service.generate_text_layer(signed_original, selected_texts=selected_texts)
+        result = image_service.generate_text_layer(signed_original, selected_texts=selected_texts, user=user)
         variant_url = result['image_url']
 
         text_layer_cleaned = False
-        verification = llm_service.verify_text_layer(variant_url)
+        verification = llm_service.verify_text_layer(variant_url, user=user)
         if not verification.get('is_clean', True) and verification.get('artifacts'):
             artifacts = verification['artifacts']
             artifacts_desc = ', '.join([f"{a['description']} ({a['location']})" for a in artifacts])
             logger.info("Text layer has %d artifacts for ref #%s: %s", len(artifacts), style_ref.id, artifacts_desc[:200])
 
-            cleanup_result = image_service.cleanup_text_layer(variant_url, artifacts_desc)
+            cleanup_result = image_service.cleanup_text_layer(variant_url, artifacts_desc, user=user)
             variant_url = cleanup_result['image_url']
             text_layer_cleaned = True
             logger.info("Text layer cleanup complete for ref #%s", style_ref.id)
@@ -105,7 +105,7 @@ def ensure_reference_variant(style_ref, variant_type, user_id):
         raise ValueError(f"Invalid variant type: {variant_type}")
 
 
-def run_standard_pipeline(gen_id, generation, book_data, aspect_ratio, on_progress=None, base_image_only=False, two_step_generation=True):
+def run_standard_pipeline(gen_id, generation, book_data, aspect_ratio, on_progress=None, base_image_only=False, two_step_generation=True, user=None):
     if base_image_only:
         total_steps = 2
     elif two_step_generation:
@@ -120,7 +120,7 @@ def run_standard_pipeline(gen_id, generation, book_data, aspect_ratio, on_progre
 
     if two_step_generation and not base_image_only:
         progress(1, total_steps, "Generating base image prompt...")
-        base_prompt = llm_service.generate_base_image_prompt(book_data, base_image_only=True)
+        base_prompt = llm_service.generate_base_image_prompt(book_data, base_image_only=True, user=user)
         base_prompt += " Do not include any text, words, letters, titles, or typography anywhere in the image."
 
         logger.info("Gen #%s Step 1/%d done. Prompt length: %d chars", gen_id, total_steps, len(base_prompt))
@@ -129,7 +129,7 @@ def run_standard_pipeline(gen_id, generation, book_data, aspect_ratio, on_progre
         ).eq('id', generation.id).execute()
 
         progress(2, total_steps, "Creating base image...")
-        base_result = image_service.generate_base_image(base_prompt, aspect_ratio)
+        base_result = image_service.generate_base_image(base_prompt, aspect_ratio, user=user)
         base_image_url = base_result['image_url']
         base_image_url = _check_and_remove_border(base_image_url, gen_id)
         logger.info("Gen #%s Step 2/%d done. Base image URL received", gen_id, total_steps)
@@ -142,7 +142,7 @@ def run_standard_pipeline(gen_id, generation, book_data, aspect_ratio, on_progre
         ).eq('id', generation.id).execute()
 
         progress(3, total_steps, "Adding text to cover...")
-        text_prompt = llm_service.generate_text_overlay_prompt(book_data)
+        text_prompt = llm_service.generate_text_overlay_prompt(book_data, user=user)
         get_supabase().table('generations').update(
             {'text_prompt': text_prompt}
         ).eq('id', generation.id).execute()
@@ -153,7 +153,8 @@ def run_standard_pipeline(gen_id, generation, book_data, aspect_ratio, on_progre
         final_result = image_service.generate_image_with_text(
             signed_base_url,
             final_prompt,
-            aspect_ratio
+            aspect_ratio,
+            user=user,
         )
         final_image_url = final_result['image_url']
         final_image_url = _check_and_remove_border(final_image_url, gen_id)
@@ -172,7 +173,7 @@ def run_standard_pipeline(gen_id, generation, book_data, aspect_ratio, on_progre
         return final_gen
     else:
         progress(1, total_steps, "Generating image prompt...")
-        base_prompt = llm_service.generate_base_image_prompt(book_data, base_image_only=base_image_only)
+        base_prompt = llm_service.generate_base_image_prompt(book_data, base_image_only=base_image_only, user=user)
         if base_image_only:
             base_prompt += " Do not include any text, words, letters, titles, or typography anywhere in the image."
 
@@ -182,7 +183,7 @@ def run_standard_pipeline(gen_id, generation, book_data, aspect_ratio, on_progre
         ).eq('id', generation.id).execute()
 
         progress(2, total_steps, "Creating base image...")
-        base_result = image_service.generate_base_image(base_prompt, aspect_ratio)
+        base_result = image_service.generate_base_image(base_prompt, aspect_ratio, user=user)
         base_image_url = base_result['image_url']
         base_image_url = _check_and_remove_border(base_image_url, gen_id)
         logger.info("Gen #%s Step 2/%d done. Base image URL received", gen_id, total_steps)
@@ -206,7 +207,7 @@ def run_standard_pipeline(gen_id, generation, book_data, aspect_ratio, on_progre
             return final_gen
 
         progress(3, total_steps, "Designing typography...")
-        text_prompt = llm_service.generate_text_overlay_prompt(book_data)
+        text_prompt = llm_service.generate_text_overlay_prompt(book_data, user=user)
         logger.info("Gen #%s Step 3/4 done. Prompt length: %d chars", gen_id, len(text_prompt))
         get_supabase().table('generations').update(
             {'text_prompt': text_prompt}
@@ -218,7 +219,8 @@ def run_standard_pipeline(gen_id, generation, book_data, aspect_ratio, on_progre
         final_result = image_service.generate_image_with_text(
             signed_base_url,
             final_prompt,
-            aspect_ratio
+            aspect_ratio,
+            user=user,
         )
         final_image_url = final_result['image_url']
         final_image_url = _check_and_remove_border(final_image_url, gen_id)
@@ -244,7 +246,7 @@ def run_style_ref_pipeline(
     gen_id, generation, book_data,
     style_reference_id, aspect_ratio, user_id, on_progress=None,
     base_image_only=False, reference_mode='both', two_step_generation=True,
-    text_blending_mode='ai_blend',
+    text_blending_mode='ai_blend', user=None,
 ):
     if reference_mode not in VALID_REFERENCE_MODES:
         reference_mode = 'both'
@@ -280,24 +282,24 @@ def run_style_ref_pipeline(
     if not two_step_generation or base_image_only:
         if base_image_only:
             progress(current_step, total_steps, "Preparing clean background reference...")
-            signed_ref_url = ensure_reference_variant(style_ref, 'clean', user_id)
+            signed_ref_url = ensure_reference_variant(style_ref, 'clean', user_id, user=user)
             current_step += 1
         elif reference_mode == 'background':
             progress(current_step, total_steps, "Preparing background reference...")
-            signed_ref_url = ensure_reference_variant(style_ref, 'clean', user_id)
+            signed_ref_url = ensure_reference_variant(style_ref, 'clean', user_id, user=user)
             current_step += 1
         elif reference_mode == 'text':
             progress(current_step, total_steps, "Preparing text reference...")
-            signed_ref_url = ensure_reference_variant(style_ref, 'text', user_id)
+            signed_ref_url = ensure_reference_variant(style_ref, 'text', user_id, user=user)
             current_step += 1
         else:
             signed_ref_url = storage_service.get_signed_url(style_ref.image_path, expires_in=600)
 
         progress(current_step, total_steps, "Generating image prompt...")
         if base_image_only:
-            unified_prompt = llm_service.generate_style_referenced_prompt_no_text(book_data, style_analysis=style_analysis, reference_mode='background')
+            unified_prompt = llm_service.generate_style_referenced_prompt_no_text(book_data, style_analysis=style_analysis, reference_mode='background', user=user)
         else:
-            unified_prompt = llm_service.generate_style_referenced_prompt(book_data, style_analysis=style_analysis, reference_mode=reference_mode)
+            unified_prompt = llm_service.generate_style_referenced_prompt(book_data, style_analysis=style_analysis, reference_mode=reference_mode, user=user)
 
         logger.info("Gen #%s Step %d/%d done. Prompt length: %d chars", gen_id, current_step, total_steps, len(unified_prompt))
         get_supabase().table('generations').update(
@@ -318,6 +320,7 @@ def run_style_ref_pipeline(
             [signed_ref_url],
             final_prompt_with_prefix,
             aspect_ratio,
+            user=user,
         )
         final_image_url = final_result['image_url']
         final_image_url = _check_and_remove_border(final_image_url, gen_id)
@@ -340,26 +343,27 @@ def run_style_ref_pipeline(
 
         if reference_mode == 'both':
             progress(current_step, total_steps, "Preparing clean background reference...")
-            signed_clean_url = ensure_reference_variant(style_ref, 'clean', user_id)
+            signed_clean_url = ensure_reference_variant(style_ref, 'clean', user_id, user=user)
             current_step += 1
 
             progress(current_step, total_steps, "Preparing text layer reference...")
-            signed_text_url = ensure_reference_variant(style_ref, 'text', user_id)
+            signed_text_url = ensure_reference_variant(style_ref, 'text', user_id, user=user)
             current_step += 1
         elif reference_mode == 'background':
             progress(current_step, total_steps, "Preparing background reference...")
-            signed_clean_url = ensure_reference_variant(style_ref, 'clean', user_id)
+            signed_clean_url = ensure_reference_variant(style_ref, 'clean', user_id, user=user)
             current_step += 1
         elif reference_mode == 'text':
             progress(current_step, total_steps, "Preparing text reference...")
-            signed_text_url = ensure_reference_variant(style_ref, 'text', user_id)
+            signed_text_url = ensure_reference_variant(style_ref, 'text', user_id, user=user)
             current_step += 1
 
         progress(current_step, total_steps, "Generating base image prompt...")
         base_prompt = llm_service.generate_style_referenced_prompt_no_text(
             book_data,
             style_analysis=style_analysis,
-            reference_mode=reference_mode if reference_mode != 'text' else 'background'
+            reference_mode=reference_mode if reference_mode != 'text' else 'background',
+            user=user,
         )
         base_prompt += " Do not include any text, words, letters, titles, or typography anywhere in the image."
 
@@ -387,9 +391,10 @@ def run_style_ref_pipeline(
                 reference_images,
                 base_prompt_with_prefix,
                 aspect_ratio,
+                user=user,
             )
         else:
-            base_result = image_service.generate_base_image(base_prompt, aspect_ratio)
+            base_result = image_service.generate_base_image(base_prompt, aspect_ratio, user=user)
 
         base_image_url = base_result['image_url']
         base_image_url = _check_and_remove_border(base_image_url, gen_id)
@@ -404,7 +409,7 @@ def run_style_ref_pipeline(
         current_step += 1
 
         progress(current_step, total_steps, "Adding text to cover...")
-        text_prompt = llm_service.generate_text_overlay_prompt(book_data)
+        text_prompt = llm_service.generate_text_overlay_prompt(book_data, user=user)
         get_supabase().table('generations').update(
             {'text_prompt': text_prompt}
         ).eq('id', generation.id).execute()
@@ -431,6 +436,7 @@ def run_style_ref_pipeline(
                 [signed_blended_url],
                 cleanup_prompt,
                 aspect_ratio,
+                user=user,
             )
             final_image_url = final_result['image_url']
 
@@ -445,6 +451,7 @@ def run_style_ref_pipeline(
                 final_reference_images,
                 final_prompt,
                 aspect_ratio,
+                user=user,
             )
             final_image_url = final_result['image_url']
 
@@ -457,6 +464,7 @@ def run_style_ref_pipeline(
                     [signed_base_url, signed_text_url],
                     blend_prompt,
                     aspect_ratio,
+                    user=user,
                 )
                 blended_url = blend_result['image_url']
 
@@ -467,12 +475,14 @@ def run_style_ref_pipeline(
                     book_data=book_data,
                     selected_texts=style_ref.text_layer_selected_texts or [],
                     cover_ideas=book_data.get('cover_ideas'),
+                    user=user,
                 )
                 logger.info("Gen #%s AI Blend Step 2 prompt: %s", gen_id, adjust_prompt[:200])
                 final_result = image_service.generate_image_with_text(
                     [signed_blended_url],
                     adjust_prompt,
                     aspect_ratio,
+                    user=user,
                 )
                 final_image_url = final_result['image_url']
 
@@ -483,6 +493,7 @@ def run_style_ref_pipeline(
                     final_reference_images,
                     final_prompt,
                     aspect_ratio,
+                    user=user,
                 )
                 final_image_url = final_result['image_url']
 

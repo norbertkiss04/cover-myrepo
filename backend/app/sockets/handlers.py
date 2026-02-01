@@ -5,8 +5,6 @@ from flask_socketio import emit, join_room, disconnect
 from app import socketio
 from app.models.generation import Generation, ASPECT_RATIOS
 from app.routes.auth import get_user_from_token
-from app.config import GENERATION_COST
-from app.services.credit_service import refund_credits
 from app.sockets.helpers import (
     connected_users,
     _room_for,
@@ -14,7 +12,7 @@ from app.sockets.helpers import (
     _check_recent_completion,
     _require_authenticated_user,
     _require_no_active_generation,
-    _deduct_and_refresh,
+    _validate_generation_credits,
     _check_socket_rate_limit,
     _cleanup_rate_limit,
 )
@@ -29,19 +27,20 @@ VALID_REFERENCE_MODES = ('both', 'background', 'text')
 VALID_BLENDING_MODES = ('ai', 'programmatic')
 
 
-def _launch_generation(generation, user, credit_result, text_blending_mode='ai'):
+def _launch_generation(generation, user, validation, text_blending_mode='ai'):
     emit('generation_started', {
         'generation_id': generation.id,
         'book_title': generation.book_title,
         'author_name': generation.author_name,
-        'remaining_credits': credit_result['remaining'],
+        'estimated_cost': validation['total'],
+        'user_credits': validation['user_credits'],
     }, room=_room_for(user.id))
 
     socketio.start_background_task(
         _run_generation_task,
         current_app._get_current_object(),
         generation,
-        user.id,
+        user,
         generation.style_reference_id,
         generation.use_style_image,
         generation.aspect_ratio,
@@ -151,10 +150,6 @@ def handle_start_generation(data):
         })
         return
 
-    user, credit_result = _deduct_and_refresh(user)
-    if not credit_result:
-        return
-
     reference_mode = data.get('reference_mode', 'both')
     if reference_mode not in VALID_REFERENCE_MODES:
         reference_mode = 'both'
@@ -164,6 +159,31 @@ def handle_start_generation(data):
         text_blending_mode = 'ai'
 
     two_step_generation = bool(data.get('two_step_generation', True))
+    use_style_image = bool(data.get('use_style_image', False))
+    style_reference_id = data.get('style_reference_id')
+
+    style_ref_has_clean = False
+    style_ref_has_text = False
+    if use_style_image and style_reference_id:
+        ref_result = get_supabase().table('style_references').select(
+            'clean_image_path, text_layer_path'
+        ).eq('id', style_reference_id).eq('user_id', user.id).execute()
+        if ref_result.data:
+            style_ref_has_clean = bool(ref_result.data[0].get('clean_image_path'))
+            style_ref_has_text = bool(ref_result.data[0].get('text_layer_path'))
+
+    user, validation = _validate_generation_credits(
+        user=user,
+        use_style_image=use_style_image,
+        base_image_only=base_image_only,
+        reference_mode=reference_mode,
+        text_blending_mode=text_blending_mode,
+        style_ref_has_clean=style_ref_has_clean,
+        style_ref_has_text=style_ref_has_text,
+        two_step_generation=two_step_generation,
+    )
+    if not validation:
+        return
 
     gen_data = {
         'user_id': user.id,
@@ -177,8 +197,8 @@ def handle_start_generation(data):
         'color_preference': sanitized.get('color_preference'),
         'character_description': sanitized.get('character_description'),
         'keywords': sanitized.get('keywords'),
-        'style_reference_id': data.get('style_reference_id'),
-        'use_style_image': bool(data.get('use_style_image', False)),
+        'style_reference_id': style_reference_id,
+        'use_style_image': use_style_image,
         'base_image_only': base_image_only,
         'reference_mode': reference_mode,
         'two_step_generation': two_step_generation,
@@ -189,11 +209,11 @@ def handle_start_generation(data):
     generation = Generation.from_row(result.data[0])
 
     logger.info(
-        "Gen #%s created via socket (user id=%s, use_style_image=%s, blending=%s)",
-        generation.id, user.id, generation.use_style_image, text_blending_mode,
+        "Gen #%s created via socket (user id=%s, use_style_image=%s, blending=%s, estimated_cost=%d)",
+        generation.id, user.id, generation.use_style_image, text_blending_mode, validation['total'],
     )
 
-    _launch_generation(generation, user, credit_result, text_blending_mode)
+    _launch_generation(generation, user, validation, text_blending_mode)
 
 
 @socketio.on('cancel_generation')
@@ -214,12 +234,9 @@ def handle_cancel_generation():
         'error_message': 'Cancelled by user',
     }).eq('id', active.id).execute()
 
-    remaining = refund_credits(user, GENERATION_COST)
-
     socketio.emit('generation_failed', {
         'generation_id': active.id,
         'error': 'Cancelled by user',
-        'remaining_credits': remaining,
     }, room=_room_for(user.id))
 
 
@@ -249,11 +266,30 @@ def handle_start_regeneration(data):
         emit('generation_error', {'error': 'Generation not found'})
         return
 
-    user, credit_result = _deduct_and_refresh(user)
-    if not credit_result:
-        return
-
     original = Generation.from_row(result.data[0])
+
+    style_ref_has_clean = False
+    style_ref_has_text = False
+    if original.use_style_image and original.style_reference_id:
+        ref_result = get_supabase().table('style_references').select(
+            'clean_image_path, text_layer_path'
+        ).eq('id', original.style_reference_id).eq('user_id', user.id).execute()
+        if ref_result.data:
+            style_ref_has_clean = bool(ref_result.data[0].get('clean_image_path'))
+            style_ref_has_text = bool(ref_result.data[0].get('text_layer_path'))
+
+    user, validation = _validate_generation_credits(
+        user=user,
+        use_style_image=original.use_style_image,
+        base_image_only=original.base_image_only,
+        reference_mode=original.reference_mode or 'both',
+        text_blending_mode='ai',
+        style_ref_has_clean=style_ref_has_clean,
+        style_ref_has_text=style_ref_has_text,
+        two_step_generation=original.two_step_generation,
+    )
+    if not validation:
+        return
 
     new_gen_data = {
         'user_id': user.id,
@@ -279,8 +315,8 @@ def handle_start_regeneration(data):
     new_generation = Generation.from_row(insert_result.data[0])
 
     logger.info(
-        "Gen #%s created for regeneration from #%s (user id=%s)",
-        new_generation.id, generation_id, user.id,
+        "Gen #%s created for regeneration from #%s (user id=%s, estimated_cost=%d)",
+        new_generation.id, generation_id, user.id, validation['total'],
     )
 
-    _launch_generation(new_generation, user, credit_result)
+    _launch_generation(new_generation, user, validation)

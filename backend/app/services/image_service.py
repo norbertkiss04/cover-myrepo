@@ -5,6 +5,8 @@ import requests
 from flask import current_app
 from PIL import Image
 
+from app.services.credit_service import deduct_image_credit, InsufficientCreditsError
+
 logger = logging.getLogger(__name__)
 
 
@@ -100,7 +102,13 @@ class ImageService:
         ratio_info = ASPECT_RATIOS.get(aspect_ratio, ASPECT_RATIOS['2:3'])
         return f"{ratio_info['width']}*{ratio_info['height']}"
 
-    def _submit(self, url, payload):
+    def _submit(self, url, payload, user=None):
+        if user is not None:
+            result = deduct_image_credit(user)
+            if not result['success']:
+                raise InsufficientCreditsError(required=6, available=result['remaining'])
+            logger.info("Deducted 6 image credits for user id=%s", user.id)
+
         logger.info(f"Submitting job to {url}")
 
         r = requests.post(url, headers=self._headers(), json=payload, timeout=30)
@@ -148,7 +156,7 @@ class ImageService:
 
             time.sleep(interval)
 
-    def generate_base_image(self, prompt, aspect_ratio='2:3'):
+    def generate_base_image(self, prompt, aspect_ratio='2:3', user=None):
         self._get_config()
 
         size = self._get_size_string(aspect_ratio)
@@ -162,12 +170,13 @@ class ImageService:
 
         job_id = self._submit(
             f'{self.base_url}/bytedance/seedream-v4.5',
-            payload
+            payload,
+            user=user,
         )
         image_url = self._poll(job_id)
         return {'image_url': image_url}
 
-    def generate_image_with_text(self, image_urls, text_prompt, aspect_ratio='2:3'):
+    def generate_image_with_text(self, image_urls, text_prompt, aspect_ratio='2:3', user=None):
         self._get_config()
 
         if isinstance(image_urls, str):
@@ -185,12 +194,13 @@ class ImageService:
 
         job_id = self._submit(
             f'{self.base_url}/bytedance/seedream-v4.5/edit',
-            payload
+            payload,
+            user=user,
         )
         image_url = self._poll(job_id)
         return {'image_url': image_url}
 
-    def generate_clean_background(self, image_url, aspect_ratio='2:3'):
+    def generate_clean_background(self, image_url, aspect_ratio='2:3', user=None):
         self._get_config()
 
         size = self._get_size_string(aspect_ratio)
@@ -211,12 +221,13 @@ class ImageService:
 
         job_id = self._submit(
             f'{self.base_url}/bytedance/seedream-v4.5/edit',
-            payload
+            payload,
+            user=user,
         )
         result_url = self._poll(job_id)
         return {'image_url': result_url}
 
-    def generate_text_layer(self, image_url, aspect_ratio='2:3', selected_texts=None):
+    def generate_text_layer(self, image_url, aspect_ratio='2:3', selected_texts=None, user=None):
         self._get_config()
 
         size = self._get_size_string(aspect_ratio)
@@ -253,12 +264,13 @@ class ImageService:
 
         job_id = self._submit(
             f'{self.base_url}/bytedance/seedream-v4.5/edit',
-            payload
+            payload,
+            user=user,
         )
         result_url = self._poll(job_id)
         return {'image_url': result_url}
 
-    def cleanup_text_layer(self, image_url, artifacts_description, aspect_ratio='2:3'):
+    def cleanup_text_layer(self, image_url, artifacts_description, aspect_ratio='2:3', user=None):
         self._get_config()
 
         size = self._get_size_string(aspect_ratio)
@@ -282,7 +294,8 @@ class ImageService:
         logger.info("Cleaning up text layer, removing: %s", artifacts_description[:100])
         job_id = self._submit(
             f'{self.base_url}/bytedance/seedream-v4.5/edit',
-            payload
+            payload,
+            user=user,
         )
         result_url = self._poll(job_id)
         logger.info("Text layer cleanup complete")

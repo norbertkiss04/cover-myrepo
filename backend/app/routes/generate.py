@@ -8,6 +8,13 @@ from app.models.style_reference import StyleReference
 from app.routes.auth import token_required
 from app.services.llm_service import llm_service
 from app.services.storage_service import storage_service
+from app.services.credit_service import (
+    calculate_generation_cost,
+    calculate_style_ref_upload_cost,
+    validate_generation_credits,
+    check_can_afford,
+    InsufficientCreditsError,
+)
 from app.utils.db import get_supabase
 from app.utils.validation import sanitize_text, MAX_SHORT_TEXT_LENGTH
 from app import limiter
@@ -49,6 +56,50 @@ def get_aspect_ratios():
     response.headers['Cache-Control'] = 'public, max-age=3600'
     return response
 
+
+@generate_bp.route('/estimate-cost', methods=['POST'])
+@token_required
+def estimate_generation_cost(current_user):
+    data = request.get_json() or {}
+
+    use_style_image = bool(data.get('use_style_image', False))
+    base_image_only = bool(data.get('base_image_only', False))
+    reference_mode = data.get('reference_mode', 'both')
+    text_blending_mode = data.get('text_blending_mode', 'ai')
+    two_step_generation = bool(data.get('two_step_generation', True))
+    style_reference_id = data.get('style_reference_id')
+
+    style_ref_has_clean = False
+    style_ref_has_text = False
+
+    if use_style_image and style_reference_id:
+        result = get_supabase().table('style_references').select(
+            'clean_image_path, text_layer_path'
+        ).eq('id', style_reference_id).eq('user_id', current_user.id).execute()
+
+        if result.data:
+            style_ref_has_clean = bool(result.data[0].get('clean_image_path'))
+            style_ref_has_text = bool(result.data[0].get('text_layer_path'))
+
+    cost_info = validate_generation_credits(
+        user=current_user,
+        use_style_image=use_style_image,
+        base_image_only=base_image_only,
+        reference_mode=reference_mode,
+        text_blending_mode=text_blending_mode,
+        style_ref_has_clean=style_ref_has_clean,
+        style_ref_has_text=style_ref_has_text,
+        two_step_generation=two_step_generation,
+    )
+
+    logger.info(
+        "Cost estimate for user id=%s: total=%d, can_afford=%s",
+        current_user.id, cost_info['total'], cost_info['can_afford'],
+    )
+
+    return jsonify(cost_info)
+
+
 @generate_bp.route('/upload-style-reference', methods=['POST'])
 @limiter.limit("10 per minute")
 @token_required
@@ -66,7 +117,15 @@ def upload_style_reference(current_user):
     if len(image_data_url) > MAX_IMAGE_BASE64_SIZE:
         return jsonify({'error': 'Image too large. Maximum size is 5MB.'}), 400
 
-    logger.info("Style reference upload from user id=%s", current_user.id)
+    upload_cost = calculate_style_ref_upload_cost()
+    if not check_can_afford(current_user, upload_cost['total']):
+        return jsonify({
+            'error': f"Not enough credits. Style reference upload costs {upload_cost['total']} credits.",
+            'required': upload_cost['total'],
+            'available': current_user.credits,
+        }), 402
+
+    logger.info("Style reference upload from user id=%s (cost=%d)", current_user.id, upload_cost['total'])
 
     try:
         header, b64_data = image_data_url.split(',', 1)
@@ -91,11 +150,11 @@ def upload_style_reference(current_user):
 
         signed_url = storage_service.get_signed_url(image_path, expires_in=300)
         logger.info("Analyzing style reference image...")
-        analysis = llm_service.analyze_style_reference(signed_url)
+        analysis = llm_service.analyze_style_reference(signed_url, user=current_user)
         logger.info("Style analysis complete: %s", analysis.get('suggested_title', ''))
 
         logger.info("Detecting text in style reference image...")
-        detected_text = llm_service.detect_text_in_image(signed_url)
+        detected_text = llm_service.detect_text_in_image(signed_url, user=current_user)
         logger.info("Text detection complete: found %d segments", len(detected_text))
 
         all_text_ids = [t['id'] for t in detected_text]
