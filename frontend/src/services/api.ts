@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { AxiosRequestConfig } from 'axios';
 import { supabase, getAccessToken, setCurrentSession } from '../lib/supabase';
-import type { User, UserPreferences, Generation, PaginatedResponse, AspectRatioInfo, StyleReference, Invite } from '../types';
+import type { User, UserPreferences, Generation, PaginatedResponse, AspectRatioInfo, StyleReference, Invite, ApiTokenInfo, ApiTokenResponse } from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -122,6 +122,20 @@ export const authApi = {
 
   logout: async (): Promise<void> => {
     await api.post('/auth/logout');
+  },
+
+  getApiToken: async (): Promise<ApiTokenInfo> => {
+    const response = await api.get('/auth/api-token');
+    return response.data;
+  },
+
+  generateApiToken: async (): Promise<ApiTokenResponse> => {
+    const response = await api.post('/auth/api-token');
+    return response.data;
+  },
+
+  revokeApiToken: async (): Promise<void> => {
+    await api.delete('/auth/api-token');
   },
 };
 

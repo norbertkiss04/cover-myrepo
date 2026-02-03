@@ -131,3 +131,13 @@ export interface Invite {
   expires_at: string;
   used_at: string | null;
 }
+
+export interface ApiTokenInfo {
+  has_token: boolean;
+  token: string | null;
+}
+
+export interface ApiTokenResponse {
+  token: string;
+  message: string;
+}

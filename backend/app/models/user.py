@@ -14,6 +14,7 @@ class User:
     preferences: Optional[dict] = None
     credits: int = INITIAL_CREDITS
     is_admin: bool = False
+    api_token: Optional[str] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
@@ -28,6 +29,7 @@ class User:
             preferences=row.get('preferences') or {},
             credits=row.get('credits', INITIAL_CREDITS),
             is_admin=bool(row.get('is_admin', False)),
+            api_token=row.get('api_token'),
             created_at=row.get('created_at'),
             updated_at=row.get('updated_at'),
         )

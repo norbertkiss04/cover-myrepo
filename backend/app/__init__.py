@@ -94,10 +94,12 @@ def create_app(config_name=None):
 
     from app.routes.auth import auth_bp
     from app.routes.generate import generate_bp
+    from app.routes.api_v1 import api_v1_bp
 
     app.register_blueprint(auth_bp, url_prefix='/auth')
     app.register_blueprint(generate_bp, url_prefix='/api')
-    logger.info("Blueprints registered: /auth, /api")
+    app.register_blueprint(api_v1_bp, url_prefix='/api/v1')
+    logger.info("Blueprints registered: /auth, /api, /api/v1")
 
     from app import sockets as _socket_handlers
     logger.info("Socket handlers registered (%s)", _socket_handlers.__name__)

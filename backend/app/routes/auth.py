@@ -18,6 +18,9 @@ INVITE_CODE_BYTES = 16
 INVITE_EXPIRY_DAYS = 7
 MAX_INVITE_CODE_LENGTH = 64
 
+API_TOKEN_PREFIX = 'ic_'
+API_TOKEN_BYTES = 32
+
 
 def sanitize_invite_code(value):
     if value is None:
@@ -33,6 +36,10 @@ def sanitize_invite_code(value):
 def generate_invite_code():
     return secrets.token_urlsafe(INVITE_CODE_BYTES).rstrip('=')
 
+
+def generate_api_token():
+    return API_TOKEN_PREFIX + secrets.token_hex(API_TOKEN_BYTES)
+
 def get_user_from_token(token):
     try:
         logger.debug("Validating token via Supabase...")
@@ -42,6 +49,52 @@ def get_user_from_token(token):
     except Exception as e:
         logger.warning("Token validation failed: %s", e)
         return None
+
+
+def get_user_from_api_token(api_token):
+    if not api_token or not api_token.startswith(API_TOKEN_PREFIX):
+        return None
+
+    try:
+        sb = current_app.supabase
+        result = sb.table('users').select('*').eq('api_token', api_token).execute()
+        if result.data:
+            from app.models.user import User
+            return User.from_row(result.data[0])
+        return None
+    except Exception as e:
+        logger.warning("API token lookup failed: %s", e)
+        return None
+
+
+def api_token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        api_token = None
+
+        auth_header = request.headers.get('Authorization')
+        if auth_header and auth_header.startswith('Bearer '):
+            token = auth_header.split(' ')[1]
+            if token.startswith(API_TOKEN_PREFIX):
+                api_token = token
+
+        if not api_token:
+            api_token = request.headers.get('X-API-Key')
+
+        if not api_token:
+            logger.warning("API request missing token: %s %s", request.method, request.path)
+            return jsonify({'error': 'API token is missing'}), 401
+
+        user = get_user_from_api_token(api_token)
+        if not user:
+            logger.warning("Invalid API token for %s %s", request.method, request.path)
+            return jsonify({'error': 'Invalid API token'}), 401
+
+        logger.info("API request authenticated for user id=%s", user.id)
+        return f(user, *args, **kwargs)
+
+    return decorated
+
 
 def token_required(f):
     @wraps(f)
@@ -393,3 +446,63 @@ def give_credits(current_user):
 def logout(current_user):
     logger.info("User logged out (id=%s)", current_user.id)
     return jsonify({'message': 'Logged out successfully'})
+
+
+@auth_bp.route('/api-token', methods=['GET'])
+@token_required
+def get_api_token(current_user):
+    has_token = current_user.api_token is not None
+    logger.info("API token status check for user id=%s (has_token=%s)", current_user.id, has_token)
+    return jsonify({
+        'has_token': has_token,
+        'token': current_user.api_token if has_token else None,
+    })
+
+
+@auth_bp.route('/api-token', methods=['POST'])
+@limiter.limit("5 per minute")
+@token_required
+def create_api_token(current_user):
+    new_token = generate_api_token()
+
+    sb = current_app.supabase
+    try:
+        result = sb.table('users').update({
+            'api_token': new_token
+        }).eq('id', current_user.id).execute()
+
+        if not result.data:
+            logger.error("Failed to save API token for user id=%s", current_user.id)
+            return jsonify({'error': 'Failed to generate token'}), 500
+
+        logger.info("API token generated for user id=%s", current_user.id)
+        return jsonify({
+            'token': new_token,
+            'message': 'API token generated successfully',
+        })
+    except Exception as e:
+        logger.error("Failed to generate API token for user id=%s: %s", current_user.id, e)
+        return jsonify({'error': 'Failed to generate token'}), 500
+
+
+@auth_bp.route('/api-token', methods=['DELETE'])
+@token_required
+def revoke_api_token(current_user):
+    if not current_user.api_token:
+        return jsonify({'error': 'No API token to revoke'}), 400
+
+    sb = current_app.supabase
+    try:
+        result = sb.table('users').update({
+            'api_token': None
+        }).eq('id', current_user.id).execute()
+
+        if not result.data:
+            logger.error("Failed to revoke API token for user id=%s", current_user.id)
+            return jsonify({'error': 'Failed to revoke token'}), 500
+
+        logger.info("API token revoked for user id=%s", current_user.id)
+        return jsonify({'message': 'API token revoked successfully'})
+    except Exception as e:
+        logger.error("Failed to revoke API token for user id=%s: %s", current_user.id, e)
+        return jsonify({'error': 'Failed to revoke token'}), 500

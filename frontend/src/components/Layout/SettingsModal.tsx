@@ -17,7 +17,7 @@ const OPTIONAL_FIELDS = [
   { key: 'reference_image_description', label: 'Style Reference' },
 ];
 
-type TabId = 'account' | 'preferences';
+type TabId = 'account' | 'preferences' | 'api';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -50,6 +50,13 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [creditStatus, setCreditStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [creditLoading, setCreditLoading] = useState(false);
 
+  const [apiToken, setApiToken] = useState<string | null>(null);
+  const [apiTokenLoading, setApiTokenLoading] = useState(false);
+  const [apiTokenStatus, setApiTokenStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [showApiToken, setShowApiToken] = useState(false);
+  const [confirmingRevoke, setConfirmingRevoke] = useState(false);
+  const [confirmingRegenerate, setConfirmingRegenerate] = useState(false);
+
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
@@ -73,6 +80,11 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       setCreditEmail('');
       setCreditAmount('');
       setCreditStatus(null);
+      setApiToken(null);
+      setApiTokenStatus(null);
+      setShowApiToken(false);
+      setConfirmingRevoke(false);
+      setConfirmingRegenerate(false);
     }
   }, [isOpen]);
 
@@ -93,6 +105,21 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     
     fetchInvites();
   }, [isOpen, user?.is_admin]);
+
+  useEffect(() => {
+    if (!isOpen || !isAuthenticated) return;
+
+    const fetchApiToken = async () => {
+      try {
+        const data = await authApi.getApiToken();
+        setApiToken(data.token);
+      } catch {
+        setApiToken(null);
+      }
+    };
+
+    fetchApiToken();
+  }, [isOpen, isAuthenticated]);
 
   const handleEmailChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -204,6 +231,50 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       setCreditStatus({ type: 'error', message: serverMessage });
     } finally {
       setCreditLoading(false);
+    }
+  };
+
+  const handleGenerateApiToken = async () => {
+    setApiTokenLoading(true);
+    setApiTokenStatus(null);
+    setConfirmingRegenerate(false);
+    try {
+      const result = await authApi.generateApiToken();
+      setApiToken(result.token);
+      setShowApiToken(true);
+      setApiTokenStatus({ type: 'success', message: apiToken ? 'API token regenerated.' : 'API token generated.' });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to generate token';
+      setApiTokenStatus({ type: 'error', message });
+    } finally {
+      setApiTokenLoading(false);
+    }
+  };
+
+  const handleRevokeApiToken = async () => {
+    setApiTokenLoading(true);
+    setApiTokenStatus(null);
+    setConfirmingRevoke(false);
+    try {
+      await authApi.revokeApiToken();
+      setApiToken(null);
+      setShowApiToken(false);
+      setApiTokenStatus({ type: 'success', message: 'API token revoked.' });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to revoke token';
+      setApiTokenStatus({ type: 'error', message });
+    } finally {
+      setApiTokenLoading(false);
+    }
+  };
+
+  const handleCopyApiToken = async () => {
+    if (!apiToken) return;
+    try {
+      await navigator.clipboard.writeText(apiToken);
+      setApiTokenStatus({ type: 'success', message: 'API token copied to clipboard.' });
+    } catch {
+      setApiTokenStatus({ type: 'error', message: 'Failed to copy token.' });
     }
   };
 
@@ -617,6 +688,165 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     </div>
   );
 
+  const renderApiTab = () => (
+    <div className="space-y-4">
+      <div>
+        <div className="flex items-center gap-2 mb-2">
+          <svg className="w-4 h-4 text-text-muted" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z" />
+          </svg>
+          <span className="text-sm font-medium text-text">API Access</span>
+        </div>
+        <p className="text-xs text-text-muted mb-3">
+          Use your API token to generate covers programmatically. The token works with the /api/v1/ endpoints.
+        </p>
+        {apiTokenStatus && (
+          <div className={`mb-3 p-2 rounded-lg text-xs ${
+            apiTokenStatus.type === 'success'
+              ? 'bg-success-bg border border-success-border text-success'
+              : 'bg-error-bg border border-error-border text-error'
+          }`}>
+            {apiTokenStatus.message}
+          </div>
+        )}
+        {apiToken ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <input
+                type={showApiToken ? 'text' : 'password'}
+                readOnly
+                value={apiToken}
+                className="flex-1 px-3 py-2 bg-surface-alt border border-border rounded-lg text-text font-mono text-sm"
+              />
+              <button
+                type="button"
+                onClick={() => setShowApiToken(!showApiToken)}
+                className="p-2 text-text-muted hover:text-text transition-colors"
+                title={showApiToken ? 'Hide token' : 'Show token'}
+              >
+                {showApiToken ? (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                  </svg>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={handleCopyApiToken}
+                className="p-2 text-text-muted hover:text-text transition-colors"
+                title="Copy token"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" />
+                </svg>
+              </button>
+            </div>
+            <div className="flex gap-2">
+              {confirmingRegenerate ? (
+                <>
+                  <span className="text-xs text-text-muted py-1.5">Regenerate token? This will invalidate the current one.</span>
+                  <button
+                    type="button"
+                    onClick={handleGenerateApiToken}
+                    disabled={apiTokenLoading}
+                    className="px-3 py-1.5 bg-error text-white rounded-lg text-sm font-medium hover:bg-error/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingRegenerate(false)}
+                    className="px-3 py-1.5 bg-surface-alt border border-border rounded-lg text-sm font-medium text-text-secondary hover:text-text transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : confirmingRevoke ? (
+                <>
+                  <span className="text-xs text-text-muted py-1.5">Revoke token? API access will be disabled.</span>
+                  <button
+                    type="button"
+                    onClick={handleRevokeApiToken}
+                    disabled={apiTokenLoading}
+                    className="px-3 py-1.5 bg-error text-white rounded-lg text-sm font-medium hover:bg-error/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingRevoke(false)}
+                    className="px-3 py-1.5 bg-surface-alt border border-border rounded-lg text-sm font-medium text-text-secondary hover:text-text transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingRegenerate(true)}
+                    disabled={apiTokenLoading}
+                    className="px-3 py-1.5 bg-surface-alt border border-border rounded-lg text-sm font-medium text-text-secondary hover:text-text hover:border-accent/40 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Regenerate
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingRevoke(true)}
+                    disabled={apiTokenLoading}
+                    className="px-3 py-1.5 bg-surface-alt border border-border rounded-lg text-sm font-medium text-error hover:bg-error/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Revoke
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={handleGenerateApiToken}
+            disabled={apiTokenLoading}
+            className="px-3 py-1.5 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            {apiTokenLoading ? 'Generating...' : 'Generate API Token'}
+          </button>
+        )}
+      </div>
+
+      <div className="border-t border-border pt-4">
+        <div className="flex items-center gap-2 mb-2">
+          <svg className="w-4 h-4 text-text-muted" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" />
+          </svg>
+          <span className="text-sm font-medium text-text">Quick Reference</span>
+        </div>
+        <div className="bg-surface-alt/60 border border-border rounded-lg p-3 text-xs font-mono space-y-2">
+          <div>
+            <span className="text-text-muted">Base URL:</span>{' '}
+            <span className="text-text">{window.location.origin.replace(/:\d+$/, ':5000')}/api/v1</span>
+          </div>
+          <div>
+            <span className="text-text-muted">Auth Header:</span>{' '}
+            <span className="text-text">Authorization: Bearer ic_...</span>
+          </div>
+          <div className="pt-2 border-t border-border space-y-1">
+            <div><span className="text-info">GET</span> <span className="text-text">/me</span> <span className="text-text-muted">- Your account info</span></div>
+            <div><span className="text-info">GET</span> <span className="text-text">/settings</span> <span className="text-text-muted">- Available options</span></div>
+            <div><span className="text-info">GET</span> <span className="text-text">/styles</span> <span className="text-text-muted">- Your style references</span></div>
+            <div><span className="text-success">POST</span> <span className="text-text">/generate</span> <span className="text-text-muted">- Create a cover</span></div>
+            <div><span className="text-info">GET</span> <span className="text-text">/generations</span> <span className="text-text-muted">- Your history</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div
@@ -714,12 +944,23 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 >
                   Preferences
                 </button>
+                <button
+                  onClick={() => setActiveTab('api')}
+                  className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    activeTab === 'api'
+                      ? 'bg-surface text-text shadow-sm'
+                      : 'text-text-muted hover:text-text'
+                  }`}
+                >
+                  API
+                </button>
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4">
               {activeTab === 'account' && renderAccountTab()}
               {activeTab === 'preferences' && renderPreferencesTab()}
+              {activeTab === 'api' && renderApiTab()}
             </div>
 
             <div className="border-t border-border p-4 flex justify-end">
