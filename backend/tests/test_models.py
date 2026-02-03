@@ -245,10 +245,11 @@ def test_generation_to_dict_includes_all_keys():
         'genres', 'mood', 'color_preference', 'character_description',
         'keywords', 'style_analysis',
         'style_reference_id', 'use_style_image',
-        'base_image_only', 'reference_mode', 'aspect_ratio', 'aspect_ratio_info',
+        'base_image_only', 'reference_mode', 'two_step_generation',
+        'aspect_ratio', 'aspect_ratio_info',
         'base_prompt', 'text_prompt', 'base_image_url', 'final_image_url',
         'current_step', 'total_steps', 'step_message', 'status',
-        'error_message', 'created_at', 'completed_at',
+        'error_message', 'credits_used', 'created_at', 'completed_at',
     }
     assert set(d.keys()) == expected_keys
 

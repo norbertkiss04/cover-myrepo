@@ -286,28 +286,17 @@ class TestGenerate:
         assert 'credit' in data['error'].lower()
 
     def test_generate_success(self, client, api_token_headers, app):
-        mock_generation = MagicMock()
-        mock_generation.id = 1
-        mock_generation.status = 'completed'
-        mock_generation.base_image_url = 'https://storage.example.com/base.png'
-        mock_generation.final_image_url = 'https://storage.example.com/final.png'
-        mock_generation.created_at = '2025-01-01T00:00:00Z'
-        mock_generation.completed_at = '2025-01-01T00:01:00Z'
-
-        with patch('app.routes.api_v1.run_standard_pipeline', return_value=mock_generation):
-            with patch.object(storage_service, 'get_signed_url', return_value='https://signed-url.com/image.png'):
-                with patch.object(storage_service, 'extract_path', return_value='covers/image.png'):
-                    response = client.post('/api/v1/generate', headers=api_token_headers, json={
-                        'book_title': 'Test Book',
-                        'author_name': 'Test Author',
-                        'genres': ['Fantasy'],
-                    })
+        response = client.post('/api/v1/generate', headers=api_token_headers, json={
+            'book_title': 'Test Book',
+            'author_name': 'Test Author',
+            'genres': ['Fantasy'],
+        })
 
         assert response.status_code == 200
         data = response.get_json()
-        assert data['status'] == 'completed'
-        assert 'final_image_url' in data
-        assert 'credits_used' in data
+        assert data['status'] == 'processing'
+        assert 'generation_id' in data
+        assert isinstance(data['generation_id'], int)
 
 
 class TestGetGenerations:
@@ -429,7 +418,7 @@ class TestGetGenerationById:
 
         assert response.status_code == 404
 
-    def test_success(self, client, api_token_headers, app):
+    def test_success_completed(self, client, api_token_headers, app):
         app._test_store.setdefault('generations', []).append({
             'id': 25,
             'user_id': 101,
@@ -437,15 +426,63 @@ class TestGetGenerationById:
             'author_name': 'My Author',
             'status': 'completed',
             'aspect_ratio': '2:3',
+            'base_image_url': 'https://example.com/base.png',
             'final_image_url': 'https://example.com/final.png',
+            'credits_used': 27,
             'created_at': '2025-01-01T00:00:00Z',
             'completed_at': '2025-01-01T00:01:00Z',
         })
 
-        with patch.object(storage_service, 'sign_generation_dict', side_effect=lambda d: d):
-            response = client.get('/api/v1/generations/25', headers=api_token_headers)
+        with patch.object(storage_service, 'get_signed_url', return_value='https://signed-url.com/image.png'):
+            with patch.object(storage_service, 'extract_path', return_value='covers/image.png'):
+                response = client.get('/api/v1/generations/25', headers=api_token_headers)
 
         assert response.status_code == 200
         data = response.get_json()
-        assert data['book_title'] == 'My Book'
-        assert data['author_name'] == 'My Author'
+        assert data['generation_id'] == 25
+        assert data['status'] == 'completed'
+        assert 'base_image_url' in data
+        assert 'cover_image_url' in data
+        assert data['credits_used'] == 27
+
+    def test_success_processing(self, client, api_token_headers, app):
+        from datetime import datetime, timezone
+        recent_time = datetime.now(timezone.utc).isoformat()
+        app._test_store.setdefault('generations', []).append({
+            'id': 26,
+            'user_id': 101,
+            'book_title': 'My Book',
+            'author_name': 'My Author',
+            'status': 'generating',
+            'aspect_ratio': '2:3',
+            'created_at': recent_time,
+        })
+
+        response = client.get('/api/v1/generations/26', headers=api_token_headers)
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['generation_id'] == 26
+        assert data['status'] == 'processing'
+        assert 'base_image_url' not in data
+        assert 'cover_image_url' not in data
+
+    def test_success_failed(self, client, api_token_headers, app):
+        app._test_store.setdefault('generations', []).append({
+            'id': 27,
+            'user_id': 101,
+            'book_title': 'My Book',
+            'author_name': 'My Author',
+            'status': 'failed',
+            'error_message': 'Something went wrong',
+            'aspect_ratio': '2:3',
+            'created_at': '2025-01-01T00:00:00Z',
+        })
+
+        response = client.get('/api/v1/generations/27', headers=api_token_headers)
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['generation_id'] == 27
+        assert data['status'] == 'failed'
+        assert data['error'] == 'Something went wrong'

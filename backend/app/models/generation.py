@@ -39,6 +39,7 @@ class Generation:
     step_message: Optional[str] = None
     status: str = 'pending'
     error_message: Optional[str] = None
+    credits_used: Optional[int] = None
     created_at: Optional[str] = None
     completed_at: Optional[str] = None
 
@@ -74,6 +75,7 @@ class Generation:
             step_message=row.get('step_message'),
             status=row.get('status', 'pending'),
             error_message=row.get('error_message'),
+            credits_used=row.get('credits_used'),
             created_at=row.get('created_at'),
             completed_at=row.get('completed_at'),
         )
@@ -107,6 +109,7 @@ class Generation:
             'step_message': self.step_message,
             'status': self.status,
             'error_message': self.error_message,
+            'credits_used': self.credits_used,
             'created_at': self.created_at,
             'completed_at': self.completed_at,
         }

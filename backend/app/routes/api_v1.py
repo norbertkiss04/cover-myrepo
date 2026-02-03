@@ -1,7 +1,7 @@
 import logging
 import math
 from datetime import datetime, timezone
-from flask import Blueprint, request, jsonify, make_response
+from flask import Blueprint, request, jsonify, make_response, current_app
 
 from app.models.generation import Generation, ASPECT_RATIOS
 from app.models.style_reference import StyleReference
@@ -22,11 +22,109 @@ from app.services.pipeline_service import (
 )
 from app.utils.db import get_supabase
 from app.utils.validation import sanitize_text, MAX_SHORT_TEXT_LENGTH, MAX_LONG_TEXT_LENGTH
-from app import limiter
+from app import limiter, socketio
 
 logger = logging.getLogger(__name__)
 
 api_v1_bp = Blueprint('api_v1', __name__)
+
+_api_running_tasks = set()
+API_GENERATION_TIMEOUT_SECONDS = 300
+
+
+def _is_api_generation_stale(generation):
+    if not generation.created_at:
+        return False
+    try:
+        created = datetime.fromisoformat(generation.created_at.replace('Z', '+00:00'))
+        age_seconds = (datetime.now(timezone.utc) - created).total_seconds()
+        return age_seconds > API_GENERATION_TIMEOUT_SECONDS
+    except (ValueError, TypeError):
+        return False
+
+
+def _fail_stale_api_generation(gen_id):
+    now = datetime.now(timezone.utc).isoformat()
+    get_supabase().table('generations').update({
+        'status': 'failed',
+        'error_message': 'Generation timed out',
+        'completed_at': now,
+    }).eq('id', gen_id).execute()
+    logger.warning("API v1: Generation #%s marked as failed (stale)", gen_id)
+
+
+def _run_api_generation_task(app, generation, user, style_reference_id, use_style_image,
+                              aspect_ratio, base_image_only, reference_mode, text_blending_mode):
+    with app.app_context():
+        gen_id = generation.id
+
+        if gen_id in _api_running_tasks:
+            logger.warning("API v1: Gen #%s task already running, aborting duplicate", gen_id)
+            return
+
+        status_check = get_supabase().table('generations').select('status').eq('id', gen_id).execute()
+        if not status_check.data or status_check.data[0]['status'] != 'generating':
+            logger.warning("API v1: Gen #%s not in 'generating' status, aborting task", gen_id)
+            return
+
+        _api_running_tasks.add(gen_id)
+
+        try:
+            book_data = {
+                'book_title': generation.book_title,
+                'author_name': generation.author_name,
+                'cover_ideas': generation.cover_ideas,
+                'description': generation.description,
+                'genres': generation.genres,
+                'mood': generation.mood,
+                'color_preference': generation.color_preference,
+                'character_description': generation.character_description,
+                'keywords': generation.keywords,
+            }
+
+            if use_style_image and style_reference_id:
+                run_style_ref_pipeline(
+                    gen_id=gen_id,
+                    generation=generation,
+                    book_data=book_data,
+                    style_reference_id=style_reference_id,
+                    aspect_ratio=aspect_ratio,
+                    user_id=user.id,
+                    on_progress=None,
+                    base_image_only=base_image_only,
+                    reference_mode=reference_mode,
+                    two_step_generation=generation.two_step_generation,
+                    text_blending_mode=text_blending_mode,
+                    user=user,
+                )
+            else:
+                run_standard_pipeline(
+                    gen_id=gen_id,
+                    generation=generation,
+                    book_data=book_data,
+                    aspect_ratio=aspect_ratio,
+                    on_progress=None,
+                    base_image_only=base_image_only,
+                    two_step_generation=generation.two_step_generation,
+                    user=user,
+                )
+
+            logger.info("API v1: Generation #%s background task completed successfully", gen_id)
+
+        except GenerationCancelled:
+            logger.info("API v1: Generation #%s was cancelled", gen_id)
+
+        except Exception as e:
+            logger.error("API v1: Generation #%s background task failed: %s", gen_id, e, exc_info=True)
+            now = datetime.now(timezone.utc).isoformat()
+            get_supabase().table('generations').update({
+                'status': 'failed',
+                'error_message': str(e)[:500],
+                'completed_at': now,
+            }).eq('id', gen_id).execute()
+
+        finally:
+            _api_running_tasks.discard(gen_id)
 
 
 @api_v1_bp.route('/me', methods=['GET'])
@@ -243,6 +341,7 @@ def generate(current_user):
         'base_image_only': base_image_only,
         'reference_mode': reference_mode,
         'two_step_generation': two_step_generation,
+        'credits_used': cost_info['total'],
         'status': 'generating',
     }
 
@@ -256,80 +355,25 @@ def generate(current_user):
         refund_credits(current_user, cost_info['total'])
         return jsonify({'error': 'Failed to start generation'}), 500
 
-    book_data = {
-        'book_title': book_title,
-        'author_name': author_name,
-        'description': description,
-        'genres': genres,
-        'mood': mood,
-        'color_preference': color_preference,
-        'character_description': character_description,
-        'keywords': keywords,
-        'cover_ideas': cover_ideas,
-    }
+    socketio.start_background_task(
+        _run_api_generation_task,
+        app=current_app._get_current_object(),
+        generation=generation,
+        user=current_user,
+        style_reference_id=style_reference_id if use_style_image else None,
+        use_style_image=use_style_image,
+        aspect_ratio=aspect_ratio,
+        base_image_only=base_image_only,
+        reference_mode=reference_mode,
+        text_blending_mode=text_blending_mode,
+    )
 
-    try:
-        if use_style_image and style_reference_id:
-            final_gen = run_style_ref_pipeline(
-                gen_id=gen_id,
-                generation=generation,
-                book_data=book_data,
-                style_reference_id=style_reference_id,
-                aspect_ratio=aspect_ratio,
-                user_id=current_user.id,
-                on_progress=None,
-                base_image_only=base_image_only,
-                reference_mode=reference_mode,
-                two_step_generation=two_step_generation,
-                text_blending_mode=text_blending_mode,
-                user=current_user,
-            )
-        else:
-            final_gen = run_standard_pipeline(
-                gen_id=gen_id,
-                generation=generation,
-                book_data=book_data,
-                aspect_ratio=aspect_ratio,
-                on_progress=None,
-                base_image_only=base_image_only,
-                two_step_generation=two_step_generation,
-                user=current_user,
-            )
+    logger.info("API v1: Generation #%s started in background", gen_id)
 
-        logger.info("API v1: Generation #%s completed successfully", gen_id)
-        return jsonify({
-            'id': final_gen.id,
-            'status': final_gen.status,
-            'base_image_url': storage_service.get_signed_url(
-                storage_service.extract_path(final_gen.base_image_url),
-                expires_in=3600
-            ) if final_gen.base_image_url else None,
-            'final_image_url': storage_service.get_signed_url(
-                storage_service.extract_path(final_gen.final_image_url),
-                expires_in=3600
-            ) if final_gen.final_image_url else None,
-            'credits_used': cost_info['total'],
-            'created_at': final_gen.created_at,
-            'completed_at': final_gen.completed_at,
-        })
-
-    except GenerationCancelled:
-        logger.warning("API v1: Generation #%s was cancelled", gen_id)
-        get_supabase().table('generations').update({
-            'status': 'failed',
-            'error_message': 'Generation cancelled',
-        }).eq('id', gen_id).execute()
-        return jsonify({'error': 'Generation was cancelled'}), 400
-
-    except Exception as e:
-        logger.error("API v1: Generation #%s failed: %s", gen_id, e, exc_info=True)
-        now = datetime.now(timezone.utc).isoformat()
-        get_supabase().table('generations').update({
-            'status': 'failed',
-            'error_message': str(e)[:500],
-            'completed_at': now,
-        }).eq('id', gen_id).execute()
-        return jsonify({'error': 'Generation failed', 'details': str(e)[:200]}), 500
+    return jsonify({
+        'generation_id': gen_id,
+        'status': 'processing',
+    })
 
 
 @api_v1_bp.route('/generations', methods=['GET'])
@@ -389,4 +433,47 @@ def get_generation(current_user, generation_id):
         return jsonify({'error': 'Generation not found'}), 404
 
     generation = Generation.from_row(result.data[0])
-    return jsonify(storage_service.sign_generation_dict(generation.to_dict()))
+
+    if generation.status == 'generating' and _is_api_generation_stale(generation):
+        _fail_stale_api_generation(generation_id)
+        generation.status = 'failed'
+        generation.error_message = 'Generation timed out'
+
+    if generation.status == 'generating':
+        return jsonify({
+            'generation_id': generation.id,
+            'status': 'processing',
+        })
+
+    if generation.status == 'completed':
+        base_url = None
+        if generation.base_image_url:
+            base_url = storage_service.get_signed_url(
+                storage_service.extract_path(generation.base_image_url),
+                expires_in=3600
+            )
+        cover_url = None
+        if generation.final_image_url:
+            cover_url = storage_service.get_signed_url(
+                storage_service.extract_path(generation.final_image_url),
+                expires_in=3600
+            )
+        return jsonify({
+            'generation_id': generation.id,
+            'status': 'completed',
+            'base_image_url': base_url,
+            'cover_image_url': cover_url,
+            'credits_used': generation.credits_used,
+        })
+
+    if generation.status == 'failed':
+        return jsonify({
+            'generation_id': generation.id,
+            'status': 'failed',
+            'error': generation.error_message or 'Generation failed',
+        })
+
+    return jsonify({
+        'generation_id': generation.id,
+        'status': generation.status,
+    })
