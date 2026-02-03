@@ -107,7 +107,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   }, [isOpen, user?.is_admin]);
 
   useEffect(() => {
-    if (!isOpen || !isAuthenticated) return;
+    if (!isOpen || !isAuthenticated || !user?.is_admin) return;
 
     const fetchApiToken = async () => {
       try {
@@ -119,7 +119,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     };
 
     fetchApiToken();
-  }, [isOpen, isAuthenticated]);
+  }, [isOpen, isAuthenticated, user?.is_admin]);
 
   const handleEmailChange = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -944,16 +944,18 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 >
                   Preferences
                 </button>
-                <button
-                  onClick={() => setActiveTab('api')}
-                  className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                    activeTab === 'api'
-                      ? 'bg-surface text-text shadow-sm'
-                      : 'text-text-muted hover:text-text'
-                  }`}
-                >
-                  API
-                </button>
+                {user?.is_admin && (
+                  <button
+                    onClick={() => setActiveTab('api')}
+                    className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                      activeTab === 'api'
+                        ? 'bg-surface text-text shadow-sm'
+                        : 'text-text-muted hover:text-text'
+                    }`}
+                  >
+                    API
+                  </button>
+                )}
               </div>
             </div>
 

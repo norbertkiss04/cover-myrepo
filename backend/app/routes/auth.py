@@ -90,7 +90,11 @@ def api_token_required(f):
             logger.warning("Invalid API token for %s %s", request.method, request.path)
             return jsonify({'error': 'Invalid API token'}), 401
 
-        logger.info("API request authenticated for user id=%s", user.id)
+        if not user.is_admin:
+            logger.warning("Non-admin API access attempt by user id=%s", user.id)
+            return jsonify({'error': 'API access requires admin privileges'}), 403
+
+        logger.info("API request authenticated for admin user id=%s", user.id)
         return f(user, *args, **kwargs)
 
     return decorated
@@ -451,6 +455,9 @@ def logout(current_user):
 @auth_bp.route('/api-token', methods=['GET'])
 @token_required
 def get_api_token(current_user):
+    if not current_user.is_admin:
+        return jsonify({'error': 'API access requires admin privileges'}), 403
+
     has_token = current_user.api_token is not None
     logger.info("API token status check for user id=%s (has_token=%s)", current_user.id, has_token)
     return jsonify({
@@ -463,6 +470,9 @@ def get_api_token(current_user):
 @limiter.limit("5 per minute")
 @token_required
 def create_api_token(current_user):
+    if not current_user.is_admin:
+        return jsonify({'error': 'API access requires admin privileges'}), 403
+
     new_token = generate_api_token()
 
     sb = current_app.supabase
@@ -488,6 +498,9 @@ def create_api_token(current_user):
 @auth_bp.route('/api-token', methods=['DELETE'])
 @token_required
 def revoke_api_token(current_user):
+    if not current_user.is_admin:
+        return jsonify({'error': 'API access requires admin privileges'}), 403
+
     if not current_user.api_token:
         return jsonify({'error': 'No API token to revoke'}), 400
 
