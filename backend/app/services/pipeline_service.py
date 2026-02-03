@@ -87,7 +87,13 @@ def ensure_reference_variant(style_ref, variant_type, user_id, user=None):
             artifacts_desc = ', '.join([f"{a['description']} ({a['location']})" for a in artifacts])
             logger.info("Text layer has %d artifacts for ref #%s: %s", len(artifacts), style_ref.id, artifacts_desc[:200])
 
-            cleanup_result = image_service.cleanup_text_layer(variant_url, artifacts_desc, user=user)
+            text_details = selected_texts or style_ref.detected_text
+            cleanup_result = image_service.cleanup_text_layer(
+                variant_url,
+                artifacts_desc,
+                text_details=text_details,
+                user=user,
+            )
             variant_url = cleanup_result['image_url']
             text_layer_cleaned = True
             logger.info("Text layer cleanup complete for ref #%s", style_ref.id)

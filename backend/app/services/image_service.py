@@ -272,16 +272,41 @@ class ImageService:
         result_url = self._poll(job_id)
         return {'image_url': result_url}
 
-    def cleanup_text_layer(self, image_url, artifacts_description, aspect_ratio='2:3', user=None):
+    def cleanup_text_layer(self, image_url, artifacts_description, text_details=None, aspect_ratio='2:3', user=None):
         self._get_config()
 
         size = self._get_size_string(aspect_ratio)
 
+        text_context = "All visible text elements"
+        if text_details:
+            formatted_texts = []
+            for t in text_details:
+                text = t.get('text')
+                text_type = t.get('text_type')
+                position = t.get('position')
+                style = t.get('style_description')
+                parts = []
+                if text:
+                    parts.append(f'"{text}"')
+                if text_type:
+                    parts.append(text_type)
+                if position:
+                    parts.append(f'at {position}')
+                if style:
+                    parts.append(style)
+                if parts:
+                    formatted_texts.append(' '.join(parts))
+            if formatted_texts:
+                text_context = '; '.join(formatted_texts)
+
         prompt = (
             f"Remove the following non-text elements: {artifacts_description}. "
+            "Presented on a pure solid white background (#FFFFFF), the text is rendered exactly as in the original image: "
+            f"{text_context}. "
             "Keep all text exactly as-is (style, size, color, effects, position). "
             "If any text is white, keep it white and add a slight shadow. "
-            "Output only text on a solid white background (#FFFFFF)."
+            "No other visual elements, gradients, textures, or imagery are present. "
+            "The layout is clean, minimal, and text-centric."
         )
 
         payload = {

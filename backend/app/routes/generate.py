@@ -555,7 +555,8 @@ def regenerate_text_layer(current_user, ref_id):
             artifacts_desc = ', '.join([f"{a['description']} ({a['location']})" for a in artifacts])
             logger.info("Text layer has %d artifacts, cleaning up...", len(artifacts))
 
-            cleanup_result = image_service.cleanup_text_layer(variant_url, artifacts_desc)
+            text_details = selected_texts or style_ref.detected_text
+            cleanup_result = image_service.cleanup_text_layer(variant_url, artifacts_desc, text_details=text_details)
             variant_url = cleanup_result['image_url']
             text_layer_cleaned = True
 
