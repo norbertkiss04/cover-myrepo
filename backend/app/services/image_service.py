@@ -243,6 +243,7 @@ class ImageService:
                 "Remove ALL other text, background imagery, illustrations, and photos. "
                 "Place the extracted text on a solid white background. "
                 "Keep the original font style, size, color, effects, and arrangement of the specified text. "
+                "If any text is white, do not change its color and add a slight shadow to improve readability. "
                 "The background must be pure solid white (#FFFFFF) with no gradients or textures."
             )
         else:
@@ -251,6 +252,7 @@ class ImageService:
                 "Remove all background imagery, illustrations, and photos. "
                 "Place the extracted text on a solid white background. "
                 "Keep the original font style, size, and arrangement of the text. "
+                "If any text is white, do not change its color and add a slight shadow to improve readability. "
                 "The background must be pure solid white (#FFFFFF) with no gradients or textures."
             )
 
@@ -279,6 +281,7 @@ class ImageService:
             f"Remove the following non-text elements from this image while keeping ALL text intact: {artifacts_description}. "
             "The result should contain ONLY the text/typography on a pure solid white background (#FFFFFF). "
             "Preserve the exact font style, size, color, effects, and positioning of all text. "
+            "If any text is white, do not change its color and add a slight shadow to improve readability. "
             "Remove any characters, illustrations, decorative elements, or background artifacts completely. "
             "The background must be pure solid white with no gradients or textures."
         )
