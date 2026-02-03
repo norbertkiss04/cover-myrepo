@@ -299,3 +299,80 @@ def test_generation(app, test_user):
     }
     app._test_store.setdefault('generations', []).append(gen_data)
     return Generation.from_row(gen_data)
+
+
+@pytest.fixture
+def admin_auth_headers(app):
+    supabase_id = 'admin-supabase-id-123'
+
+    app._test_store.setdefault('users', []).append({
+        'id': 100,
+        'google_id': supabase_id,
+        'email': 'admin@example.com',
+        'name': 'Admin User',
+        'picture': None,
+        'credits': 500,
+        'is_admin': True,
+        'api_token': None,
+        'created_at': '2025-01-01T00:00:00Z',
+        'updated_at': '2025-01-01T00:00:00Z',
+    })
+
+    mock_supabase_user = _make_supabase_user(
+        supabase_id, 'admin@example.com', 'Admin User'
+    )
+    mock_response = MagicMock()
+    mock_response.user = mock_supabase_user
+
+    original_side_effect = app.supabase.auth.get_user.side_effect
+
+    def get_user_side_effect(token):
+        if token == 'valid-admin-token':
+            return mock_response
+        if callable(original_side_effect):
+            return original_side_effect(token)
+        raise Exception('Invalid token')
+
+    app.supabase.auth.get_user.side_effect = get_user_side_effect
+
+    return {'Authorization': 'Bearer valid-admin-token'}
+
+
+@pytest.fixture
+def api_token_headers(app):
+    api_token = 'ic_test_api_token_1234567890abcdef'
+
+    app._test_store.setdefault('users', []).append({
+        'id': 101,
+        'google_id': 'api-user-supabase-id',
+        'email': 'apiuser@example.com',
+        'name': 'API User',
+        'picture': None,
+        'credits': 500,
+        'is_admin': True,
+        'api_token': api_token,
+        'created_at': '2025-01-01T00:00:00Z',
+        'updated_at': '2025-01-01T00:00:00Z',
+    })
+
+    return {'Authorization': f'Bearer {api_token}'}
+
+
+@pytest.fixture
+def non_admin_api_token_headers(app):
+    api_token = 'ic_non_admin_token_abcdef1234567890'
+
+    app._test_store.setdefault('users', []).append({
+        'id': 102,
+        'google_id': 'non-admin-api-user-id',
+        'email': 'nonadmin@example.com',
+        'name': 'Non-Admin User',
+        'picture': None,
+        'credits': 100,
+        'is_admin': False,
+        'api_token': api_token,
+        'created_at': '2025-01-01T00:00:00Z',
+        'updated_at': '2025-01-01T00:00:00Z',
+    })
+
+    return {'Authorization': f'Bearer {api_token}'}

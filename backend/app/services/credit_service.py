@@ -44,6 +44,26 @@ def deduct_credits(user, amount: int) -> dict:
     return {'success': False, 'remaining': user.credits}
 
 
+def refund_credits(user, amount: int) -> dict:
+    if is_admin(user):
+        logger.info("Admin user id=%s: skipping credit refund (%d)", user.id, amount)
+        return {'success': True, 'remaining': user.credits}
+
+    sb = get_supabase()
+    result = sb.rpc('refund_credits', {
+        'p_user_id': user.id,
+        'p_amount': amount,
+    }).execute()
+
+    if result.data is not None:
+        remaining = result.data
+        logger.info("Refunded %d credits to user id=%s (remaining=%s)", amount, user.id, remaining)
+        return {'success': True, 'remaining': remaining}
+
+    logger.warning("Failed to refund credits for user id=%s", user.id)
+    return {'success': False, 'remaining': user.credits}
+
+
 def deduct_llm_credit(user) -> dict:
     return deduct_credits(user, LLM_CALL_COST)
 

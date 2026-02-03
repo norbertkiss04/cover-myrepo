@@ -61,7 +61,8 @@ class TestCreditService:
 
             result = refund_credits(user, 3)
 
-            assert result == 13
+            assert result['success'] is True
+            assert result['remaining'] == 13
             assert app._test_store['users'][0]['credits'] == 13
 
     def test_refund_credits_admin_bypass(self, app):
@@ -70,7 +71,8 @@ class TestCreditService:
 
             result = refund_credits(user, 3)
 
-            assert result == 5
+            assert result['success'] is True
+            assert result['remaining'] == 5
 
     def test_is_admin_true(self, app):
         with app.app_context():
@@ -106,7 +108,7 @@ class TestLLMServiceParseJson:
         assert result == {'prompt': 'hello'}
 
     def test_parse_invalid_json_raises(self):
-        with pytest.raises(ValueError, match='Could not parse JSON'):
+        with pytest.raises(ValueError, match='Could not find JSON'):
             self.service._parse_json('this is not json at all')
 
     def test_parse_code_block_without_json_tag(self):
