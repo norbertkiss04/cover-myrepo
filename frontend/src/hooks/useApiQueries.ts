@@ -39,7 +39,8 @@ export function useTemplateFonts() {
   return useQuery<string[]>({
     queryKey: queryKeys.templateFonts,
     queryFn: generationApi.getTemplateFonts,
-    staleTime: Infinity,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 }
 

@@ -13,7 +13,15 @@ GOOGLE_FONTS_HREF = (
     'family=Playfair+Display:wght@400;500;600;700;800;900&'
     'family=Merriweather:wght@300;400;700;900&'
     'family=Bebas+Neue&'
-    'family=Oswald:wght@300;400;500;600;700&display=swap'
+    'family=Oswald:wght@300;400;500;600;700&'
+    'family=Inter:wght@400;500;600;700;800;900&'
+    'family=Manrope:wght@400;500;600;700;800&'
+    'family=Montserrat:wght@400;500;600;700;800;900&'
+    'family=Lora:wght@400;500;600;700&'
+    'family=Cormorant+Garamond:wght@400;500;600;700&'
+    'family=Libre+Baskerville:wght@400;700&'
+    'family=Cinzel:wght@400;500;600;700;800&'
+    'family=Abril+Fatface&display=swap'
 )
 
 

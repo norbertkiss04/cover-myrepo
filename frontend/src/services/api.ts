@@ -192,7 +192,9 @@ export const generationApi = {
   },
 
   getTemplateFonts: async (): Promise<string[]> => {
-    const response = await api.get('/api/template-fonts');
+    const response = await api.get('/api/template-fonts', {
+      params: { v: 'template-fonts-2026-02-25' },
+    });
     return response.data.fonts;
   },
 

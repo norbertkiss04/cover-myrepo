@@ -606,7 +606,9 @@ def regenerate_text_layer(current_user, ref_id):
 @generate_bp.route('/template-fonts', methods=['GET'])
 def get_template_fonts():
     response = make_response(jsonify({'fonts': list(TEMPLATE_FONT_FAMILIES.keys())}))
-    response.headers['Cache-Control'] = 'public, max-age=3600'
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
     return response
 
 

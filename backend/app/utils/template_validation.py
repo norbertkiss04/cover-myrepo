@@ -15,6 +15,14 @@ TEMPLATE_FONT_FAMILIES = {
     'Merriweather': "'Merriweather', serif",
     'Bebas Neue': "'Bebas Neue', sans-serif",
     'Oswald': "'Oswald', sans-serif",
+    'Inter': "'Inter', sans-serif",
+    'Manrope': "'Manrope', sans-serif",
+    'Montserrat': "'Montserrat', sans-serif",
+    'Lora': "'Lora', serif",
+    'Cormorant Garamond': "'Cormorant Garamond', serif",
+    'Libre Baskerville': "'Libre Baskerville', serif",
+    'Cinzel': "'Cinzel', serif",
+    'Abril Fatface': "'Abril Fatface', serif",
 }
 
 DEFAULT_TEMPLATE_BOX = {
