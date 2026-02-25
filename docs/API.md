@@ -70,7 +70,8 @@ Returns available options for generation parameters.
     ...
   },
   "reference_modes": ["both", "background", "text"],
-  "text_blending_modes": ["ai_blend", "direct_overlay", "separate_reference"]
+  "text_blending_modes": ["ai_blend", "direct_overlay", "separate_reference"],
+  "template_fonts": ["Space Grotesk", "DM Sans", "Playfair Display", "Merriweather", "Bebas Neue", "Oswald"]
 }
 ```
 
@@ -129,6 +130,63 @@ Returns a specific style reference.
 
 ---
 
+### List Cover Templates
+
+```
+GET /api/v1/templates
+```
+
+Returns all cover templates owned by the user.
+
+**Response:**
+```json
+{
+  "templates": [
+    {
+      "id": 7,
+      "name": "Epic Fantasy",
+      "aspect_ratio": "2:3",
+      "title_box": { "x": 8, "y": 9, "width": 84, "height": 24 },
+      "author_box": { "x": 8, "y": 80, "width": 84, "height": 12 },
+      "created_at": "2026-02-25T10:30:00Z",
+      "updated_at": "2026-02-25T10:30:00Z"
+    }
+  ]
+}
+```
+
+---
+
+### Create Cover Template
+
+```
+POST /api/v1/templates
+```
+
+Creates a reusable title/author layout template.
+
+---
+
+### Update Cover Template
+
+```
+PUT /api/v1/templates/:id
+```
+
+Updates template name, format, or text box styling/position.
+
+---
+
+### Delete Cover Template
+
+```
+DELETE /api/v1/templates/:id
+```
+
+Deletes a saved cover template.
+
+---
+
 ### Estimate Generation Cost
 
 ```
@@ -142,6 +200,7 @@ Estimates the credit cost for a generation without actually running it.
 {
   "use_style_image": false,
   "style_reference_id": null,
+  "cover_template_id": null,
   "base_image_only": false,
   "reference_mode": "both",
   "text_blending_mode": "ai_blend",
@@ -186,6 +245,7 @@ Generates a book cover. This is a synchronous endpoint that returns when generat
   "aspect_ratio": "2:3",
   "use_style_image": false,
   "style_reference_id": null,
+  "cover_template_id": null,
   "base_image_only": false,
   "reference_mode": "both",
   "text_blending_mode": "ai_blend",
@@ -207,6 +267,7 @@ Generates a book cover. This is a synchronous endpoint that returns when generat
 | `aspect_ratio` | string | No | Default: "2:3". Options from `/settings` |
 | `use_style_image` | boolean | No | Use a style reference |
 | `style_reference_id` | integer | No | Required if `use_style_image` is true |
+| `cover_template_id` | integer | No | Use saved template text layout (charges only base image generation) |
 | `base_image_only` | boolean | No | Generate only the base image without text |
 | `reference_mode` | string | No | "both", "background", or "text" |
 | `text_blending_mode` | string | No | "ai_blend", "direct_overlay", or "separate_reference" |

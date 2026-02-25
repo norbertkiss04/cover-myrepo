@@ -14,6 +14,7 @@ import AuthCallbackPage from './pages/AuthCallbackPage';
 import GeneratePage from './pages/GeneratePage';
 import StyleReferencesPage from './pages/StyleReferencesPage';
 import HistoryPage from './pages/HistoryPage';
+import TemplatesPage from './pages/TemplatesPage';
 
 function RecoveryGuard({ children }: { children: React.ReactNode }) {
   const { isRecoveryMode } = useAuth();
@@ -72,6 +73,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <HistoryPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="templates"
+                  element={
+                    <ProtectedRoute>
+                      <TemplatesPage />
                     </ProtectedRoute>
                   }
                 />

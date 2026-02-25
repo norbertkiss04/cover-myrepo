@@ -244,7 +244,7 @@ def test_generation_to_dict_includes_all_keys():
         'id', 'book_title', 'author_name', 'cover_ideas', 'description',
         'genres', 'mood', 'color_preference', 'character_description',
         'keywords', 'style_analysis',
-        'style_reference_id', 'use_style_image',
+        'style_reference_id', 'cover_template_id', 'use_style_image',
         'base_image_only', 'reference_mode', 'two_step_generation',
         'aspect_ratio', 'aspect_ratio_info',
         'base_prompt', 'text_prompt', 'base_image_url', 'final_image_url',

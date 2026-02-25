@@ -18,6 +18,15 @@ def test_get_aspect_ratios(client):
     assert '2:3' in data['aspect_ratios']
     assert data['aspect_ratios']['2:3']['name'] == 'Kindle Standard'
 
+
+def test_get_template_fonts(client):
+    response = client.get('/api/template-fonts')
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert 'fonts' in data
+    assert 'Space Grotesk' in data['fonts']
+
 def test_get_generations_requires_auth(client):
     response = client.get('/api/generations')
 

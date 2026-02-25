@@ -56,10 +56,6 @@ export default function Navbar() {
     return () => document.removeEventListener('keydown', handler);
   }, [mobileNavOpen]);
 
-  useEffect(() => {
-    setMobileNavOpen(false);
-  }, [location.pathname]);
-
   const creditDisplay = user?.unlimited_credits
     ? 'Unlimited'
     : String(user?.credits ?? 0);
@@ -110,6 +106,16 @@ export default function Navbar() {
                   }`}
                 >
                   References
+                </Link>
+                <Link
+                  to="/templates"
+                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/templates')
+                      ? 'text-text bg-surface shadow-sm'
+                      : 'text-text-muted hover:text-text'
+                  }`}
+                >
+                  Templates
                 </Link>
               </div>
             )}
@@ -221,6 +227,17 @@ export default function Navbar() {
                   }`}
                 >
                   References
+                </Link>
+                <Link
+                  to="/templates"
+                  onClick={() => setMobileNavOpen(false)}
+                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/templates')
+                      ? 'text-text bg-surface shadow-sm'
+                      : 'text-text-muted hover:text-text'
+                  }`}
+                >
+                  Templates
                 </Link>
               </div>
             </div>

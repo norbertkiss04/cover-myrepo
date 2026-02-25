@@ -1,7 +1,19 @@
 import axios from 'axios';
 import type { AxiosRequestConfig } from 'axios';
 import { supabase, getAccessToken, setCurrentSession } from '../lib/supabase';
-import type { User, UserPreferences, Generation, PaginatedResponse, AspectRatioInfo, StyleReference, Invite, ApiTokenInfo, ApiTokenResponse } from '../types';
+import type {
+  User,
+  UserPreferences,
+  Generation,
+  PaginatedResponse,
+  AspectRatioInfo,
+  StyleReference,
+  CoverTemplate,
+  CoverTemplateInput,
+  Invite,
+  ApiTokenInfo,
+  ApiTokenResponse,
+} from '../types';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
@@ -179,6 +191,45 @@ export const generationApi = {
     return response.data.style_references;
   },
 
+  getTemplateFonts: async (): Promise<string[]> => {
+    const response = await api.get('/api/template-fonts');
+    return response.data.fonts;
+  },
+
+  getCoverTemplates: async (): Promise<CoverTemplate[]> => {
+    const response = await api.get('/api/cover-templates');
+    return response.data.cover_templates;
+  },
+
+  getCoverTemplate: async (id: number): Promise<CoverTemplate> => {
+    const response = await api.get(`/api/cover-templates/${id}`);
+    return response.data;
+  },
+
+  createCoverTemplate: async (data: CoverTemplateInput): Promise<CoverTemplate> => {
+    const response = await api.post('/api/cover-templates', data);
+    return response.data;
+  },
+
+  updateCoverTemplate: async (id: number, data: Partial<CoverTemplateInput> & { name?: string }): Promise<CoverTemplate> => {
+    const response = await api.put(`/api/cover-templates/${id}`, data);
+    return response.data;
+  },
+
+  deleteCoverTemplate: async (id: number): Promise<void> => {
+    await api.delete(`/api/cover-templates/${id}`);
+  },
+
+  renderTemplatePreview: async (data: {
+    image: string;
+    template: CoverTemplateInput;
+    book_title?: string;
+    author_name?: string;
+  }): Promise<{ image: string }> => {
+    const response = await api.post('/api/cover-templates/render-preview', data);
+    return response.data;
+  },
+
   updateStyleReference: async (
     id: number,
     data: Partial<Pick<StyleReference, 'title'>>,
@@ -224,6 +275,7 @@ export const generationApi = {
   estimateCost: async (params: {
     use_style_image: boolean;
     style_reference_id?: number | null;
+    cover_template_id?: number | null;
     base_image_only: boolean;
     reference_mode: string;
     text_blending_mode: string;

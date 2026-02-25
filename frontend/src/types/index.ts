@@ -24,6 +24,46 @@ export type ReferenceMode = 'both' | 'background' | 'text';
 
 export type TextBlendingMode = 'ai_blend' | 'direct_overlay' | 'separate_reference';
 
+export type TemplateTextAlign = 'left' | 'center' | 'right';
+
+export interface CoverTemplateTextBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  font_family: string;
+  font_size: number;
+  font_weight: number;
+  font_color: string;
+  text_align: TemplateTextAlign;
+  line_height: number;
+  letter_spacing: number;
+  uppercase: boolean;
+  italic: boolean;
+  shadow_color: string;
+  shadow_blur: number;
+  shadow_x: number;
+  shadow_y: number;
+  opacity: number;
+}
+
+export interface CoverTemplate {
+  id: number;
+  name: string;
+  aspect_ratio: string;
+  title_box: CoverTemplateTextBox;
+  author_box: CoverTemplateTextBox;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CoverTemplateInput {
+  name: string;
+  aspect_ratio: string;
+  title_box: CoverTemplateTextBox;
+  author_box: CoverTemplateTextBox;
+}
+
 export interface DetectedText {
   id: number;
   text: string;
@@ -58,6 +98,7 @@ export interface Generation {
   keywords: string[] | null;
   reference_image_description: string | null;
   style_reference_id: number | null;
+  cover_template_id: number | null;
   use_style_image: boolean;
   base_image_only: boolean;
   reference_mode: ReferenceMode;
@@ -83,6 +124,7 @@ export interface GenerationInput {
   aspect_ratio?: string;
   character_description?: string;
   style_reference_id?: number;
+  cover_template_id?: number;
   use_style_image?: boolean;
   base_image_only?: boolean;
   reference_mode?: ReferenceMode;

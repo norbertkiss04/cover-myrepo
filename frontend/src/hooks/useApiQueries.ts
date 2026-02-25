@@ -1,12 +1,14 @@
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { generationApi } from '../services/api';
-import type { Generation, PaginatedResponse, AspectRatioInfo, StyleReference } from '../types';
+import type { Generation, PaginatedResponse, AspectRatioInfo, StyleReference, CoverTemplate } from '../types';
 
 export const queryKeys = {
   genres: ['genres'] as const,
   aspectRatios: ['aspect-ratios'] as const,
   styleReferences: ['style-references'] as const,
+  templateFonts: ['template-fonts'] as const,
+  coverTemplates: ['cover-templates'] as const,
   generations: (page: number, perPage: number) => ['generations', page, perPage] as const,
 };
 
@@ -33,6 +35,21 @@ export function useStyleReferences() {
   });
 }
 
+export function useTemplateFonts() {
+  return useQuery<string[]>({
+    queryKey: queryKeys.templateFonts,
+    queryFn: generationApi.getTemplateFonts,
+    staleTime: Infinity,
+  });
+}
+
+export function useCoverTemplates() {
+  return useQuery<CoverTemplate[]>({
+    queryKey: queryKeys.coverTemplates,
+    queryFn: generationApi.getCoverTemplates,
+  });
+}
+
 export function useGenerations(page: number, perPage = 12) {
   return useQuery<PaginatedResponse<Generation>>({
     queryKey: queryKeys.generations(page, perPage),
@@ -43,6 +60,11 @@ export function useGenerations(page: number, perPage = 12) {
 export function useInvalidateStyleReferences() {
   const queryClient = useQueryClient();
   return () => queryClient.invalidateQueries({ queryKey: queryKeys.styleReferences });
+}
+
+export function useInvalidateCoverTemplates() {
+  const queryClient = useQueryClient();
+  return () => queryClient.invalidateQueries({ queryKey: queryKeys.coverTemplates });
 }
 
 export function useInvalidateGenerations() {
@@ -103,6 +125,30 @@ export function useDeleteStyleReference() {
     onError: (_err, _id, context) => {
       queryClient.setQueryData(queryKeys.styleReferences, context?.previous);
       toast.error('Failed to delete style reference');
+    },
+  });
+}
+
+export function useDeleteCoverTemplate() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: number) => generationApi.deleteCoverTemplate(id),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.coverTemplates });
+
+      const previous = queryClient.getQueryData<CoverTemplate[]>(queryKeys.coverTemplates);
+
+      queryClient.setQueryData<CoverTemplate[]>(
+        queryKeys.coverTemplates,
+        (old) => old?.filter((r) => r.id !== id) ?? []
+      );
+
+      return { previous };
+    },
+    onError: (_err, _id, context) => {
+      queryClient.setQueryData(queryKeys.coverTemplates, context?.previous);
+      toast.error('Failed to delete template');
     },
   });
 }

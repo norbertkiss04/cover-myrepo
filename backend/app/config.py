@@ -22,7 +22,7 @@ class Config:
     WAVESPEED_API_KEY = os.getenv('WAVESPEED_API_KEY')
     WAVESPEED_BASE_URL = 'https://api.wavespeed.ai/api/v3'
 
-    FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
+    FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5174')
 
     SENTRY_DSN = os.getenv('SENTRY_DSN', '')
 

@@ -5,6 +5,7 @@ from flask import Blueprint, request, jsonify, make_response, current_app
 
 from app.models.generation import Generation, ASPECT_RATIOS
 from app.models.style_reference import StyleReference
+from app.models.cover_template import CoverTemplate
 from app.routes.auth import api_token_required
 from app.routes.generate import AVAILABLE_GENRES
 from app.services.storage_service import storage_service
@@ -16,12 +17,18 @@ from app.services.credit_service import (
 from app.services.pipeline_service import (
     run_standard_pipeline,
     run_style_ref_pipeline,
+    run_template_pipeline,
     GenerationCancelled,
     VALID_REFERENCE_MODES,
     VALID_BLENDING_MODES,
 )
 from app.utils.db import get_supabase
 from app.utils.validation import sanitize_text, MAX_SHORT_TEXT_LENGTH, MAX_LONG_TEXT_LENGTH
+from app.utils.template_validation import (
+    normalize_template_payload,
+    get_default_template_payload,
+    TEMPLATE_FONT_FAMILIES,
+)
 from app import limiter, socketio
 
 logger = logging.getLogger(__name__)
@@ -54,7 +61,8 @@ def _fail_stale_api_generation(gen_id):
 
 
 def _run_api_generation_task(app, generation, user, style_reference_id, use_style_image,
-                              aspect_ratio, base_image_only, reference_mode, text_blending_mode):
+                              aspect_ratio, base_image_only, reference_mode, text_blending_mode,
+                              cover_template_id=None):
     with app.app_context():
         gen_id = generation.id
 
@@ -82,7 +90,21 @@ def _run_api_generation_task(app, generation, user, style_reference_id, use_styl
                 'keywords': generation.keywords,
             }
 
-            if use_style_image and style_reference_id:
+            if cover_template_id:
+                run_template_pipeline(
+                    gen_id=gen_id,
+                    generation=generation,
+                    book_data=book_data,
+                    aspect_ratio=aspect_ratio,
+                    cover_template_id=cover_template_id,
+                    user_id=user.id,
+                    style_reference_id=style_reference_id,
+                    use_style_image=use_style_image,
+                    reference_mode=reference_mode,
+                    on_progress=None,
+                    user=user,
+                )
+            elif use_style_image and style_reference_id:
                 run_style_ref_pipeline(
                     gen_id=gen_id,
                     generation=generation,
@@ -175,6 +197,98 @@ def get_style(current_user, style_id):
     return jsonify(storage_service.sign_style_ref_dict(style_ref.to_dict(), style_ref))
 
 
+@api_v1_bp.route('/templates', methods=['GET'])
+@api_token_required
+def get_templates(current_user):
+    result = get_supabase().table('cover_templates').select('*').eq(
+        'user_id', current_user.id
+    ).order('created_at', desc=True).execute()
+
+    templates = [CoverTemplate.from_row(row).to_dict() for row in result.data]
+    return jsonify({'templates': templates})
+
+
+@api_v1_bp.route('/templates', methods=['POST'])
+@api_token_required
+def create_template(current_user):
+    data = request.get_json() or {}
+    default_payload = get_default_template_payload(data.get('aspect_ratio', '2:3'))
+    merged = {**default_payload, **data}
+
+    payload, error = normalize_template_payload(
+        merged,
+        require_name=True,
+        require_aspect_ratio=True,
+        allow_partial=False,
+    )
+    if error:
+        return jsonify({'error': error}), 400
+
+    payload['user_id'] = current_user.id
+    result = get_supabase().table('cover_templates').insert(payload).execute()
+    template = CoverTemplate.from_row(result.data[0])
+    return jsonify(template.to_dict()), 201
+
+
+@api_v1_bp.route('/templates/<int:template_id>', methods=['GET'])
+@api_token_required
+def get_template(current_user, template_id):
+    result = get_supabase().table('cover_templates').select('*').eq(
+        'id', template_id
+    ).eq('user_id', current_user.id).execute()
+
+    if not result.data:
+        return jsonify({'error': 'Cover template not found'}), 404
+
+    template = CoverTemplate.from_row(result.data[0])
+    return jsonify(template.to_dict())
+
+
+@api_v1_bp.route('/templates/<int:template_id>', methods=['PUT'])
+@api_token_required
+def update_template(current_user, template_id):
+    existing = get_supabase().table('cover_templates').select('*').eq(
+        'id', template_id
+    ).eq('user_id', current_user.id).execute()
+
+    if not existing.data:
+        return jsonify({'error': 'Cover template not found'}), 404
+
+    data = request.get_json() or {}
+    payload, error = normalize_template_payload(
+        data,
+        require_name=False,
+        require_aspect_ratio=False,
+        allow_partial=True,
+    )
+    if error:
+        return jsonify({'error': error}), 400
+
+    payload['updated_at'] = datetime.now(timezone.utc).isoformat()
+    result = get_supabase().table('cover_templates').update(payload).eq(
+        'id', template_id
+    ).eq('user_id', current_user.id).execute()
+
+    template = CoverTemplate.from_row(result.data[0])
+    return jsonify(template.to_dict())
+
+
+@api_v1_bp.route('/templates/<int:template_id>', methods=['DELETE'])
+@api_token_required
+def delete_template(current_user, template_id):
+    existing = get_supabase().table('cover_templates').select('id').eq(
+        'id', template_id
+    ).eq('user_id', current_user.id).execute()
+
+    if not existing.data:
+        return jsonify({'error': 'Cover template not found'}), 404
+
+    get_supabase().table('cover_templates').delete().eq(
+        'id', template_id
+    ).eq('user_id', current_user.id).execute()
+    return jsonify({'success': True})
+
+
 @api_v1_bp.route('/settings', methods=['GET'])
 @api_token_required
 def get_settings(current_user):
@@ -184,6 +298,7 @@ def get_settings(current_user):
         'aspect_ratios': ASPECT_RATIOS,
         'reference_modes': list(VALID_REFERENCE_MODES),
         'text_blending_modes': list(VALID_BLENDING_MODES),
+        'template_fonts': list(TEMPLATE_FONT_FAMILIES.keys()),
     }))
     response.headers['Cache-Control'] = 'public, max-age=3600'
     return response
@@ -200,6 +315,24 @@ def estimate_cost(current_user):
     text_blending_mode = data.get('text_blending_mode', 'ai_blend')
     two_step_generation = bool(data.get('two_step_generation', True))
     style_reference_id = data.get('style_reference_id')
+    cover_template_id = data.get('cover_template_id')
+
+    use_template = False
+    if cover_template_id is not None:
+        if not isinstance(cover_template_id, int):
+            return jsonify({'error': 'cover_template_id must be an integer'}), 400
+
+        template_result = get_supabase().table('cover_templates').select('id').eq(
+            'id', cover_template_id
+        ).eq('user_id', current_user.id).execute()
+
+        if not template_result.data:
+            return jsonify({'error': 'Cover template not found'}), 404
+
+        use_template = True
+
+    if use_template and base_image_only:
+        return jsonify({'error': 'base_image_only cannot be used with cover_template_id'}), 400
 
     style_ref_has_clean = False
     style_ref_has_text = False
@@ -222,6 +355,7 @@ def estimate_cost(current_user):
         style_ref_has_clean=style_ref_has_clean,
         style_ref_has_text=style_ref_has_text,
         two_step_generation=two_step_generation,
+        use_template=use_template,
     )
 
     logger.info(
@@ -280,6 +414,23 @@ def generate(current_user):
     if text_blending_mode not in VALID_BLENDING_MODES:
         text_blending_mode = 'ai_blend'
 
+    cover_template_id = data.get('cover_template_id')
+    use_template = False
+    if cover_template_id is not None:
+        if not isinstance(cover_template_id, int):
+            return jsonify({'error': 'cover_template_id must be an integer'}), 400
+
+        template_check = get_supabase().table('cover_templates').select('id').eq(
+            'id', cover_template_id
+        ).eq('user_id', current_user.id).execute()
+        if not template_check.data:
+            return jsonify({'error': 'Cover template not found'}), 404
+
+        use_template = True
+
+    if use_template and base_image_only:
+        return jsonify({'error': 'base_image_only cannot be used with cover_template_id'}), 400
+
     if use_style_image and style_reference_id:
         ref_check = get_supabase().table('style_references').select('id').eq(
             'id', style_reference_id
@@ -308,6 +459,7 @@ def generate(current_user):
         style_ref_has_clean=style_ref_has_clean,
         style_ref_has_text=style_ref_has_text,
         two_step_generation=two_step_generation,
+        use_template=use_template,
     )
 
     if not cost_info['can_afford']:
@@ -337,6 +489,7 @@ def generate(current_user):
         'cover_ideas': cover_ideas,
         'aspect_ratio': aspect_ratio,
         'style_reference_id': style_reference_id if use_style_image else None,
+        'cover_template_id': cover_template_id if use_template else None,
         'use_style_image': use_style_image,
         'base_image_only': base_image_only,
         'reference_mode': reference_mode,
@@ -366,6 +519,7 @@ def generate(current_user):
         base_image_only=base_image_only,
         reference_mode=reference_mode,
         text_blending_mode=text_blending_mode,
+        cover_template_id=cover_template_id if use_template else None,
     )
 
     logger.info("API v1: Generation #%s started in background", gen_id)

@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useGeneration } from '../context/GenerationContext';
 import { useGenerationForm } from '../context/GenerationFormContext';
-import { useGenres, useAspectRatios, useStyleReferences } from '../hooks/useApiQueries';
+import { useGenres, useAspectRatios, useStyleReferences, useCoverTemplates } from '../hooks/useApiQueries';
 import { generationApi } from '../services/api';
 import { Toggle, ReferenceModeToggle, PlaceholderPanel, ProgressPanel, ResultPanel, BlendingModeToggle } from '../components/Generate';
 import type { Generation, GenerationInput } from '../types';
@@ -26,6 +26,7 @@ export default function GeneratePage() {
   const { data: genres = [] } = useGenres();
   const { data: aspectRatios = {} } = useAspectRatios();
   const { data: styleReferences = [] } = useStyleReferences();
+  const { data: coverTemplates = [] } = useCoverTemplates();
 
   const [addFieldOpen, setAddFieldOpen] = useState(false);
   const addFieldRef = useRef<HTMLDivElement>(null);
@@ -45,6 +46,11 @@ export default function GeneratePage() {
   const hiddenOptionalFields = OPTIONAL_FIELD_DEFS.filter(
     (f) => !visibleOptionalKeys.has(f.key)
   );
+
+  const selectedTemplate = form.selectedTemplateId !== null
+    ? coverTemplates.find((template) => template.id === form.selectedTemplateId) || null
+    : null;
+  const isTemplateMode = form.selectedTemplateId !== null;
 
   useEffect(() => {
     const state = location.state as { fromGeneration?: Generation } | null;
@@ -70,6 +76,7 @@ export default function GeneratePage() {
     if (fieldsToShow.size > 0) form.setTempFields(fieldsToShow);
 
     form.setBaseImageOnly(Boolean(gen.base_image_only));
+    form.setSelectedTemplateId(gen.cover_template_id ?? null);
     form.setTwoStepGeneration(gen.two_step_generation !== false);
     if (gen.reference_mode) {
       form.setReferenceMode(gen.reference_mode);
@@ -118,7 +125,8 @@ export default function GeneratePage() {
         const estimate = await generationApi.estimateCost({
           use_style_image: form.selectedRefId !== null,
           style_reference_id: form.selectedRefId,
-          base_image_only: form.baseImageOnly,
+          cover_template_id: form.selectedTemplateId,
+          base_image_only: isTemplateMode ? false : form.baseImageOnly,
           reference_mode: form.referenceMode,
           text_blending_mode: form.textBlendingMode,
           two_step_generation: form.twoStepGeneration,
@@ -149,22 +157,45 @@ export default function GeneratePage() {
   }, [
     user,
     form.selectedRefId,
+    form.selectedTemplateId,
     form.baseImageOnly,
     form.referenceMode,
     form.textBlendingMode,
     form.twoStepGeneration,
+    isTemplateMode,
   ]);
+
+  const handleTemplateSelect = (id: number | null) => {
+    form.setSelectedTemplateId(id);
+
+    if (id === null) {
+      return;
+    }
+
+    const template = coverTemplates.find((item) => item.id === id);
+    if (template) {
+      form.setFormData((prev) => ({
+        ...prev,
+        aspect_ratio: template.aspect_ratio,
+      }));
+      form.setBaseImageOnly(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    const shouldIncludeText = isTemplateMode || !form.baseImageOnly;
+
     const payload: GenerationInput = {
-      book_title: form.baseImageOnly ? '' : form.formData.book_title,
-      author_name: form.baseImageOnly ? '' : form.formData.author_name,
+      book_title: shouldIncludeText ? form.formData.book_title : '',
+      author_name: shouldIncludeText ? form.formData.author_name : '',
       aspect_ratio: form.formData.aspect_ratio,
     };
 
-    if (form.baseImageOnly) {
+    if (isTemplateMode) {
+      payload.cover_template_id = form.selectedTemplateId ?? undefined;
+    } else if (form.baseImageOnly) {
       payload.base_image_only = true;
     } else {
       payload.two_step_generation = form.twoStepGeneration;
@@ -188,8 +219,8 @@ export default function GeneratePage() {
       if (ref) {
         payload.style_reference_id = ref.id;
         payload.use_style_image = true;
-        payload.reference_mode = form.referenceMode;
-        if (form.twoStepGeneration && (form.referenceMode === 'both' || form.referenceMode === 'text')) {
+        payload.reference_mode = isTemplateMode ? 'background' : form.referenceMode;
+        if (!isTemplateMode && form.twoStepGeneration && (form.referenceMode === 'both' || form.referenceMode === 'text')) {
           payload.text_blending_mode = form.textBlendingMode;
         }
       }
@@ -366,21 +397,23 @@ export default function GeneratePage() {
           </div>
           <div className="bg-surface border border-border rounded-2xl p-4 sm:p-5">
           <form onSubmit={handleSubmit} className="space-y-3.5">
-            <div className="flex items-center justify-between">
-              <span
-                className="text-sm text-text-secondary cursor-help"
-                title="Generate only the background artwork without any text. Uses the clean background from your style reference."
-              >
-                Image only (no title or author text)
-              </span>
-              <Toggle
-                checked={form.baseImageOnly}
-                onChange={form.setBaseImageOnly}
-                disabled={isGenerating}
-              />
-            </div>
+            {!isTemplateMode && (
+              <div className="flex items-center justify-between">
+                <span
+                  className="text-sm text-text-secondary cursor-help"
+                  title="Generate only the background artwork without any text. Uses the clean background from your style reference."
+                >
+                  Image only (no title or author text)
+                </span>
+                <Toggle
+                  checked={form.baseImageOnly}
+                  onChange={form.setBaseImageOnly}
+                  disabled={isGenerating}
+                />
+              </div>
+            )}
 
-            {!form.baseImageOnly && (
+            {!form.baseImageOnly && !isTemplateMode && (
               <div className="flex items-center justify-between">
                 <span
                   className="text-sm text-text-secondary cursor-help"
@@ -446,7 +479,7 @@ export default function GeneratePage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-sm font-medium text-text-secondary mb-1">
                   Aspect Ratio
@@ -454,7 +487,7 @@ export default function GeneratePage() {
                 <select
                   value={form.formData.aspect_ratio}
                   onChange={(e) => form.setFormData({ ...form.formData, aspect_ratio: e.target.value })}
-                  disabled={isGenerating}
+                  disabled={isGenerating || isTemplateMode}
                   className={inputClass}
                 >
                   {Object.entries(aspectRatios).map(([ratio, info]) => (
@@ -463,6 +496,11 @@ export default function GeneratePage() {
                     </option>
                   ))}
                 </select>
+                {isTemplateMode && selectedTemplate && (
+                  <p className="mt-0.5 text-xs text-text-muted">
+                    Locked to template format ({selectedTemplate.aspect_ratio}).
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-text-secondary mb-1">
@@ -494,9 +532,39 @@ export default function GeneratePage() {
                   </p>
                 )}
               </div>
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-1">
+                  Cover Template
+                </label>
+                <select
+                  value={form.selectedTemplateId ?? ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const newId = val === '' ? null : Number(val);
+                    handleTemplateSelect(newId);
+                  }}
+                  disabled={isGenerating}
+                  className={inputClass}
+                >
+                  <option value="">None</option>
+                  {coverTemplates.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.name}
+                    </option>
+                  ))}
+                </select>
+                {coverTemplates.length === 0 && (
+                  <p className="mt-0.5 text-xs text-text-muted">
+                    No templates yet.{' '}
+                    <a href="/templates" className="text-accent hover:text-accent-hover transition-colors">
+                      Create one
+                    </a>
+                  </p>
+                )}
+              </div>
             </div>
 
-            {form.selectedRefId !== null && !form.baseImageOnly && (
+            {form.selectedRefId !== null && !form.baseImageOnly && !isTemplateMode && (
               <div>
                 <label className="block text-sm font-medium text-text-secondary mb-1.5">
                   Reference Mode
@@ -514,12 +582,18 @@ export default function GeneratePage() {
               </div>
             )}
 
-            {form.selectedRefId !== null && form.twoStepGeneration && !form.baseImageOnly && (form.referenceMode === 'both' || form.referenceMode === 'text') && (
+            {form.selectedRefId !== null && form.twoStepGeneration && !form.baseImageOnly && !isTemplateMode && (form.referenceMode === 'both' || form.referenceMode === 'text') && (
               <BlendingModeToggle
                 value={form.textBlendingMode}
                 onChange={form.setTextBlendingMode}
                 disabled={isGenerating}
               />
+            )}
+
+            {isTemplateMode && selectedTemplate && (
+              <div className="text-xs text-text-muted bg-surface-alt border border-border rounded-lg px-3 py-2">
+                Template mode is active. Text is rendered from template "{selectedTemplate.name}" after the base image is generated.
+              </div>
             )}
 
             {visibleOptionalFields.length > 0 && (

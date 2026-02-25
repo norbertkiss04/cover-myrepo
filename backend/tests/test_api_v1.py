@@ -11,6 +11,9 @@ class TestApiV1Authentication:
             ('GET', '/api/v1/me'),
             ('GET', '/api/v1/styles'),
             ('GET', '/api/v1/styles/1'),
+            ('GET', '/api/v1/templates'),
+            ('GET', '/api/v1/templates/1'),
+            ('POST', '/api/v1/templates'),
             ('GET', '/api/v1/settings'),
             ('POST', '/api/v1/estimate'),
             ('POST', '/api/v1/generate'),
@@ -33,6 +36,7 @@ class TestApiV1Authentication:
         endpoints = [
             ('GET', '/api/v1/me'),
             ('GET', '/api/v1/styles'),
+            ('GET', '/api/v1/templates'),
             ('GET', '/api/v1/settings'),
         ]
 
@@ -44,6 +48,7 @@ class TestApiV1Authentication:
         endpoints = [
             ('GET', '/api/v1/me'),
             ('GET', '/api/v1/styles'),
+            ('GET', '/api/v1/templates'),
             ('GET', '/api/v1/settings'),
         ]
 
@@ -178,6 +183,77 @@ class TestGetStyleById:
         assert data['title'] == 'My Style'
 
 
+class TestTemplates:
+
+    def test_list_templates_empty(self, client, api_token_headers):
+        response = client.get('/api/v1/templates', headers=api_token_headers)
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['templates'] == []
+
+    def test_create_template_success(self, client, api_token_headers):
+        response = client.post('/api/v1/templates', headers=api_token_headers, json={
+            'name': 'My Template',
+            'aspect_ratio': '2:3',
+        })
+
+        assert response.status_code == 201
+        data = response.get_json()
+        assert data['name'] == 'My Template'
+        assert data['aspect_ratio'] == '2:3'
+        assert 'title_box' in data
+        assert 'author_box' in data
+
+    def test_get_template_success(self, client, api_token_headers, app):
+        app._test_store.setdefault('cover_templates', []).append({
+            'id': 10,
+            'user_id': 101,
+            'name': 'Stored',
+            'aspect_ratio': '2:3',
+            'title_box': {},
+            'author_box': {},
+        })
+
+        response = client.get('/api/v1/templates/10', headers=api_token_headers)
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['name'] == 'Stored'
+
+    def test_update_template_success(self, client, api_token_headers, app):
+        app._test_store.setdefault('cover_templates', []).append({
+            'id': 11,
+            'user_id': 101,
+            'name': 'Before',
+            'aspect_ratio': '2:3',
+            'title_box': {},
+            'author_box': {},
+        })
+
+        response = client.put('/api/v1/templates/11', headers=api_token_headers, json={'name': 'After'})
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['name'] == 'After'
+
+    def test_delete_template_success(self, client, api_token_headers, app):
+        app._test_store.setdefault('cover_templates', []).append({
+            'id': 12,
+            'user_id': 101,
+            'name': 'Delete Me',
+            'aspect_ratio': '2:3',
+            'title_box': {},
+            'author_box': {},
+        })
+
+        response = client.delete('/api/v1/templates/12', headers=api_token_headers)
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+
+
 class TestGetSettings:
 
     def test_returns_options(self, client, api_token_headers):
@@ -189,6 +265,7 @@ class TestGetSettings:
         assert 'aspect_ratios' in data
         assert 'reference_modes' in data
         assert 'text_blending_modes' in data
+        assert 'template_fonts' in data
         assert isinstance(data['genres'], list)
         assert 'Fantasy' in data['genres']
         assert '2:3' in data['aspect_ratios']
@@ -231,6 +308,27 @@ class TestEstimate:
         assert response.status_code == 200
         data = response.get_json()
         assert 'total' in data
+
+    def test_estimate_with_cover_template(self, client, api_token_headers, app):
+        app._test_store.setdefault('cover_templates', []).append({
+            'id': 5,
+            'user_id': 101,
+            'name': 'Template',
+            'aspect_ratio': '2:3',
+            'title_box': {},
+            'author_box': {},
+        })
+
+        response = client.post('/api/v1/estimate', headers=api_token_headers, json={
+            'use_style_image': False,
+            'cover_template_id': 5,
+            'base_image_only': False,
+            'two_step_generation': True,
+        })
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['total'] == 7
 
 
 class TestGenerate:
@@ -297,6 +395,27 @@ class TestGenerate:
         assert data['status'] == 'processing'
         assert 'generation_id' in data
         assert isinstance(data['generation_id'], int)
+
+    def test_generate_with_cover_template(self, client, api_token_headers, app):
+        app._test_store.setdefault('cover_templates', []).append({
+            'id': 9,
+            'user_id': 101,
+            'name': 'Template',
+            'aspect_ratio': '2:3',
+            'title_box': {},
+            'author_box': {},
+        })
+
+        response = client.post('/api/v1/generate', headers=api_token_headers, json={
+            'book_title': 'Template Book',
+            'author_name': 'Template Author',
+            'cover_template_id': 9,
+        })
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['status'] == 'processing'
+        assert 'generation_id' in data
 
 
 class TestGetGenerations:

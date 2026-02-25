@@ -18,6 +18,7 @@ class MockQueryBuilder:
         self._range_from = None
         self._range_to = None
         self._count_mode = None
+        self._limit = None
 
     def select(self, columns='*', count=None):
         self._operation = 'select'
@@ -50,6 +51,10 @@ class MockQueryBuilder:
     def range(self, start, end):
         self._range_from = start
         self._range_to = end
+        return self
+
+    def limit(self, count):
+        self._limit = count
         return self
 
     def execute(self):
@@ -88,6 +93,9 @@ class MockQueryBuilder:
 
         if self._range_from is not None and self._range_to is not None:
             matched = matched[self._range_from:self._range_to + 1]
+
+        if self._limit is not None:
+            matched = matched[:self._limit]
 
         result = MagicMock()
         result.data = matched

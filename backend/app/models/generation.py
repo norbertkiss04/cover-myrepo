@@ -25,6 +25,7 @@ class Generation:
     keywords: Optional[list] = None
     style_analysis: Optional[dict] = None
     style_reference_id: Optional[int] = None
+    cover_template_id: Optional[int] = None
     use_style_image: bool = False
     base_image_only: bool = False
     reference_mode: str = 'both'
@@ -61,6 +62,7 @@ class Generation:
             keywords=row.get('keywords'),
             style_analysis=row.get('style_analysis'),
             style_reference_id=row.get('style_reference_id'),
+            cover_template_id=row.get('cover_template_id'),
             use_style_image=row.get('use_style_image', False),
             base_image_only=row.get('base_image_only', False),
             reference_mode=row.get('reference_mode', 'both'),
@@ -94,6 +96,7 @@ class Generation:
             'keywords': self.keywords,
             'style_analysis': self.style_analysis,
             'style_reference_id': self.style_reference_id,
+            'cover_template_id': self.cover_template_id,
             'use_style_image': self.use_style_image,
             'base_image_only': self.base_image_only,
             'reference_mode': self.reference_mode,

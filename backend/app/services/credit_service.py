@@ -98,11 +98,16 @@ def calculate_generation_cost(
     style_ref_has_clean: bool = False,
     style_ref_has_text: bool = False,
     two_step_generation: bool = True,
+    use_template: bool = False,
 ) -> dict:
     llm_calls = 0
     image_calls = 0
 
-    if base_image_only:
+    if use_template:
+        llm_calls = 1
+        image_calls = 1
+
+    elif base_image_only:
         llm_calls = 1
         image_calls = 1
 
@@ -164,6 +169,7 @@ def validate_generation_credits(
     style_ref_has_clean: bool = False,
     style_ref_has_text: bool = False,
     two_step_generation: bool = True,
+    use_template: bool = False,
 ) -> dict:
     cost_info = calculate_generation_cost(
         use_style_image=use_style_image,
@@ -173,6 +179,7 @@ def validate_generation_credits(
         style_ref_has_clean=style_ref_has_clean,
         style_ref_has_text=style_ref_has_text,
         two_step_generation=two_step_generation,
+        use_template=use_template,
     )
 
     if is_admin(user):

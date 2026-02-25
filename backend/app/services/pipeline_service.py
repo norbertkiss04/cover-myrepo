@@ -4,9 +4,11 @@ from datetime import datetime, timezone
 
 from app.models.generation import Generation
 from app.models.style_reference import StyleReference
+from app.models.cover_template import CoverTemplate
 from app.services.llm_service import llm_service, get_prompt
 from app.services.image_service import image_service, detect_and_crop_border, blend_images_programmatic
 from app.services.storage_service import storage_service
+from app.services.template_render_service import template_render_service
 from app.utils.db import get_supabase
 
 logger = logging.getLogger(__name__)
@@ -231,6 +233,129 @@ def run_standard_pipeline(gen_id, generation, book_data, aspect_ratio, on_progre
         final_gen = Generation.from_row(update_result.data[0])
         logger.info("Gen #%s COMPLETED successfully (two-step mode)", gen_id)
         return final_gen
+
+
+def run_template_pipeline(
+    gen_id,
+    generation,
+    book_data,
+    aspect_ratio,
+    cover_template_id,
+    user_id,
+    on_progress=None,
+    style_reference_id=None,
+    use_style_image=False,
+    reference_mode='both',
+    user=None,
+):
+    total_steps = 3
+
+    def progress(step, total, message):
+        _check_cancelled(gen_id)
+        if on_progress:
+            on_progress(step, total, message)
+
+    template_result = get_supabase().table('cover_templates').select('*').eq(
+        'id', cover_template_id
+    ).eq('user_id', user_id).execute()
+
+    if not template_result.data:
+        raise ValueError(f"Cover template #{cover_template_id} not found")
+
+    cover_template = CoverTemplate.from_row(template_result.data[0])
+
+    progress(1, total_steps, "Generating base image prompt...")
+
+    if use_style_image and style_reference_id:
+        style_ref_result = get_supabase().table('style_references').select('*').eq(
+            'id', style_reference_id
+        ).eq('user_id', user_id).execute()
+
+        if not style_ref_result.data:
+            raise ValueError(f"Style reference #{style_reference_id} not found")
+
+        style_ref = StyleReference.from_row(style_ref_result.data[0])
+        effective_reference_mode = reference_mode
+        if effective_reference_mode == 'text':
+            effective_reference_mode = 'background'
+
+        style_analysis = (
+            style_ref.get_style_analysis(mode=effective_reference_mode)
+            if style_ref.has_analysis()
+            else None
+        )
+
+        base_prompt = llm_service.generate_style_referenced_prompt_no_text(
+            book_data,
+            style_analysis=style_analysis,
+            reference_mode=effective_reference_mode,
+            user=user,
+        )
+        base_prompt += " Do not include any text, words, letters, titles, or typography anywhere in the image."
+
+        get_supabase().table('generations').update(
+            {'base_prompt': base_prompt}
+        ).eq('id', generation.id).execute()
+
+        progress(2, total_steps, "Creating base image...")
+
+        signed_style_url = storage_service.get_signed_url(style_ref.image_path, expires_in=600)
+        reference_mode_prefix = get_prompt('style_reference', 'reference_mode_prefix_background')
+        base_prompt_with_prefix = reference_mode_prefix + base_prompt
+        base_result = image_service.generate_image_with_text(
+            [signed_style_url],
+            base_prompt_with_prefix,
+            aspect_ratio,
+            user=user,
+        )
+    else:
+        base_prompt = llm_service.generate_base_image_prompt(book_data, base_image_only=True, user=user)
+        base_prompt += " Do not include any text, words, letters, titles, or typography anywhere in the image."
+
+        get_supabase().table('generations').update(
+            {'base_prompt': base_prompt}
+        ).eq('id', generation.id).execute()
+
+        progress(2, total_steps, "Creating base image...")
+        base_result = image_service.generate_base_image(base_prompt, aspect_ratio, user=user)
+
+    base_image_url = base_result['image_url']
+    base_image_url = _check_and_remove_border(base_image_url, gen_id)
+
+    base_upload = storage_service.upload_from_url(base_image_url, folder='base')
+    storage_base_url = base_upload['public_url']
+    base_storage_path = base_upload['path']
+    get_supabase().table('generations').update(
+        {'base_image_url': storage_base_url}
+    ).eq('id', generation.id).execute()
+
+    progress(3, total_steps, "Rendering cover template...")
+
+    signed_base_url = storage_service.get_signed_url(base_storage_path, expires_in=600)
+    rendered_image = template_render_service.render_cover_from_template(
+        base_image_url=signed_base_url,
+        template=cover_template.to_dict(),
+        book_title=book_data.get('book_title', ''),
+        author_name=book_data.get('author_name', ''),
+        aspect_ratio=aspect_ratio,
+    )
+
+    final_upload = storage_service.upload_bytes(
+        rendered_image,
+        folder='covers',
+        content_type='image/png',
+    )
+    storage_final_url = final_upload['public_url']
+    now = datetime.now(timezone.utc).isoformat()
+    update_result = get_supabase().table('generations').update({
+        'final_image_url': storage_final_url,
+        'status': 'completed',
+        'completed_at': now,
+    }).eq('id', generation.id).execute()
+
+    final_gen = Generation.from_row(update_result.data[0])
+    logger.info("Gen #%s COMPLETED successfully (template mode)", gen_id)
+    return final_gen
 
 
 VALID_BLENDING_MODES = ('ai_blend', 'direct_overlay', 'separate_reference')

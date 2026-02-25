@@ -24,10 +24,10 @@ logger = logging.getLogger(__name__)
 
 
 VALID_REFERENCE_MODES = ('both', 'background', 'text')
-VALID_BLENDING_MODES = ('ai', 'programmatic')
+VALID_BLENDING_MODES = ('ai_blend', 'direct_overlay', 'separate_reference')
 
 
-def _launch_generation(generation, user, validation, text_blending_mode='ai'):
+def _launch_generation(generation, user, validation, text_blending_mode='ai_blend'):
     emit('generation_started', {
         'generation_id': generation.id,
         'book_title': generation.book_title,
@@ -47,6 +47,7 @@ def _launch_generation(generation, user, validation, text_blending_mode='ai'):
         generation.base_image_only,
         generation.reference_mode,
         text_blending_mode,
+        generation.cover_template_id,
     )
 
 
@@ -154,13 +155,33 @@ def handle_start_generation(data):
     if reference_mode not in VALID_REFERENCE_MODES:
         reference_mode = 'both'
 
-    text_blending_mode = data.get('text_blending_mode', 'ai')
+    text_blending_mode = data.get('text_blending_mode', 'ai_blend')
     if text_blending_mode not in VALID_BLENDING_MODES:
-        text_blending_mode = 'ai'
+        text_blending_mode = 'ai_blend'
 
     two_step_generation = bool(data.get('two_step_generation', True))
     use_style_image = bool(data.get('use_style_image', False))
     style_reference_id = data.get('style_reference_id')
+    cover_template_id = data.get('cover_template_id')
+
+    use_template = False
+    if cover_template_id is not None:
+        if not isinstance(cover_template_id, int):
+            emit('generation_error', {'error': 'cover_template_id must be an integer'})
+            return
+
+        template_result = get_supabase().table('cover_templates').select('id').eq(
+            'id', cover_template_id
+        ).eq('user_id', user.id).execute()
+        if not template_result.data:
+            emit('generation_error', {'error': 'Cover template not found'})
+            return
+
+        use_template = True
+
+    if use_template and base_image_only:
+        emit('generation_error', {'error': 'base_image_only cannot be used with cover_template_id'})
+        return
 
     style_ref_has_clean = False
     style_ref_has_text = False
@@ -181,6 +202,7 @@ def handle_start_generation(data):
         style_ref_has_clean=style_ref_has_clean,
         style_ref_has_text=style_ref_has_text,
         two_step_generation=two_step_generation,
+        use_template=use_template,
     )
     if not validation:
         return
@@ -198,6 +220,7 @@ def handle_start_generation(data):
         'character_description': sanitized.get('character_description'),
         'keywords': sanitized.get('keywords'),
         'style_reference_id': style_reference_id,
+        'cover_template_id': cover_template_id if use_template else None,
         'use_style_image': use_style_image,
         'base_image_only': base_image_only,
         'reference_mode': reference_mode,
@@ -283,10 +306,11 @@ def handle_start_regeneration(data):
         use_style_image=original.use_style_image,
         base_image_only=original.base_image_only,
         reference_mode=original.reference_mode or 'both',
-        text_blending_mode='ai',
+        text_blending_mode='ai_blend',
         style_ref_has_clean=style_ref_has_clean,
         style_ref_has_text=style_ref_has_text,
         two_step_generation=original.two_step_generation,
+        use_template=bool(original.cover_template_id),
     )
     if not validation:
         return
@@ -304,6 +328,7 @@ def handle_start_regeneration(data):
         'character_description': original.character_description,
         'keywords': original.keywords,
         'style_reference_id': original.style_reference_id,
+        'cover_template_id': original.cover_template_id,
         'use_style_image': original.use_style_image,
         'base_image_only': original.base_image_only,
         'reference_mode': original.reference_mode,

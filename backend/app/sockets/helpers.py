@@ -145,6 +145,7 @@ def _validate_generation_credits(
     style_ref_has_clean,
     style_ref_has_text,
     two_step_generation,
+    use_template=False,
 ):
     user = _refresh_user(user)
     validation = validate_generation_credits(
@@ -156,6 +157,7 @@ def _validate_generation_credits(
         style_ref_has_clean=style_ref_has_clean,
         style_ref_has_text=style_ref_has_text,
         two_step_generation=two_step_generation,
+        use_template=use_template,
     )
 
     if not validation['can_afford']:

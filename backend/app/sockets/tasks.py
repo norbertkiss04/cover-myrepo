@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 _running_tasks = set()
 
 
-def _run_generation_task(app, generation, user, style_reference_id, use_style_image, aspect_ratio, base_image_only=False, reference_mode='both', text_blending_mode='ai'):
+def _run_generation_task(app, generation, user, style_reference_id, use_style_image, aspect_ratio, base_image_only=False, reference_mode='both', text_blending_mode='ai', cover_template_id=None):
     with app.app_context():
         gen_id = generation.id
         user_id = user.id
@@ -52,9 +52,23 @@ def _run_generation_task(app, generation, user, style_reference_id, use_style_im
                 'keywords': generation.keywords,
             }
 
-            from app.services.pipeline_service import run_standard_pipeline, run_style_ref_pipeline
+            from app.services.pipeline_service import run_standard_pipeline, run_style_ref_pipeline, run_template_pipeline
 
-            if use_style_image and style_reference_id:
+            if cover_template_id:
+                final_gen = run_template_pipeline(
+                    gen_id=gen_id,
+                    generation=generation,
+                    book_data=book_data,
+                    aspect_ratio=aspect_ratio,
+                    cover_template_id=cover_template_id,
+                    user_id=user_id,
+                    on_progress=on_progress,
+                    style_reference_id=style_reference_id,
+                    use_style_image=use_style_image,
+                    reference_mode=reference_mode,
+                    user=user,
+                )
+            elif use_style_image and style_reference_id:
                 final_gen = run_style_ref_pipeline(
                     gen_id, generation, book_data,
                     style_reference_id, aspect_ratio, user_id,

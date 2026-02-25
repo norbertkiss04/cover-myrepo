@@ -1,13 +1,16 @@
 import base64
 import logging
 import math
+from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify, make_response
 
 from app.models.generation import Generation, ASPECT_RATIOS
 from app.models.style_reference import StyleReference
+from app.models.cover_template import CoverTemplate
 from app.routes.auth import token_required
 from app.services.llm_service import llm_service
 from app.services.storage_service import storage_service
+from app.services.template_render_service import template_render_service
 from app.services.credit_service import (
     calculate_generation_cost,
     calculate_style_ref_upload_cost,
@@ -17,6 +20,11 @@ from app.services.credit_service import (
 )
 from app.utils.db import get_supabase
 from app.utils.validation import sanitize_text, MAX_SHORT_TEXT_LENGTH
+from app.utils.template_validation import (
+    normalize_template_payload,
+    get_default_template_payload,
+    TEMPLATE_FONT_FAMILIES,
+)
 from app import limiter
 
 logger = logging.getLogger(__name__)
@@ -68,6 +76,23 @@ def estimate_generation_cost(current_user):
     text_blending_mode = data.get('text_blending_mode', 'ai')
     two_step_generation = bool(data.get('two_step_generation', True))
     style_reference_id = data.get('style_reference_id')
+    cover_template_id = data.get('cover_template_id')
+
+    use_template = False
+    if cover_template_id is not None:
+        if not isinstance(cover_template_id, int):
+            return jsonify({'error': 'cover_template_id must be an integer'}), 400
+
+        template_result = get_supabase().table('cover_templates').select('id').eq(
+            'id', cover_template_id
+        ).eq('user_id', current_user.id).execute()
+        if not template_result.data:
+            return jsonify({'error': 'Cover template not found'}), 404
+
+        use_template = True
+
+    if use_template and base_image_only:
+        return jsonify({'error': 'base_image_only cannot be used with cover_template_id'}), 400
 
     style_ref_has_clean = False
     style_ref_has_text = False
@@ -90,6 +115,7 @@ def estimate_generation_cost(current_user):
         style_ref_has_clean=style_ref_has_clean,
         style_ref_has_text=style_ref_has_text,
         two_step_generation=two_step_generation,
+        use_template=use_template,
     )
 
     logger.info(
@@ -575,6 +601,193 @@ def regenerate_text_layer(current_user, ref_id):
     except Exception as e:
         logger.error("Failed to regenerate text layer: %s", e, exc_info=True)
         return jsonify({'error': 'Failed to generate text layer. Please try again.'}), 500
+
+
+@generate_bp.route('/template-fonts', methods=['GET'])
+def get_template_fonts():
+    response = make_response(jsonify({'fonts': list(TEMPLATE_FONT_FAMILIES.keys())}))
+    response.headers['Cache-Control'] = 'public, max-age=3600'
+    return response
+
+
+@generate_bp.route('/cover-templates/render-preview', methods=['POST'])
+@token_required
+def render_cover_template_preview(current_user):
+    data = request.get_json() or {}
+
+    image_data_url = data.get('image')
+    if not isinstance(image_data_url, str) or not image_data_url:
+        return jsonify({'error': 'image is required'}), 400
+
+    if not image_data_url.startswith('data:image/'):
+        return jsonify({'error': 'image must be a base64 data URL (data:image/...)'}), 400
+
+    if len(image_data_url) > MAX_IMAGE_BASE64_SIZE:
+        return jsonify({'error': 'Image too large. Maximum size is 5MB.'}), 400
+
+    template_data = data.get('template')
+    if template_data is None:
+        template_data = {}
+    if not isinstance(template_data, dict):
+        return jsonify({'error': 'template must be an object'}), 400
+
+    book_title = sanitize_text(data.get('book_title', ''), max_length=MAX_SHORT_TEXT_LENGTH)
+    author_name = sanitize_text(data.get('author_name', ''), max_length=MAX_SHORT_TEXT_LENGTH)
+    if not book_title:
+        book_title = 'Sample Book Title'
+    if not author_name:
+        author_name = 'AUTHOR NAME'
+
+    try:
+        header, b64_data = image_data_url.split(',', 1)
+    except ValueError:
+        return jsonify({'error': 'Invalid image data URL'}), 400
+
+    if ';base64' not in header:
+        return jsonify({'error': 'image must be base64 encoded'}), 400
+
+    content_type = header.split(':', 1)[1].split(';', 1)[0].strip().lower()
+    if not content_type.startswith('image/'):
+        return jsonify({'error': 'image content type must be image/*'}), 400
+
+    try:
+        image_bytes = base64.b64decode(b64_data, validate=True)
+    except Exception:
+        return jsonify({'error': 'Invalid base64 image data'}), 400
+
+    normalized_image_data_url = (
+        f'data:{content_type};base64,{base64.b64encode(image_bytes).decode("ascii")}'
+    )
+
+    default_payload = get_default_template_payload(template_data.get('aspect_ratio', '2:3'))
+    merged = {**default_payload, **template_data}
+    payload, error = normalize_template_payload(
+        merged,
+        require_name=False,
+        require_aspect_ratio=True,
+        allow_partial=False,
+    )
+    if error:
+        return jsonify({'error': error}), 400
+
+    try:
+        rendered_image = template_render_service.render_cover_from_template(
+            base_image_url=normalized_image_data_url,
+            template=payload,
+            book_title=book_title,
+            author_name=author_name,
+            aspect_ratio=payload.get('aspect_ratio', '2:3'),
+        )
+    except Exception as exc:
+        logger.error(
+            "Template preview render failed for user id=%s: %s",
+            current_user.id,
+            exc,
+            exc_info=True,
+        )
+        return jsonify({'error': 'Failed to render template preview'}), 500
+
+    rendered_base64 = base64.b64encode(rendered_image).decode('ascii')
+    return jsonify({'image': f'data:image/png;base64,{rendered_base64}'})
+
+
+@generate_bp.route('/cover-templates', methods=['GET'])
+@token_required
+def get_cover_templates(current_user):
+    logger.info("Listing cover templates for user id=%s", current_user.id)
+    result = get_supabase().table('cover_templates').select('*').eq(
+        'user_id', current_user.id
+    ).order('created_at', desc=True).execute()
+
+    templates = [CoverTemplate.from_row(row).to_dict() for row in result.data]
+    return jsonify({'cover_templates': templates})
+
+
+@generate_bp.route('/cover-templates', methods=['POST'])
+@token_required
+def create_cover_template(current_user):
+    data = request.get_json() or {}
+
+    default_payload = get_default_template_payload(data.get('aspect_ratio', '2:3'))
+    merged = {**default_payload, **data}
+
+    payload, error = normalize_template_payload(
+        merged,
+        require_name=True,
+        require_aspect_ratio=True,
+        allow_partial=False,
+    )
+    if error:
+        return jsonify({'error': error}), 400
+
+    payload['user_id'] = current_user.id
+
+    result = get_supabase().table('cover_templates').insert(payload).execute()
+    template = CoverTemplate.from_row(result.data[0])
+    logger.info("Cover template #%s created for user id=%s", template.id, current_user.id)
+    return jsonify(template.to_dict()), 201
+
+
+@generate_bp.route('/cover-templates/<int:template_id>', methods=['GET'])
+@token_required
+def get_cover_template(current_user, template_id):
+    result = get_supabase().table('cover_templates').select('*').eq(
+        'id', template_id
+    ).eq('user_id', current_user.id).execute()
+
+    if not result.data:
+        return jsonify({'error': 'Cover template not found'}), 404
+
+    template = CoverTemplate.from_row(result.data[0])
+    return jsonify(template.to_dict())
+
+
+@generate_bp.route('/cover-templates/<int:template_id>', methods=['PUT'])
+@token_required
+def update_cover_template(current_user, template_id):
+    existing = get_supabase().table('cover_templates').select('*').eq(
+        'id', template_id
+    ).eq('user_id', current_user.id).execute()
+
+    if not existing.data:
+        return jsonify({'error': 'Cover template not found'}), 404
+
+    data = request.get_json() or {}
+    payload, error = normalize_template_payload(
+        data,
+        require_name=False,
+        require_aspect_ratio=False,
+        allow_partial=True,
+    )
+    if error:
+        return jsonify({'error': error}), 400
+
+    payload['updated_at'] = datetime.now(timezone.utc).isoformat()
+
+    updated = get_supabase().table('cover_templates').update(payload).eq(
+        'id', template_id
+    ).eq('user_id', current_user.id).execute()
+
+    template = CoverTemplate.from_row(updated.data[0])
+    logger.info("Cover template #%s updated for user id=%s", template.id, current_user.id)
+    return jsonify(template.to_dict())
+
+
+@generate_bp.route('/cover-templates/<int:template_id>', methods=['DELETE'])
+@token_required
+def delete_cover_template(current_user, template_id):
+    existing = get_supabase().table('cover_templates').select('id').eq(
+        'id', template_id
+    ).eq('user_id', current_user.id).execute()
+
+    if not existing.data:
+        return jsonify({'error': 'Cover template not found'}), 404
+
+    get_supabase().table('cover_templates').delete().eq(
+        'id', template_id
+    ).eq('user_id', current_user.id).execute()
+    logger.info("Cover template #%s deleted for user id=%s", template_id, current_user.id)
+    return jsonify({'message': 'Cover template deleted successfully'})
 
 
 @generate_bp.route('/generations', methods=['GET'])

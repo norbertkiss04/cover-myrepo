@@ -1,6 +1,195 @@
+import base64
 import pytest
 from unittest.mock import patch, MagicMock
 from app.services.storage_service import storage_service
+
+
+class TestCoverTemplates:
+
+    def test_render_cover_template_preview_requires_auth(self, client):
+        response = client.post('/api/cover-templates/render-preview', json={})
+
+        assert response.status_code == 401
+
+    def test_render_cover_template_preview_success(self, client, auth_headers):
+        image_data = f"data:image/png;base64,{base64.b64encode(b'test-image').decode('ascii')}"
+
+        with patch(
+            'app.routes.generate.template_render_service.render_cover_from_template',
+            return_value=b'png-bytes',
+        ) as render_mock:
+            response = client.post(
+                '/api/cover-templates/render-preview',
+                headers=auth_headers,
+                json={
+                    'image': image_data,
+                    'book_title': 'Test Title',
+                    'author_name': 'Test Author',
+                    'template': {
+                        'aspect_ratio': '2:3',
+                    },
+                },
+            )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['image'].startswith('data:image/png;base64,')
+        render_mock.assert_called_once()
+
+    def test_render_cover_template_preview_rejects_invalid_template(self, client, auth_headers):
+        image_data = f"data:image/png;base64,{base64.b64encode(b'test-image').decode('ascii')}"
+
+        response = client.post(
+            '/api/cover-templates/render-preview',
+            headers=auth_headers,
+            json={
+                'image': image_data,
+                'template': {
+                    'aspect_ratio': 'invalid',
+                },
+            },
+        )
+
+        assert response.status_code == 400
+        data = response.get_json()
+        assert 'aspect_ratio' in data['error']
+
+    def test_render_cover_template_preview_rejects_invalid_image(self, client, auth_headers):
+        response = client.post(
+            '/api/cover-templates/render-preview',
+            headers=auth_headers,
+            json={
+                'image': 'not-a-data-url',
+                'template': {'aspect_ratio': '2:3'},
+            },
+        )
+
+        assert response.status_code == 400
+        data = response.get_json()
+        assert 'data URL' in data['error']
+
+    def test_get_cover_templates_empty(self, client, auth_headers):
+        response = client.get('/api/cover-templates', headers=auth_headers)
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['cover_templates'] == []
+
+    def test_create_cover_template_success(self, client, auth_headers):
+        payload = {
+            'name': 'Fantasy Large Title',
+            'aspect_ratio': '2:3',
+        }
+
+        response = client.post('/api/cover-templates', headers=auth_headers, json=payload)
+
+        assert response.status_code == 201
+        data = response.get_json()
+        assert data['name'] == 'Fantasy Large Title'
+        assert data['aspect_ratio'] == '2:3'
+        assert 'title_box' in data
+        assert 'author_box' in data
+
+    def test_create_cover_template_invalid_box(self, client, auth_headers):
+        payload = {
+            'name': 'Bad Template',
+            'title_box': {
+                'font_color': 'red',
+            },
+            'author_box': {
+                'font_color': '#FFFFFF',
+            },
+        }
+
+        response = client.post('/api/cover-templates', headers=auth_headers, json=payload)
+
+        assert response.status_code == 400
+        data = response.get_json()
+        assert 'title_box' in data['error']
+
+    def test_update_cover_template_success(self, client, auth_headers, app):
+        app._test_store.setdefault('cover_templates', []).append({
+            'id': 1,
+            'user_id': 1,
+            'name': 'Old Name',
+            'aspect_ratio': '2:3',
+            'title_box': {
+                'x': 8,
+                'y': 9,
+                'width': 84,
+                'height': 24,
+                'font_family': 'Space Grotesk',
+                'font_size': 128,
+                'font_weight': 700,
+                'font_color': '#FFFFFF',
+                'text_align': 'center',
+                'line_height': 1.05,
+                'letter_spacing': 0,
+                'uppercase': False,
+                'italic': False,
+                'shadow_color': '#00000099',
+                'shadow_blur': 8,
+                'shadow_x': 0,
+                'shadow_y': 2,
+                'opacity': 1,
+            },
+            'author_box': {
+                'x': 8,
+                'y': 80,
+                'width': 84,
+                'height': 12,
+                'font_family': 'Space Grotesk',
+                'font_size': 62,
+                'font_weight': 600,
+                'font_color': '#FFFFFF',
+                'text_align': 'center',
+                'line_height': 1.05,
+                'letter_spacing': 1.4,
+                'uppercase': True,
+                'italic': False,
+                'shadow_color': '#00000099',
+                'shadow_blur': 6,
+                'shadow_x': 0,
+                'shadow_y': 2,
+                'opacity': 1,
+            },
+        })
+
+        response = client.put('/api/cover-templates/1', headers=auth_headers, json={'name': 'New Name'})
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['name'] == 'New Name'
+
+    def test_delete_cover_template_success(self, client, auth_headers, app):
+        app._test_store.setdefault('cover_templates', []).append({
+            'id': 2,
+            'user_id': 1,
+            'name': 'To Delete',
+            'aspect_ratio': '2:3',
+            'title_box': {},
+            'author_box': {},
+        })
+
+        response = client.delete('/api/cover-templates/2', headers=auth_headers)
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert 'deleted' in data['message'].lower()
+
+    def test_cover_template_scoped_to_user(self, client, auth_headers, app):
+        app._test_store.setdefault('cover_templates', []).append({
+            'id': 3,
+            'user_id': 99,
+            'name': 'Other User',
+            'aspect_ratio': '2:3',
+            'title_box': {},
+            'author_box': {},
+        })
+
+        response = client.get('/api/cover-templates/3', headers=auth_headers)
+
+        assert response.status_code == 404
 
 
 class TestStyleReferences:
