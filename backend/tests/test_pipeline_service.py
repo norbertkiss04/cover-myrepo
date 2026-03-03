@@ -5,6 +5,7 @@ from app.models.generation import Generation
 from app.services.pipeline_service import (
     run_standard_pipeline,
     run_style_ref_pipeline,
+    run_template_pipeline,
     GenerationCancelled,
     _check_cancelled,
 )
@@ -350,3 +351,74 @@ class TestRunStyleRefPipeline:
                     42, mock_generation, book_data,
                     10, '2:3', 1,
                 )
+
+
+class TestRunTemplatePipeline:
+
+    @patch('app.services.pipeline_service.template_render_service')
+    @patch('app.services.pipeline_service.storage_service')
+    @patch('app.services.pipeline_service.image_service')
+    @patch('app.services.pipeline_service.llm_service')
+    def test_uses_clean_reference_variant_for_template_generation(self, mock_llm, mock_image, mock_storage, mock_template_render, app, mock_generation, book_data):
+        with app.app_context():
+            app._test_store.setdefault('generations', []).append({
+                'id': 42,
+                'user_id': 1,
+                'book_title': 'Test Book',
+                'author_name': 'Test Author',
+                'status': 'generating',
+                'aspect_ratio': '2:3',
+            })
+            app._test_store.setdefault('cover_templates', []).append({
+                'id': 7,
+                'user_id': 1,
+                'name': 'Template A',
+                'aspect_ratio': '2:3',
+                'title_box': {},
+                'author_box': {},
+            })
+            app._test_store.setdefault('style_references', []).append({
+                'id': 10,
+                'user_id': 1,
+                'image_url': 'https://storage.com/original.png',
+                'image_path': 'references/original.png',
+                'clean_image_path': 'references/clean.png',
+                'title': 'Dark Style',
+                'feeling': 'Dark and mysterious',
+                'layout': 'Central symmetry',
+                'illustration_rules': 'Oil painting',
+                'typography': 'Bold serif',
+            })
+
+            mock_llm.generate_style_referenced_prompt_no_text.return_value = 'No text style prompt'
+            mock_storage.get_signed_url.side_effect = [
+                'https://signed.com/clean.png',
+                'https://signed.com/base.png',
+            ]
+            mock_image.generate_image_with_text.return_value = {'image_url': 'https://ext.com/base.png'}
+            mock_storage.upload_from_url.return_value = {
+                'public_url': 'https://storage.com/base.png',
+                'path': 'base/uuid.png',
+            }
+            mock_template_render.render_cover_from_template.return_value = b'png-bytes'
+            mock_storage.upload_bytes.return_value = {
+                'public_url': 'https://storage.com/final.png',
+                'path': 'covers/uuid.png',
+            }
+
+            result = run_template_pipeline(
+                gen_id=42,
+                generation=mock_generation,
+                book_data=book_data,
+                aspect_ratio='2:3',
+                cover_template_id=7,
+                user_id=1,
+                style_reference_id=10,
+                use_style_image=True,
+                reference_mode='both',
+            )
+
+            assert result.status == 'completed'
+            assert result.final_image_url == 'https://storage.com/final.png'
+            assert mock_image.generate_image_with_text.call_args[0][0] == ['https://signed.com/clean.png']
+            assert all(call.args[0] != 'references/original.png' for call in mock_storage.get_signed_url.call_args_list)

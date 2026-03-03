@@ -299,7 +299,7 @@ def run_template_pipeline(
 
         progress(2, total_steps, "Creating base image...")
 
-        signed_style_url = storage_service.get_signed_url(style_ref.image_path, expires_in=600)
+        signed_style_url = ensure_reference_variant(style_ref, 'clean', user_id, user=user)
         reference_mode_prefix = get_prompt('style_reference', 'reference_mode_prefix_background')
         base_prompt_with_prefix = reference_mode_prefix + base_prompt
         base_result = image_service.generate_image_with_text(
