@@ -1,0 +1,63 @@
+flowchart TD
+    subgraph Public["Nem belépett felhasználó"]
+        S01["▶ S01 — Home<br/>Landing page"]
+        S02["S02 — Login/Register<br/>Belépés és regisztráció"]
+        S03["S03 — Forgot Password<br/>Jelszó emlékeztető"]
+        S04["S04 — Reset Password<br/>Jelszó visszaállítás"]
+        S08["S08 — Auth Callback<br/>OAuth visszatérés"]
+    end
+
+    subgraph Protected["Belépett felhasználó"]
+        S05["S05 — Generate<br/>Borító generálás"]
+        S06["S06 — History<br/>Generálási előzmények"]
+        S07["S07 — Style References<br/>Stílusreferenciák"]
+        S09["S09 — Templates<br/>Sablon szerkesztő"]
+    end
+
+    S01 -->|"Start Creating gomb<br/>(nem belépett)"| S02
+    S01 -->|"Generate a Cover gomb<br/>(belépett)"| S05
+    
+    S02 -->|"Sign In gomb"| S05
+    S02 -->|"Create Account gomb"| S05
+    S02 -->|"Forgot password? link"| S03
+    S02 -->|"Google OAuth gomb"| S08
+    
+    S03 -->|"Send Reset Link gomb"| S02
+    S03 -->|"Back to Login link"| S02
+    
+    S04 -->|"Reset Password gomb<br/>(sikeres)"| S05
+    
+    S08 -->|"OAuth sikeres"| S05
+    S08 -->|"OAuth sikertelen"| S02
+
+    S05 -->|"Navbar: History link"| S06
+    S05 -->|"Navbar: References link"| S07
+    S05 -->|"Navbar: Templates link"| S09
+    S05 -->|"Navbar: Logo link"| S01
+    S05 -->|"Create one link<br/>(nincs stílusreferencia)"| S07
+    S05 -->|"Create one link<br/>(nincs sablon)"| S09
+    
+    S06 -->|"Navbar: Generate link"| S05
+    S06 -->|"Navbar: References link"| S07
+    S06 -->|"Navbar: Templates link"| S09
+    S06 -->|"Use Settings gomb<br/>(♦ modal)"| S05
+    S06 -->|"Generate Your First Cover link<br/>(üres állapot)"| S05
+    
+    S07 -->|"Navbar: Generate link"| S05
+    S07 -->|"Navbar: History link"| S06
+    S07 -->|"Navbar: Templates link"| S09
+    S07 -->|"♦ Cog gomb"| S07_MODAL["♦ Style Reference Modal<br/>Stílus beállítások"]
+    
+    S09 -->|"Navbar: Generate link"| S05
+    S09 -->|"Navbar: History link"| S06
+    S09 -->|"Navbar: References link"| S07
+
+    classDef public fill:#FEF2F2,stroke:#DC2626,color:#171717
+    classDef protected fill:#F0FDF4,stroke:#16A34A,color:#171717
+    classDef modal fill:#EFF6FF,stroke:#2563EB,color:#171717
+    classDef entry fill:#FEFCE8,stroke:#CA8A04,color:#171717
+
+    class S01 entry
+    class S02,S03,S04,S08 public
+    class S05,S06,S07,S09 protected
+    class S07_MODAL modal
