@@ -150,3 +150,57 @@ Stílusreferencia képek: feltöltött kép elérési útja, LLM által generál
 ### Invites
 
 Meghívókódok a zárt béta hozzáféréshez: kód, létrehozó, lejárat, felhasználás időpontja.
+
+## Fejlesztői környezet beállítása
+
+### Előfeltételek
+
+- Python 3.11+
+- Node.js 20+
+- Docker (opcionális)
+- Supabase fiók
+- OpenRouter API kulcs
+- WaveSpeed API kulcs
+
+### Supabase beállítása
+
+1. Hozz létre egy projektet a [supabase.com](https://supabase.com) oldalon
+2. Futtasd a `backend/supabase/bootstrap_idempotent.sql` fájl tartalmát a Supabase SQL Editor-ban — ez létrehozza az összes táblát, indexet, RLS policy-t és RPC függvényt
+3. Hozz létre egy storage bucket-et: Storage > New Bucket > név: `covers`
+
+### Környezeti változók
+
+```bash
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
+```
+
+Töltsd ki mindkét `.env` fájlt a saját Supabase, OpenRouter és WaveSpeed adataiddal.
+
+### Indítás Docker nélkül
+
+**Backend:**
+
+```bash
+cd backend
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python run.py
+```
+
+**Frontend:**
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+### Indítás Dockerrel
+
+Frissítsd a `docker-compose.yml`-ben a frontend build args-okat a saját értékeidre, majd:
+
+```bash
+docker compose up --build
+```
