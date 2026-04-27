@@ -166,7 +166,8 @@ Meghívókódok a zárt béta hozzáféréshez: kód, létrehozó, lejárat, fel
 
 1. Hozz létre egy projektet a [supabase.com](https://supabase.com) oldalon
 2. Futtasd a `backend/supabase/bootstrap_idempotent.sql` fájl tartalmát a Supabase SQL Editor-ban — ez létrehozza az összes táblát, indexet, RLS policy-t és RPC függvényt
-3. Hozz létre egy storage bucket-et: Storage > New Bucket > név: `covers`
+3. Futtasd a `backend/supabase/seed_dev.sql` fájlt a Supabase SQL Editor-ban — ez létrehoz egy `DEV-SETUP` meghívókódot, ami soha nem jár le
+4. Hozz létre egy storage bucket-et: Storage > New Bucket > név: `covers`
 
 ### Környezeti változók
 
@@ -203,4 +204,12 @@ Frissítsd a `docker-compose.yml`-ben a frontend build args-okat a saját érté
 
 ```bash
 docker compose up --build
+```
+
+### Regisztráció
+
+Az alkalmazás meghívó alapú. A `seed_dev.sql` futtatása után a fejlesztői meghívókóddal regisztrálhatsz:
+
+```
+http://localhost:5174/login?invite=DEV-SETUP
 ```
