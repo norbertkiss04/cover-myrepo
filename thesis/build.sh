@@ -18,17 +18,10 @@ libreoffice --headless --convert-to docx \
     "$OFFICIAL_DIR/vege.doc" \
     --outdir "$BUILD_DIR" 2>/dev/null
 
-echo "    eleje.docx and vege.docx created in build/"
+echo "    eleje.docx and vege.docx ready"
 
 echo ""
 echo "=== Step 2: Build thesis body with pandoc ==="
-
-REFERENCE_DOC="$THESIS_DIR/reference.docx"
-
-if [ ! -f "$REFERENCE_DOC" ]; then
-    echo "    Generating reference template..."
-    python3 "$THESIS_DIR/create_reference.py"
-fi
 
 pandoc \
     "$CHAPTERS_DIR/abstract.md" \
@@ -45,15 +38,14 @@ pandoc \
     "$CHAPTERS_DIR/ch11_conclusion.md" \
     "$CHAPTERS_DIR/references.md" \
     "$CHAPTERS_DIR/nyilatkozat.md" \
-    --reference-doc="$REFERENCE_DOC" \
     -f markdown+fenced_divs \
     -t docx \
     -o "$BUILD_DIR/thesis_body.docx"
 
-echo "    thesis_body.docx created"
+echo "    pandoc output created"
 
 echo ""
-echo "=== Step 3: Post-process (insert TOC field) ==="
+echo "=== Step 3: Post-process (formatting + TOC) ==="
 
 python3 "$THESIS_DIR/postprocess.py" "$BUILD_DIR/thesis_body.docx"
 
@@ -65,14 +57,13 @@ python3 "$THESIS_DIR/merge.py"
 echo ""
 echo "=== Step 5: Export to PDF ==="
 
-python3 "$THESIS_DIR/update_fields_and_export.py" "$BUILD_DIR/thesis_final.docx" "$BUILD_DIR/thesis_final.pdf"
+libreoffice --headless --convert-to pdf \
+    "$BUILD_DIR/thesis_final.docx" \
+    --outdir "$BUILD_DIR" 2>/dev/null
+
+echo "    thesis_final.pdf created"
 
 echo ""
 echo "=== Done ==="
-echo "Output files:"
 echo "    $BUILD_DIR/thesis_final.docx"
 echo "    $BUILD_DIR/thesis_final.pdf"
-echo ""
-echo "NOTE: Fill in your details in build/eleje.docx (supervisor, degree, year)"
-echo "      then re-run this script to regenerate the final output."
-echo "NOTE: Open thesis_final.docx → right-click TOC → Update Index for full TOC."
