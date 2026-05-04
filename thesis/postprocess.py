@@ -1,12 +1,12 @@
+import sys
+import re
+from pathlib import Path
 from docx import Document
-from docx.shared import Pt, Cm, Inches, RGBColor, Emu
+from docx.shared import Pt, Cm, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
-from docx.oxml.ns import qn, nsdecls
-from docx.oxml import OxmlElement, parse_xml
-import re
-import sys
-from pathlib import Path
+from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
 
 
 FONT_NAME = "Times New Roman"
@@ -18,21 +18,10 @@ BIB_SIZE = Pt(10)
 CODE_FONT = "Courier New"
 CODE_SIZE = Pt(9)
 LINE_SPACING = 1.5
-HEADING_COLOR = RGBColor(0, 0, 0)
-BODY_COLOR = RGBColor(0, 0, 0)
+BLACK = RGBColor(0, 0, 0)
 
 
-def set_run_font(run, name=FONT_NAME, size=BODY_SIZE, bold=None, italic=None, color=BODY_COLOR):
-    run.font.name = name
-    run.font.size = size
-    if bold is not None:
-        run.font.bold = bold
-    if italic is not None:
-        run.font.italic = italic
-    if color is not None:
-        run.font.color.rgb = color
-
-    rPr = run._r.get_or_add_rPr()
+def force_font_xml(rPr, name):
     rFonts = rPr.find(qn("w:rFonts"))
     if rFonts is None:
         rFonts = OxmlElement("w:rFonts")
@@ -41,134 +30,132 @@ def set_run_font(run, name=FONT_NAME, size=BODY_SIZE, bold=None, italic=None, co
     rFonts.set(qn("w:hAnsi"), name)
     rFonts.set(qn("w:eastAsia"), name)
     rFonts.set(qn("w:cs"), name)
-
-    theme_attrs = [qn("w:asciiTheme"), qn("w:hAnsiTheme"), qn("w:eastAsiaTheme"), qn("w:cstheme")]
-    for attr in theme_attrs:
+    for attr in [qn("w:asciiTheme"), qn("w:hAnsiTheme"), qn("w:eastAsiaTheme"), qn("w:cstheme")]:
         if rFonts.get(attr):
             del rFonts.attrib[attr]
 
 
-def set_paragraph_format(para, alignment=WD_ALIGN_PARAGRAPH.JUSTIFY, space_before=Pt(0),
-                         space_after=Pt(0), line_spacing=LINE_SPACING, first_indent=None,
-                         keep_next=False, page_break_before=False):
+def set_run_font(run, name=FONT_NAME, size=BODY_SIZE, bold=None, italic=None):
+    run.font.name = name
+    run.font.size = size
+    run.font.color.rgb = BLACK
+    if bold is not None:
+        run.font.bold = bold
+    if italic is not None:
+        run.font.italic = italic
+    force_font_xml(run._r.get_or_add_rPr(), name)
+
+
+def set_paragraph_spacing(para, before=Pt(0), after=Pt(0), line_spacing=LINE_SPACING,
+                           alignment=WD_ALIGN_PARAGRAPH.JUSTIFY, indent_left=None,
+                           keep_next=False, page_break_before=False):
     pf = para.paragraph_format
     pf.alignment = alignment
-    pf.space_before = space_before
-    pf.space_after = space_after
+    pf.space_before = before
+    pf.space_after = after
     pf.line_spacing = line_spacing
-    pf.first_line_indent = first_indent
     pf.keep_with_next = keep_next
     pf.page_break_before = page_break_before
-
-
-def is_code_style(style_name):
-    return style_name == "Source Code"
-
-
-def is_heading(style_name):
-    return style_name.startswith("Heading")
+    if indent_left is not None:
+        pf.left_indent = indent_left
+    else:
+        pf.left_indent = None
+    pf.first_line_indent = None
 
 
 def get_heading_level(style_name):
-    match = re.search(r"(\d+)", style_name)
-    return int(match.group(1)) if match else 0
+    m = re.search(r"(\d+)", style_name)
+    return int(m.group(1)) if m else 0
 
 
 def fix_paragraph(para):
-    style_name = para.style.name
+    style = para.style.name
 
-    if is_heading(style_name):
-        level = get_heading_level(style_name)
-        if level == 1:
-            size = H1_SIZE
-            set_paragraph_format(para, alignment=WD_ALIGN_PARAGRAPH.LEFT,
-                                 space_before=Pt(12), space_after=Pt(12),
-                                 line_spacing=LINE_SPACING, keep_next=True,
-                                 page_break_before=True)
-        elif level == 2:
-            size = H2_SIZE
-            set_paragraph_format(para, alignment=WD_ALIGN_PARAGRAPH.LEFT,
-                                 space_before=Pt(12), space_after=Pt(6),
-                                 line_spacing=LINE_SPACING, keep_next=True)
-        else:
-            size = H3_SIZE
-            set_paragraph_format(para, alignment=WD_ALIGN_PARAGRAPH.LEFT,
-                                 space_before=Pt(6), space_after=Pt(6),
-                                 line_spacing=LINE_SPACING, keep_next=True)
-
+    if style.startswith("Heading"):
+        level = get_heading_level(style)
+        size = H1_SIZE if level == 1 else H2_SIZE
+        set_paragraph_spacing(para, before=Pt(12), after=Pt(6),
+                              alignment=WD_ALIGN_PARAGRAPH.LEFT,
+                              keep_next=True, page_break_before=(level == 1))
         for run in para.runs:
-            set_run_font(run, size=size, bold=True, color=HEADING_COLOR)
+            set_run_font(run, size=size, bold=True)
 
-    elif is_code_style(style_name):
-        set_paragraph_format(para, alignment=WD_ALIGN_PARAGRAPH.LEFT,
-                             space_before=Pt(0), space_after=Pt(0),
-                             line_spacing=1.0)
+    elif style == "Source Code":
+        set_paragraph_spacing(para, before=Pt(0), after=Pt(0),
+                              line_spacing=1.0,
+                              alignment=WD_ALIGN_PARAGRAPH.LEFT)
         for run in para.runs:
-            set_run_font(run, name=CODE_FONT, size=CODE_SIZE, bold=False, color=BODY_COLOR)
+            set_run_font(run, name=CODE_FONT, size=CODE_SIZE, bold=False)
+        add_code_shading(para)
 
-    elif style_name == "Bibliography":
-        set_paragraph_format(para, alignment=WD_ALIGN_PARAGRAPH.LEFT,
-                             space_before=Pt(0), space_after=Pt(6),
-                             line_spacing=1.0)
+    elif style == "Bibliography":
+        set_paragraph_spacing(para, before=Pt(0), after=Pt(6),
+                              line_spacing=1.0,
+                              alignment=WD_ALIGN_PARAGRAPH.LEFT)
         for run in para.runs:
-            set_run_font(run, size=BIB_SIZE, color=BODY_COLOR)
+            set_run_font(run, size=BIB_SIZE)
 
-    elif style_name == "Compact":
-        set_paragraph_format(para, alignment=WD_ALIGN_PARAGRAPH.JUSTIFY,
-                             space_before=Pt(0), space_after=Pt(3),
-                             line_spacing=LINE_SPACING,
-                             first_indent=None)
-        para.paragraph_format.left_indent = Cm(1.0)
+    elif style == "Compact":
+        set_paragraph_spacing(para, before=Pt(0), after=Pt(3),
+                              alignment=WD_ALIGN_PARAGRAPH.JUSTIFY,
+                              indent_left=Cm(1.0))
         for run in para.runs:
-            existing_bold = run.font.bold
-            existing_italic = run.font.italic
-            set_run_font(run, size=BODY_SIZE, bold=existing_bold,
-                         italic=existing_italic, color=BODY_COLOR)
-
-    elif "TOC" in style_name or "toc" in style_name:
-        pass
-
-    elif style_name in ["Title", "Subtitle", "Author", "Date"]:
-        for run in para.runs:
-            set_run_font(run, color=BODY_COLOR)
+            set_run_font(run, size=BODY_SIZE, bold=run.font.bold, italic=run.font.italic)
 
     else:
-        set_paragraph_format(para, alignment=WD_ALIGN_PARAGRAPH.JUSTIFY,
-                             space_before=Pt(0), space_after=Pt(6),
-                             line_spacing=LINE_SPACING)
+        set_paragraph_spacing(para, before=Pt(0), after=Pt(6))
         for run in para.runs:
-            existing_bold = run.font.bold
-            existing_italic = run.font.italic
-
             if run.font.name and "courier" in run.font.name.lower():
-                set_run_font(run, name=CODE_FONT, size=CODE_SIZE,
-                             bold=existing_bold, italic=existing_italic, color=BODY_COLOR)
+                set_run_font(run, name=CODE_FONT, size=CODE_SIZE, bold=run.font.bold)
             else:
-                set_run_font(run, size=BODY_SIZE,
-                             bold=existing_bold, italic=existing_italic, color=BODY_COLOR)
+                set_run_font(run, size=BODY_SIZE, bold=run.font.bold, italic=run.font.italic)
+
+
+def add_code_shading(para):
+    pPr = para._p.get_or_add_pPr()
+    shd = pPr.find(qn("w:shd"))
+    if shd is None:
+        shd = OxmlElement("w:shd")
+        pPr.append(shd)
+    shd.set(qn("w:val"), "clear")
+    shd.set(qn("w:color"), "auto")
+    shd.set(qn("w:fill"), "F2F2F2")
+
+    pBdr = pPr.find(qn("w:pBdr"))
+    if pBdr is None:
+        pBdr = OxmlElement("w:pBdr")
+        pPr.append(pBdr)
+    for side in ["top", "bottom", "left", "right"]:
+        border = pBdr.find(qn(f"w:{side}"))
+        if border is None:
+            border = OxmlElement(f"w:{side}")
+            pBdr.append(border)
+        border.set(qn("w:val"), "single")
+        border.set(qn("w:sz"), "4")
+        border.set(qn("w:space"), "4")
+        border.set(qn("w:color"), "CCCCCC")
 
 
 def fix_table(table):
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
-
     tbl = table._tbl
     tblPr = tbl.find(qn("w:tblPr"))
     if tblPr is None:
         tblPr = OxmlElement("w:tblPr")
         tbl.insert(0, tblPr)
 
-    existing_borders = tblPr.find(qn("w:tblBorders"))
-    if existing_borders is not None:
-        tblPr.remove(existing_borders)
+    existing = tblPr.find(qn("w:tblBorders"))
+    if existing is not None:
+        tblPr.remove(existing)
 
     borders = OxmlElement("w:tblBorders")
-    for border_name in ["top", "left", "bottom", "right", "insideH", "insideV"]:
-        border = OxmlElement(f"w:{border_name}")
-        border.set(qn("w:val"), "single")
-        border.set(qn("w:sz"), "4")
-        border.set(qn("w:space"), "0")
-        border.set(qn("w:color"), "000000")
-        borders.append(border)
+    for name in ["top", "left", "bottom", "right", "insideH", "insideV"]:
+        b = OxmlElement(f"w:{name}")
+        b.set(qn("w:val"), "single")
+        b.set(qn("w:sz"), "4")
+        b.set(qn("w:space"), "0")
+        b.set(qn("w:color"), "000000")
+        borders.append(b)
     tblPr.append(borders)
 
     for i, row in enumerate(table.rows):
@@ -179,16 +166,7 @@ def fix_table(table):
                 para.paragraph_format.line_spacing = 1.0
                 para.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.LEFT
                 for run in para.runs:
-                    if i == 0:
-                        set_run_font(run, size=Pt(10), bold=True, color=BODY_COLOR)
-                    else:
-                        set_run_font(run, size=Pt(10), bold=False, color=BODY_COLOR)
-
-            tc = cell._tc
-            tcPr = tc.find(qn("w:tcPr"))
-            if tcPr is None:
-                tcPr = OxmlElement("w:tcPr")
-                tc.insert(0, tcPr)
+                    set_run_font(run, size=Pt(10), bold=(i == 0))
 
 
 def fix_page_setup(doc):
@@ -199,173 +177,271 @@ def fix_page_setup(doc):
         section.right_margin = Cm(2.5)
         section.page_width = Cm(21.0)
         section.page_height = Cm(29.7)
-
         sectPr = section._sectPr
         pgMar = sectPr.find(qn("w:pgMar"))
         if pgMar is not None:
             pgMar.set(qn("w:gutter"), "567")
 
 
+def strip_theme_fonts(doc):
+    for rPr in doc.element.iter(qn("w:rPr")):
+        rFonts = rPr.find(qn("w:rFonts"))
+        if rFonts is not None:
+            for attr in [qn("w:asciiTheme"), qn("w:hAnsiTheme"),
+                         qn("w:eastAsiaTheme"), qn("w:cstheme")]:
+                if rFonts.get(attr) is not None:
+                    del rFonts.attrib[attr]
+            if not rFonts.get(qn("w:ascii")):
+                rFonts.set(qn("w:ascii"), FONT_NAME)
+                rFonts.set(qn("w:hAnsi"), FONT_NAME)
+
+
+def add_page_numbers(doc):
+    for section in doc.sections:
+        footer = section.footer
+        footer.is_linked_to_previous = False
+        if not footer.paragraphs or not footer.paragraphs[0].text:
+            p = footer.paragraphs[0] if footer.paragraphs else footer.add_paragraph()
+            p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+
+            run = p.add_run()
+            fldChar1 = OxmlElement("w:fldChar")
+            fldChar1.set(qn("w:fldCharType"), "begin")
+            run._r.append(fldChar1)
+
+            run2 = p.add_run()
+            instrText = OxmlElement("w:instrText")
+            instrText.set(qn("xml:space"), "preserve")
+            instrText.text = " PAGE "
+            run2._r.append(instrText)
+
+            run3 = p.add_run()
+            fldChar2 = OxmlElement("w:fldChar")
+            fldChar2.set(qn("w:fldCharType"), "separate")
+            run3._r.append(fldChar2)
+
+            run4 = p.add_run("1")
+            set_run_font(run4, size=Pt(10))
+
+            run5 = p.add_run()
+            fldChar3 = OxmlElement("w:fldChar")
+            fldChar3.set(qn("w:fldCharType"), "end")
+            run5._r.append(fldChar3)
+
+
 def generate_toc(doc):
     headings = []
     for para in doc.paragraphs:
-        if is_heading(para.style.name) and para.text.strip():
+        if para.style.name.startswith("Heading") and para.text.strip():
             level = get_heading_level(para.style.name)
             if level <= 3:
                 headings.append((level, para.text.strip()))
 
     body = doc.element.body
 
-    insert_before = None
+    first_heading_idx = None
     for i, child in enumerate(body):
         if child.tag == qn("w:p"):
             pPr = child.find(qn("w:pPr"))
             if pPr is not None:
                 pStyle = pPr.find(qn("w:pStyle"))
                 if pStyle is not None and "Heading" in pStyle.get(qn("w:val"), ""):
-                    insert_before = i
+                    first_heading_idx = i
                     break
 
-    if insert_before is None:
+    if first_heading_idx is None:
         return
+
+    for sdt in body.findall(qn("w:sdt")):
+        body.remove(sdt)
 
     toc_elements = []
 
-    toc_title = OxmlElement("w:p")
-    toc_pPr = OxmlElement("w:pPr")
-    toc_pStyle = OxmlElement("w:pStyle")
-    toc_pStyle.set(qn("w:val"), "Heading1")
-    toc_pPr.append(toc_pStyle)
+    toc_title = make_paragraph("Tartalomjegyzék", size=Pt(14), bold=True,
+                                alignment="center", space_before=Pt(0), space_after=Pt(12))
+    toc_elements.append(toc_title)
 
-    spacing = OxmlElement("w:spacing")
-    spacing.set(qn("w:before"), "240")
-    spacing.set(qn("w:after"), "240")
-    toc_pPr.append(spacing)
+    toc_field_para = make_toc_field()
+    toc_elements.append(toc_field_para)
 
-    page_break = OxmlElement("w:pageBreakBefore")
-    page_break.set(qn("w:val"), "false")
-    toc_pPr.append(page_break)
+    page_break = OxmlElement("w:p")
+    pb_run = OxmlElement("w:r")
+    br_elem = OxmlElement("w:br")
+    br_elem.set(qn("w:type"), "page")
+    pb_run.append(br_elem)
+    page_break.append(pb_run)
+    toc_elements.append(page_break)
 
-    toc_title.append(toc_pPr)
-    toc_run = OxmlElement("w:r")
-    toc_rPr = OxmlElement("w:rPr")
+    for elem in reversed(toc_elements):
+        body.insert(first_heading_idx, elem)
+
+
+def make_toc_field():
+    para = OxmlElement("w:p")
+
+    pPr = OxmlElement("w:pPr")
+    pBdr = OxmlElement("w:pBdr")
+    for side in ["top", "bottom", "left", "right"]:
+        b = OxmlElement(f"w:{side}")
+        b.set(qn("w:val"), "single")
+        b.set(qn("w:sz"), "4")
+        b.set(qn("w:space"), "1")
+        b.set(qn("w:color"), "000000")
+        pBdr.append(b)
+    pPr.append(pBdr)
+    para.append(pPr)
+
+    run1 = OxmlElement("w:r")
+    fldChar1 = OxmlElement("w:fldChar")
+    fldChar1.set(qn("w:fldCharType"), "begin")
+    run1.append(fldChar1)
+    para.append(run1)
+
+    run2 = OxmlElement("w:r")
+    instrText = OxmlElement("w:instrText")
+    instrText.set(qn("xml:space"), "preserve")
+    instrText.text = r' TOC \o "1-3" \h \z \u '
+    run2.append(instrText)
+    para.append(run2)
+
+    run3 = OxmlElement("w:r")
+    fldChar2 = OxmlElement("w:fldChar")
+    fldChar2.set(qn("w:fldCharType"), "separate")
+    run3.append(fldChar2)
+    para.append(run3)
+
+    run4 = OxmlElement("w:r")
+    rPr = OxmlElement("w:rPr")
     rFonts = OxmlElement("w:rFonts")
     rFonts.set(qn("w:ascii"), FONT_NAME)
     rFonts.set(qn("w:hAnsi"), FONT_NAME)
-    toc_rPr.append(rFonts)
+    rPr.append(rFonts)
     sz = OxmlElement("w:sz")
-    sz.set(qn("w:val"), "28")
-    toc_rPr.append(sz)
-    b = OxmlElement("w:b")
-    toc_rPr.append(b)
+    sz.set(qn("w:val"), "24")
+    rPr.append(sz)
+    run4.append(rPr)
+    t = OxmlElement("w:t")
+    t.text = "Jobb klikk \u2192 Jegyz\u00e9k friss\u00edt\u00e9se"
+    run4.append(t)
+    para.append(run4)
+
+    run5 = OxmlElement("w:r")
+    fldChar3 = OxmlElement("w:fldChar")
+    fldChar3.set(qn("w:fldCharType"), "end")
+    run5.append(fldChar3)
+    para.append(run5)
+
+    return para
+
+
+def make_paragraph(text, size=BODY_SIZE, bold=False, alignment="left",
+                   space_before=Pt(0), space_after=Pt(0)):
+    para = OxmlElement("w:p")
+    pPr = OxmlElement("w:pPr")
+
+    jc = OxmlElement("w:jc")
+    jc_val = {"left": "left", "center": "center", "right": "right", "justify": "both"}
+    jc.set(qn("w:val"), jc_val.get(alignment, "left"))
+    pPr.append(jc)
+
+    spacing = OxmlElement("w:spacing")
+    spacing.set(qn("w:before"), str(int(space_before.pt * 20)))
+    spacing.set(qn("w:after"), str(int(space_after.pt * 20)))
+    spacing.set(qn("w:line"), "360")
+    spacing.set(qn("w:lineRule"), "auto")
+    pPr.append(spacing)
+
+    para.append(pPr)
+
+    run = OxmlElement("w:r")
+    rPr = OxmlElement("w:rPr")
+    rFonts = OxmlElement("w:rFonts")
+    rFonts.set(qn("w:ascii"), FONT_NAME)
+    rFonts.set(qn("w:hAnsi"), FONT_NAME)
+    rPr.append(rFonts)
+    sz_elem = OxmlElement("w:sz")
+    sz_elem.set(qn("w:val"), str(int(size.pt * 2)))
+    rPr.append(sz_elem)
+    szCs = OxmlElement("w:szCs")
+    szCs.set(qn("w:val"), str(int(size.pt * 2)))
+    rPr.append(szCs)
+    if bold:
+        b = OxmlElement("w:b")
+        rPr.append(b)
     color = OxmlElement("w:color")
     color.set(qn("w:val"), "000000")
-    toc_rPr.append(color)
-    toc_run.append(toc_rPr)
-    toc_text = OxmlElement("w:t")
-    toc_text.text = "Tartalomjegyzék"
-    toc_run.append(toc_text)
-    toc_title.append(toc_run)
-    toc_elements.append(toc_title)
+    rPr.append(color)
+    run.append(rPr)
 
-    for level, text in headings:
-        if text == "Tartalomjegyzék":
-            continue
+    t = OxmlElement("w:t")
+    t.set(qn("xml:space"), "preserve")
+    t.text = text
+    run.append(t)
+    para.append(run)
 
-        entry = OxmlElement("w:p")
-        entry_pPr = OxmlElement("w:pPr")
+    return para
 
-        indent = OxmlElement("w:ind")
-        indent_val = str((level - 1) * 360)
-        indent.set(qn("w:left"), indent_val)
-        entry_pPr.append(indent)
 
-        tabs = OxmlElement("w:tabs")
+def configure_toc_styles(doc):
+    from docx.enum.style import WD_STYLE_TYPE
+
+    styles = doc.styles
+
+    for level in range(1, 4):
+        style_name = f"toc {level}"
+        try:
+            style = styles[style_name]
+        except KeyError:
+            style = styles.add_style(style_name, WD_STYLE_TYPE.PARAGRAPH)
+            style.base_style = styles["Normal"]
+
+        pf = style.paragraph_format
+        pf.space_before = Pt(2)
+        pf.space_after = Pt(2)
+        pf.line_spacing = 1.5
+
+        if level == 1:
+            style.font.bold = True
+            style.font.size = Pt(12)
+            style.font.all_caps = True
+            pf.left_indent = Cm(0)
+            pf.space_before = Pt(6)
+        elif level == 2:
+            style.font.bold = True
+            style.font.size = Pt(12)
+            pf.left_indent = Cm(1.0)
+        elif level == 3:
+            style.font.bold = False
+            style.font.size = Pt(12)
+            pf.left_indent = Cm(2.0)
+
+        style.font.name = FONT_NAME
+        style.font.color.rgb = BLACK
+
+        rPr = style.element.get_or_add_rPr()
+        force_font_xml(rPr, FONT_NAME)
+
+        pPr = style.element.get_or_add_pPr()
+        tabs = pPr.find(qn("w:tabs"))
+        if tabs is None:
+            tabs = OxmlElement("w:tabs")
+            pPr.append(tabs)
+        else:
+            for existing_tab in tabs.findall(qn("w:tab")):
+                tabs.remove(existing_tab)
+
         tab = OxmlElement("w:tab")
         tab.set(qn("w:val"), "right")
         tab.set(qn("w:leader"), "dot")
         tab.set(qn("w:pos"), "9072")
         tabs.append(tab)
-        entry_pPr.append(tabs)
-
-        entry_spacing = OxmlElement("w:spacing")
-        entry_spacing.set(qn("w:before"), "60")
-        entry_spacing.set(qn("w:after"), "60")
-        entry_spacing.set(qn("w:line"), "240")
-        entry_spacing.set(qn("w:lineRule"), "auto")
-        entry_pPr.append(entry_spacing)
-
-        entry.append(entry_pPr)
-
-        entry_run = OxmlElement("w:r")
-        entry_rPr = OxmlElement("w:rPr")
-        rFonts = OxmlElement("w:rFonts")
-        rFonts.set(qn("w:ascii"), FONT_NAME)
-        rFonts.set(qn("w:hAnsi"), FONT_NAME)
-        entry_rPr.append(rFonts)
-        entry_sz = OxmlElement("w:sz")
-        if level == 1:
-            entry_sz.set(qn("w:val"), "24")
-            entry_b = OxmlElement("w:b")
-            entry_rPr.append(entry_b)
-        else:
-            entry_sz.set(qn("w:val"), "22")
-        entry_rPr.append(entry_sz)
-        entry_color = OxmlElement("w:color")
-        entry_color.set(qn("w:val"), "000000")
-        entry_rPr.append(entry_color)
-        entry_run.append(entry_rPr)
-        entry_text = OxmlElement("w:t")
-        entry_text.set(qn("xml:space"), "preserve")
-        entry_text.text = text
-        entry_run.append(entry_text)
-        entry.append(entry_run)
-
-        toc_elements.append(entry)
-
-    page_break_para = OxmlElement("w:p")
-    pb_pPr = OxmlElement("w:pPr")
-    page_break_para.append(pb_pPr)
-    pb_run = OxmlElement("w:r")
-    br_elem = OxmlElement("w:br")
-    br_elem.set(qn("w:type"), "page")
-    pb_run.append(br_elem)
-    page_break_para.append(pb_run)
-    toc_elements.append(page_break_para)
-
-    for elem in reversed(toc_elements):
-        body.insert(insert_before, elem)
-
-
-def fix_document_theme(doc):
-    body = doc.element.body
-    sectPr_list = body.findall(qn("w:sectPr"))
-
-    for rPr in doc.element.iter(qn("w:rPr")):
-        rFonts = rPr.find(qn("w:rFonts"))
-        if rFonts is not None:
-            for attr in [qn("w:asciiTheme"), qn("w:hAnsiTheme"), qn("w:eastAsiaTheme"), qn("w:cstheme")]:
-                if rFonts.get(attr) is not None:
-                    del rFonts.attrib[attr]
-            if not rFonts.get(qn("w:ascii")):
-                rFonts.set(qn("w:ascii"), FONT_NAME)
-                rFonts.set(qn("w:hAnsi"), FONT_NAME)
-                rFonts.set(qn("w:eastAsia"), FONT_NAME)
-                rFonts.set(qn("w:cs"), FONT_NAME)
-
-
-def remove_pandoc_toc_sdt(doc):
-    body = doc.element.body
-    for sdt in body.findall(qn("w:sdt")):
-        body.remove(sdt)
 
 
 def postprocess(docx_path):
     doc = Document(docx_path)
 
-    remove_pandoc_toc_sdt(doc)
     fix_page_setup(doc)
-    fix_document_theme(doc)
+    strip_theme_fonts(doc)
 
     for para in doc.paragraphs:
         fix_paragraph(para)
@@ -373,7 +449,9 @@ def postprocess(docx_path):
     for table in doc.tables:
         fix_table(table)
 
+    configure_toc_styles(doc)
     generate_toc(doc)
+    add_page_numbers(doc)
 
     doc.save(docx_path)
     print(f"    Post-processed: {docx_path}")
