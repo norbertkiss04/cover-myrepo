@@ -12,7 +12,7 @@ A főbb megvalósított képességek:
 - Többrétegű biztonsági modell Row-Level Security-vel, prompt injection detektálással, atomikus kredit-műveletekkel és rate limitinggel
 - Automatizált minőségbiztosítás 204 backend teszttel, CI/CD pipeline-nal és TypeScript típusellenőrzéssel
 
-A zárt béta tesztelés során a rendszer megbízhatóan működött, a felhasználók sikeresen generáltak borítókat különböző pipeline-okon keresztül.
+A zárt béta tesztelés során a rendszer stabilan működött, és a pipeline-ok a különböző konfigurációkban sikeresen produkáltak borítókat.
 
 ## 11.2. Tapasztalatok
 

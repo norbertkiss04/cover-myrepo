@@ -59,8 +59,10 @@ Az LLM prompt generálása során explicit utasítást kap: ne tartalmazzon szö
 base_prompt = llm_service.generate_base_image_prompt(
     book_data, base_image_only=True, user=user
 )
-base_prompt += " Do not include any text, words, letters, titles, "
-               "or typography anywhere in the image."
+base_prompt += (
+    " Do not include any text, words, letters, titles, "
+    "or typography anywhere in the image."
+)
 ```
 
 A kettős biztosítás szükséges, mert a képgenerálási modellek hajlamosak szöveget beilleszteni a könyvborítókra akkor is, ha a prompt ezt nem kéri, pusztán azért, mert a tanító adatban gyakran szerepelt szöveg a borítókon.

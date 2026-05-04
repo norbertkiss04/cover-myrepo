@@ -109,8 +109,10 @@ except Exception as e:
         return
 
     if isinstance(e, InsufficientCreditsError):
-        error_message = f"Insufficient credits: need {e.required}, "
-                        f"have {e.available}"
+        error_message = (
+            f"Insufficient credits: need {e.required}, "
+            f"have {e.available}"
+        )
     else:
         error_message = 'Generation failed. Please try again.'
 

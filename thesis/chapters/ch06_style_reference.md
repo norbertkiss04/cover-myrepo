@@ -164,8 +164,11 @@ Programmatikus megoldás PIL könyvtárral: a text layer fehér pixeleit átlát
 ```python
 def blend_images_programmatic(base_image_url, text_layer_url,
                               white_threshold=240):
+    base_response = http_requests.get(base_image_url, timeout=60)
+    text_response = http_requests.get(text_layer_url, timeout=60)
     base_img = Image.open(io.BytesIO(base_response.content)).convert('RGBA')
     text_img = Image.open(io.BytesIO(text_response.content)).convert('RGBA')
+    width, height = text_img.size
 
     text_data = text_img.load()
     for y in range(height):
