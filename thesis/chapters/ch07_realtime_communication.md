@@ -205,22 +205,4 @@ Ez a döntés leegyszerűsíti az architektúrát: a teljes generálási folyama
 
 ## 7.8. Rate limiting
 
-A WebSocket eseményekre is alkalmazok rate limitinget, hogy megakadályozzam a visszaélést. Egy felhasználó legfeljebb 10 eseményt küldhet 60 másodperc alatt:
-
-```python
-SOCKET_RATE_LIMIT = 10
-SOCKET_RATE_WINDOW = 60
-
-def _check_socket_rate_limit(sid):
-    now = _time.time()
-    window_start = now - SOCKET_RATE_WINDOW
-    _rate_limit_store[sid] = [
-        t for t in _rate_limit_store[sid] if t > window_start
-    ]
-    if len(_rate_limit_store[sid]) >= SOCKET_RATE_LIMIT:
-        return False
-    _rate_limit_store[sid].append(now)
-    return True
-```
-
-Ha a limit túllépésre kerül, a felhasználó `generation_error` eseményt kap és a kérése elutasítódik.
+A WebSocket eseményekre is alkalmazok rate limitinget, hogy megakadályozzam a visszaélést. Egy felhasználó legfeljebb 10 eseményt küldhet 60 másodperc alatt, sliding window algoritmussal. Ha a limit túllépésre kerül, a felhasználó `generation_error` eseményt kap és a kérése elutasítódik. A rate limiting implementáció részleteit és a többi védelmi réteghez való kapcsolódását a 8. fejezet ismerteti.

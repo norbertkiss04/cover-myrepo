@@ -232,27 +232,4 @@ A méret meghatározásánál a felhasználó által választott képarányt (pl
 
 ## 5.6. Kredit-integráció a pipeline-ban
 
-A pipeline-ok lépésenként vonnak le krediteket. Nem előre számolom ki és vonom le a teljes költséget, hanem minden egyes API híváskor külön-külön történik a levonás. Ennek oka, hogy ha egy közbenső lépés elbukik, a felhasználó csak az addig felhasznált lépések kreditjét veszíti el.
-
-A költségek:
-
-- LLM hívás: 1 kredit
-- Képgenerálás: 6 kredit
-
-Egy tipikus kétlépéses standard generálás összesen 14 kreditet fogyaszt (2 LLM + 2 kép = 2×1 + 2×6). A stílusreferencia pipeline a legtöbb hívással járó útvonal (akár 5 lépés, 20+ kredit), ezért a frontend generálás indítása előtt költségbecslést mutat, ami a kiválasztott beállítások alapján dinamikusan változik.
-
-A kredit-levonás az `_make_request` (LLM) és `_submit` (kép) metódusokban történik, közvetlenül az API hívás előtt:
-
-```python
-def _submit(self, url, payload, user=None):
-    if user is not None:
-        result = deduct_image_credit(user)
-        if not result['success']:
-            raise InsufficientCreditsError(
-                required=6, available=result['remaining']
-            )
-    r = requests.post(url, headers=self._headers(), json=payload, timeout=30)
-    ...
-```
-
-Ha a kredit nem elegendő, az `InsufficientCreditsError` kivétel azonnal leállítja a pipeline-t, és a felhasználó hibaüzenetet kap a WebSocket-en.
+A pipeline-ok lépésenként vonnak le krediteket. Nem előre számolom ki és vonom le a teljes költséget, hanem minden egyes API híváskor külön-külön történik a levonás. Ennek oka, hogy ha egy közbenső lépés elbukik, a felhasználó csak az addig felhasznált lépések kreditjét veszíti el. Ha a kredit nem elegendő, az `InsufficientCreditsError` kivétel azonnal leállítja a pipeline-t, és a felhasználó hibaüzenetet kap a WebSocket-en. A kreditrendszer részletes működését, az atomikus levonás implementációját és a dinamikus költségbecslést a 8. fejezet tárgyalja.
