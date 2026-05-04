@@ -261,8 +261,11 @@ def generate_toc(doc):
                                 alignment="center", space_before=Pt(0), space_after=Pt(12))
     toc_elements.append(toc_title)
 
-    toc_field_para = make_toc_field()
-    toc_elements.append(toc_field_para)
+    for level, text in headings:
+        if text == "Tartalomjegyzék":
+            continue
+        entry = make_toc_entry(level, text)
+        toc_elements.append(entry)
 
     page_break = OxmlElement("w:p")
     pb_run = OxmlElement("w:r")
@@ -276,60 +279,80 @@ def generate_toc(doc):
         body.insert(first_heading_idx, elem)
 
 
-def make_toc_field():
+def make_toc_entry(level, text):
     para = OxmlElement("w:p")
-
     pPr = OxmlElement("w:pPr")
-    pBdr = OxmlElement("w:pBdr")
-    for side in ["top", "bottom", "left", "right"]:
-        b = OxmlElement(f"w:{side}")
-        b.set(qn("w:val"), "single")
-        b.set(qn("w:sz"), "4")
-        b.set(qn("w:space"), "1")
-        b.set(qn("w:color"), "000000")
-        pBdr.append(b)
-    pPr.append(pBdr)
+
+    indent = OxmlElement("w:ind")
+    if level == 1:
+        indent.set(qn("w:left"), "0")
+    elif level == 2:
+        indent.set(qn("w:left"), "567")
+    else:
+        indent.set(qn("w:left"), "1134")
+    pPr.append(indent)
+
+    tabs = OxmlElement("w:tabs")
+    tab = OxmlElement("w:tab")
+    tab.set(qn("w:val"), "right")
+    tab.set(qn("w:leader"), "dot")
+    tab.set(qn("w:pos"), "9072")
+    tabs.append(tab)
+    pPr.append(tabs)
+
+    spacing = OxmlElement("w:spacing")
+    spacing.set(qn("w:before"), "60")
+    spacing.set(qn("w:after"), "60")
+    spacing.set(qn("w:line"), "360")
+    spacing.set(qn("w:lineRule"), "auto")
+    pPr.append(spacing)
+
     para.append(pPr)
 
-    run1 = OxmlElement("w:r")
-    fldChar1 = OxmlElement("w:fldChar")
-    fldChar1.set(qn("w:fldCharType"), "begin")
-    run1.append(fldChar1)
-    para.append(run1)
+    display_text = text.upper() if level == 1 else text
 
-    run2 = OxmlElement("w:r")
-    instrText = OxmlElement("w:instrText")
-    instrText.set(qn("xml:space"), "preserve")
-    instrText.text = r' TOC \o "1-3" \h \z \u '
-    run2.append(instrText)
-    para.append(run2)
-
-    run3 = OxmlElement("w:r")
-    fldChar2 = OxmlElement("w:fldChar")
-    fldChar2.set(qn("w:fldCharType"), "separate")
-    run3.append(fldChar2)
-    para.append(run3)
-
-    run4 = OxmlElement("w:r")
+    run = OxmlElement("w:r")
     rPr = OxmlElement("w:rPr")
     rFonts = OxmlElement("w:rFonts")
     rFonts.set(qn("w:ascii"), FONT_NAME)
     rFonts.set(qn("w:hAnsi"), FONT_NAME)
+    rFonts.set(qn("w:cs"), FONT_NAME)
     rPr.append(rFonts)
     sz = OxmlElement("w:sz")
     sz.set(qn("w:val"), "24")
     rPr.append(sz)
-    run4.append(rPr)
+    szCs = OxmlElement("w:szCs")
+    szCs.set(qn("w:val"), "24")
+    rPr.append(szCs)
+    if level <= 2:
+        b = OxmlElement("w:b")
+        rPr.append(b)
+    color = OxmlElement("w:color")
+    color.set(qn("w:val"), "000000")
+    rPr.append(color)
+    run.append(rPr)
     t = OxmlElement("w:t")
-    t.text = "Jobb klikk \u2192 Jegyz\u00e9k friss\u00edt\u00e9se"
-    run4.append(t)
-    para.append(run4)
+    t.set(qn("xml:space"), "preserve")
+    t.text = display_text
+    run.append(t)
+    para.append(run)
 
-    run5 = OxmlElement("w:r")
-    fldChar3 = OxmlElement("w:fldChar")
-    fldChar3.set(qn("w:fldCharType"), "end")
-    run5.append(fldChar3)
-    para.append(run5)
+    tab_run = OxmlElement("w:r")
+    tab_rPr = OxmlElement("w:rPr")
+    tab_rFonts = OxmlElement("w:rFonts")
+    tab_rFonts.set(qn("w:ascii"), FONT_NAME)
+    tab_rFonts.set(qn("w:hAnsi"), FONT_NAME)
+    tab_rPr.append(tab_rFonts)
+    tab_sz = OxmlElement("w:sz")
+    tab_sz.set(qn("w:val"), "24")
+    tab_rPr.append(tab_sz)
+    if level <= 2:
+        tab_b = OxmlElement("w:b")
+        tab_rPr.append(tab_b)
+    tab_run.append(tab_rPr)
+    tab_char = OxmlElement("w:tab")
+    tab_run.append(tab_char)
+    para.append(tab_run)
 
     return para
 
@@ -452,9 +475,29 @@ def postprocess(docx_path):
     configure_toc_styles(doc)
     generate_toc(doc)
     add_page_numbers(doc)
+    add_initial_page_break(doc)
 
     doc.save(docx_path)
     print(f"    Post-processed: {docx_path}")
+
+
+def add_initial_page_break(doc):
+    body = doc.element.body
+    pb_para = OxmlElement("w:p")
+    pb_pPr = OxmlElement("w:pPr")
+    spacing = OxmlElement("w:spacing")
+    spacing.set(qn("w:before"), "0")
+    spacing.set(qn("w:after"), "0")
+    spacing.set(qn("w:line"), "240")
+    spacing.set(qn("w:lineRule"), "auto")
+    pb_pPr.append(spacing)
+    pb_para.append(pb_pPr)
+    pb_run = OxmlElement("w:r")
+    br_elem = OxmlElement("w:br")
+    br_elem.set(qn("w:type"), "page")
+    pb_run.append(br_elem)
+    pb_para.append(pb_run)
+    body.insert(0, pb_para)
 
 
 if __name__ == "__main__":
