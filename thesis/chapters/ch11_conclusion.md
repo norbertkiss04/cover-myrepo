@@ -24,7 +24,7 @@ A fejlesztés során több fontos tanulságot szűrtem le:
 
 **A lépésenkénti kredit-levonás méltányosabb.** Az előre levonás + visszatérítés modellel szemben a lépésenkénti levonás biztosítja, hogy sikertelen generálás esetén a felhasználó csak a ténylegesen elhasznált erőforrásokért fizet.
 
-**Az AI-eszközök hatékony kiegészítők, de nem helyettesítők.** A fejlesztés során szisztematikusan alkalmaztam nagy nyelvi modelleket kódgenerálásra, tesztírásra és dokumentálásra. A tapasztalat egyértelműen megmutatta, hogy ezek az eszközök valódi sebességnövelést hoznak jól behatárolt feladatoknál, ugyanakkor a mérnöki ítélőképességet nem pótolják: a generált kód validálása és a kritikus döntések meghozatala mindig emberi felelősség maradt. A részletes tapasztalatokat a 10. fejezet tartalmazza.
+**Az AI-eszközök hatékony kiegészítők, de nem helyettesítők.** A fejlesztés során szisztematikusan alkalmaztam nagy nyelvi modelleket kódgenerálásra, tesztírásra és tervezési előkészítésre. A tapasztalat egyértelműen megmutatta, hogy ezek az eszközök valódi sebességnövelést hoznak jól behatárolt feladatoknál, ugyanakkor a mérnöki ítélőképességet nem pótolják: a generált kód validálása és a kritikus döntések meghozatala mindig emberi felelősség maradt. A részletes tapasztalatokat a 10. fejezet tartalmazza.
 
 ## 11.3. Továbbfejlesztési lehetőségek
 
