@@ -5,7 +5,6 @@ from docx import Document
 from docx.shared import Pt, Cm, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
-from docx.opc.constants import RELATIONSHIP_TYPE as RT
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
@@ -248,7 +247,11 @@ def add_bookmarks_to_headings(doc):
                 bm_start.set(qn("w:name"), bm_name)
                 bm_end = OxmlElement("w:bookmarkEnd")
                 bm_end.set(qn("w:id"), str(bookmark_id))
-                para._p.insert(0, bm_start)
+                pPr = para._p.find(qn("w:pPr"))
+                if pPr is not None:
+                    pPr.addnext(bm_start)
+                else:
+                    para._p.insert(0, bm_start)
                 para._p.append(bm_end)
                 bookmark_id += 1
 
@@ -288,9 +291,7 @@ def generate_toc(doc):
     for level, text in headings:
         if text == "Tartalomjegyzék":
             continue
-        bm_name = make_bookmark_name(text)
-        rId = doc.part.relate_to(f'#{bm_name}', RT.HYPERLINK, is_external=True)
-        entry = make_toc_entry(level, text, rId)
+        entry = make_toc_entry(level, text)
         toc_elements.append(entry)
 
     page_break = OxmlElement("w:p")
@@ -305,7 +306,7 @@ def generate_toc(doc):
         body.insert(first_heading_idx, elem)
 
 
-def make_toc_entry(level, text, rId=None):
+def make_toc_entry(level, text):
     para = OxmlElement("w:p")
     pPr = OxmlElement("w:pPr")
 
@@ -338,8 +339,6 @@ def make_toc_entry(level, text, rId=None):
 
     hyperlink = OxmlElement("w:hyperlink")
     hyperlink.set(qn("w:anchor"), bm_name)
-    if rId:
-        hyperlink.set(qn("r:id"), rId)
 
     run = OxmlElement("w:r")
     rPr = OxmlElement("w:rPr")
@@ -394,6 +393,64 @@ def make_toc_entry(level, text, rId=None):
     tab_char = OxmlElement("w:tab")
     tab_run.append(tab_char)
     hyperlink.append(tab_run)
+
+    pageref_rPr_template = OxmlElement("w:rPr")
+    pr_rFonts = OxmlElement("w:rFonts")
+    pr_rFonts.set(qn("w:ascii"), FONT_NAME)
+    pr_rFonts.set(qn("w:hAnsi"), FONT_NAME)
+    pageref_rPr_template.append(pr_rFonts)
+    pr_sz = OxmlElement("w:sz")
+    pr_sz.set(qn("w:val"), "24")
+    pageref_rPr_template.append(pr_sz)
+    if level <= 2:
+        pr_b = OxmlElement("w:b")
+        pageref_rPr_template.append(pr_b)
+    pr_color = OxmlElement("w:color")
+    pr_color.set(qn("w:val"), "000000")
+    pageref_rPr_template.append(pr_color)
+    pr_u = OxmlElement("w:u")
+    pr_u.set(qn("w:val"), "none")
+    pageref_rPr_template.append(pr_u)
+
+    def make_field_rPr():
+        from copy import deepcopy
+        return deepcopy(pageref_rPr_template)
+
+    fld_begin_run = OxmlElement("w:r")
+    fld_begin_run.append(make_field_rPr())
+    fld_begin = OxmlElement("w:fldChar")
+    fld_begin.set(qn("w:fldCharType"), "begin")
+    fld_begin_run.append(fld_begin)
+    hyperlink.append(fld_begin_run)
+
+    instr_run = OxmlElement("w:r")
+    instr_run.append(make_field_rPr())
+    instr_text = OxmlElement("w:instrText")
+    instr_text.set(qn("xml:space"), "preserve")
+    instr_text.text = f" PAGEREF {bm_name} \\h "
+    instr_run.append(instr_text)
+    hyperlink.append(instr_run)
+
+    fld_sep_run = OxmlElement("w:r")
+    fld_sep_run.append(make_field_rPr())
+    fld_sep = OxmlElement("w:fldChar")
+    fld_sep.set(qn("w:fldCharType"), "separate")
+    fld_sep_run.append(fld_sep)
+    hyperlink.append(fld_sep_run)
+
+    fld_result_run = OxmlElement("w:r")
+    fld_result_run.append(make_field_rPr())
+    fld_result_t = OxmlElement("w:t")
+    fld_result_t.text = "0"
+    fld_result_run.append(fld_result_t)
+    hyperlink.append(fld_result_run)
+
+    fld_end_run = OxmlElement("w:r")
+    fld_end_run.append(make_field_rPr())
+    fld_end = OxmlElement("w:fldChar")
+    fld_end.set(qn("w:fldCharType"), "end")
+    fld_end_run.append(fld_end)
+    hyperlink.append(fld_end_run)
 
     para.append(hyperlink)
 
@@ -524,7 +581,11 @@ def link_citations_to_bibliography(doc):
                 bm_start.set(qn("w:name"), bm_name)
                 bm_end = OxmlElement("w:bookmarkEnd")
                 bm_end.set(qn("w:id"), str(bookmark_id_counter))
-                para._p.insert(0, bm_start)
+                pPr = para._p.find(qn("w:pPr"))
+                if pPr is not None:
+                    pPr.addnext(bm_start)
+                else:
+                    para._p.insert(0, bm_start)
                 para._p.append(bm_end)
                 bookmark_id_counter += 1
 
@@ -586,10 +647,8 @@ def link_citations_to_bibliography(doc):
                 num = seg_text.strip("[]")
                 bm_name = f"_Ref_{num}"
 
-                rId = doc.part.relate_to(f'#{bm_name}', RT.HYPERLINK, is_external=True)
                 hyperlink = OxmlElement("w:hyperlink")
                 hyperlink.set(qn("w:anchor"), bm_name)
-                hyperlink.set(qn("r:id"), rId)
 
                 run_el = OxmlElement("w:r")
                 rPr = OxmlElement("w:rPr")
