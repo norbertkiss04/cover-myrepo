@@ -5,6 +5,7 @@ from docx import Document
 from docx.shared import Pt, Cm, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
+from docx.opc.constants import RELATIONSHIP_TYPE as RT
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
@@ -287,7 +288,9 @@ def generate_toc(doc):
     for level, text in headings:
         if text == "Tartalomjegyzék":
             continue
-        entry = make_toc_entry(level, text)
+        bm_name = make_bookmark_name(text)
+        rId = doc.part.relate_to(f'#{bm_name}', RT.HYPERLINK, is_external=True)
+        entry = make_toc_entry(level, text, rId)
         toc_elements.append(entry)
 
     page_break = OxmlElement("w:p")
@@ -302,7 +305,7 @@ def generate_toc(doc):
         body.insert(first_heading_idx, elem)
 
 
-def make_toc_entry(level, text):
+def make_toc_entry(level, text, rId=None):
     para = OxmlElement("w:p")
     pPr = OxmlElement("w:pPr")
 
@@ -335,6 +338,8 @@ def make_toc_entry(level, text):
 
     hyperlink = OxmlElement("w:hyperlink")
     hyperlink.set(qn("w:anchor"), bm_name)
+    if rId:
+        hyperlink.set(qn("r:id"), rId)
 
     run = OxmlElement("w:r")
     rPr = OxmlElement("w:rPr")
@@ -529,6 +534,9 @@ def link_citations_to_bibliography(doc):
                 break
             continue
 
+        if para.style and para.style.name == "Source Code":
+            continue
+
         full_text = para.text
         if not ref_pattern.search(full_text):
             continue
@@ -578,8 +586,10 @@ def link_citations_to_bibliography(doc):
                 num = seg_text.strip("[]")
                 bm_name = f"_Ref_{num}"
 
+                rId = doc.part.relate_to(f'#{bm_name}', RT.HYPERLINK, is_external=True)
                 hyperlink = OxmlElement("w:hyperlink")
                 hyperlink.set(qn("w:anchor"), bm_name)
+                hyperlink.set(qn("r:id"), rId)
 
                 run_el = OxmlElement("w:r")
                 rPr = OxmlElement("w:rPr")
