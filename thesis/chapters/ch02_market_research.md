@@ -4,7 +4,7 @@ Az InstaCover fejlesztése előtt piackutatást végeztem, hogy megértsem a meg
 
 ## 2.1. Célcsoport
 
-A self-publishing piac évről évre növekszik[18]: egyre több szerző publikál könyvet hagyományos kiadó nélkül, platformokon mint az Amazon Kindle Direct Publishing. Ezeknek a szerzőknek borítóra van szükségük, de jellemzően nem rendelkeznek grafikai ismeretekkel, és a költségérzékenység magas — különösen a kezdők körében.
+A self-publishing piac évről évre növekszik[18]: egyre több szerző publikál könyvet hagyományos kiadó nélkül, platformokon mint az Amazon Kindle Direct Publishing. Ezeknek a szerzőknek borítóra van szükségük, de jellemzően nem rendelkeznek grafikai ismeretekkel, és a költségérzékenység magas, különösen a kezdők körében.
 
 A tipikus fájdalompontok (felhasználói interjúk alapján):
 - Egy grafikus 20-200 dollárt kér borítónként, ami több könyv esetén jelentős költség
@@ -17,11 +17,11 @@ Három fő versenytársat vizsgáltam meg:
 
 ### 2.2.1. Canva AI Book Cover Generator[12]
 
-A Canva egy általános célú grafikai tervezőeszköz, amely rendelkezik AI képgenerálási funkcióval (Magic Media). Erősségei a nagy sablonkönyvtár és az ismert márkanév. Gyengesége, hogy az AI jellemzően csak a háttérképet generálja — a tipográfia, az elrendezés és a finomítás manuálisan szükséges. Az ingyenes verzió korlátozott, a Pro verzió havi előfizetést igényel.
+A Canva egy általános célú grafikai tervezőeszköz, amely rendelkezik AI képgenerálási funkcióval (Magic Media). Erősségei a nagy sablonkönyvtár és az ismert márkanév. Gyengesége, hogy az AI jellemzően csak a háttérképet generálja: a tipográfia, az elrendezés és a finomítás manuálisan szükséges. Az ingyenes verzió korlátozott, a Pro verzió havi előfizetést igényel.
 
 ### 2.2.2. TheBookCoverDesigner[14]
 
-Premade borítókat árusít, amelyek megvásárlás után egyedi címmel és szerzőnévvel kerülnek kiszolgálásra. Az árak 50-159 dollár között mozognak. Nincs AI generálás és nincs testreszabhatóság a premade-eken túl — ha a felhasználó nem talál megfelelő borítót a katalógusban, más megoldást kell keresnie.
+Premade borítókat árusít, amelyek megvásárlás után egyedi címmel és szerzőnévvel kerülnek kiszolgálásra. Az árak 50-159 dollár között mozognak. Nincs AI generálás és nincs testreszabhatóság a premade-eken túl; ha a felhasználó nem talál megfelelő borítót a katalógusban, más megoldást kell keresnie.
 
 ### 2.2.3. GetCovers[13]
 

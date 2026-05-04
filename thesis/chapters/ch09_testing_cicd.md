@@ -37,20 +37,20 @@ Ez a megközelítés előnyösebb, mint a valódi adatbázis használata tesztek
 
 ## 9.3. Teszt típusok
 
-**Pozitív tesztek** — Sikeres folyamatok ellenőrzése: generálás indítása érvényes paraméterekkel, helyes autentikáció, kredit-levonás és visszatérítés.
+A pozitív tesztek sikeres folyamatokat ellenőriznek: generálás indítása érvényes paraméterekkel, helyes autentikáció, kredit-levonás és visszatérítés.
 
-**Negatív tesztek** — Hibakezelés ellenőrzése: hiányzó vagy érvénytelen token (401), jogosulatlán hozzáférés (403), hibás bemenet (400), elégtelen kredit (402), nem létező erőforrás (404).
+A negatív tesztek a hibakezelést vizsgálják: hiányzó vagy érvénytelen token (401), jogosulatlan hozzáférés (403), hibás bemenet (400), elégtelen kredit (402), nem létező erőforrás (404).
 
-**Biztonsági tesztek** — Más felhasználó adatainak elérési kísérlete (user isolation), admin-only végpontok nem-admin felhasználóval, lejárt tokenek kezelése.
+A biztonsági tesztek más felhasználó adatainak elérési kísérletét (user isolation), admin-only végpontok nem-admin felhasználóval való hívását és lejárt tokenek kezelését fedik le.
 
-**Izolációs tesztek** — Minden teszt független: nincs megosztott állapot, a fixture-ök minden futáskor újrainicializálják a mock adattárat.
+Az izolációs tesztek biztosítják, hogy minden teszt független: nincs megosztott állapot, a fixture-ök minden futáskor újrainicializálják a mock adattárat.
 
 ## 9.4. CI/CD pipeline
 
 A GitHub Actions[11] CI pipeline minden push és pull request esetén három párhuzamos jobot futtat:
 
-1. **backend-test** — Python 3.11 környezetben `pytest` futtatás coverage mérésssel, az eredmény feltöltése Codecov-ra
-2. **frontend-build** — Node.js 20 környezetben TypeScript type check (`tsc --noEmit`) és production build (`npm run build`)
-3. **lint** — `flake8` futtatás a backend kódon (figyelmeztetésként, nem blokkoló)
+1. A backend-test job Python 3.11 környezetben `pytest` futtatást végez coverage méréssel, az eredmény feltöltődik Codecov-ra
+2. A frontend-build job Node.js 20 környezetben TypeScript type check-et (`tsc --noEmit`) és production buildet (`npm run build`) futtat
+3. A lint job `flake8` futtatást végez a backend kódon (figyelmeztetésként, nem blokkoló)
 
 A deployment manuális: `docker compose up --build` a VPS-en. Automata deployment-et nem implementáltam, mert a zárt béta jellegű alkalmazásnál a manuális ellenőrzés előnyösebb.

@@ -10,9 +10,9 @@ A pipeline-ok tervezésénél az volt a kiindulópontom, hogy a felhasználók i
 
 A három pipeline:
 
-1. **Standard pipeline** — könyv adatok alapján generál borítót, opcionálisan tipográfiával
-2. **Stílusreferencia pipeline** — feltöltött borítókép vizuális stílusát veszi alapul
-3. **Sablon pipeline** — HTML/CSS sablonon alapuló tipográfiai réteg, szerver oldali renderelés
+1. A standard pipeline könyv adatok alapján generál borítót, opcionálisan tipográfiával
+2. A stílusreferencia pipeline feltöltött borítókép vizuális stílusát veszi alapul
+3. A sablon pipeline HTML/CSS sablonon alapuló tipográfiai réteget ad, szerver oldali rendereléssel
 
 Mindhárom pipeline azonos életciklust követ: a felhasználó bemenete validáláson és kredit-ellenőrzésen megy keresztül, majd a háttérfeladat elindítja a megfelelő pipeline-t. Minden lépés előtt a rendszer ellenőrzi, hogy a felhasználó nem kezdeményezte-e a generálás megszakítását. A haladásról WebSocket eseményeken keresztül kap visszajelzést a kliens.
 
@@ -43,7 +43,7 @@ def _check_cancelled(gen_id):
         raise GenerationCancelled(f"Generation #{gen_id} was cancelled")
 ```
 
-Ez a függvény minden pipeline-lépés előtt lefut. Ha a felhasználó időközben megszakította a generálást (a frontend `cancel_generation` eseményt küldött), a pipeline azonnal leáll, és nem futtatja a további — költséges — API hívásokat.
+Ez a függvény minden pipeline-lépés előtt lefut. Ha a felhasználó időközben megszakította a generálást (a frontend `cancel_generation` eseményt küldött), a pipeline azonnal leáll, és nem futtatja a további költséges API hívásokat.
 
 ## 5.2. Standard pipeline
 
@@ -63,7 +63,7 @@ base_prompt += " Do not include any text, words, letters, titles, "
                "or typography anywhere in the image."
 ```
 
-A kettős biztosítás szükséges, mert a képgenerálási modellek hajlamosak szöveget beilleszteni a könyvborítókra akkor is, ha a prompt ezt nem kéri — pusztán azért, mert a tanító adatban gyakran szerepelt szöveg a borítókon.
+A kettős biztosítás szükséges, mert a képgenerálási modellek hajlamosak szöveget beilleszteni a könyvborítókra akkor is, ha a prompt ezt nem kéri, pusztán azért, mert a tanító adatban gyakran szerepelt szöveg a borítókon.
 
 ### 5.2.2. Egylépéses mód
 
@@ -135,7 +135,7 @@ def render_cover_from_template(self, base_image_url, template,
 
 A generált HTML a háttérképet CSS `background-image`-ként tölti be, a szövegdobozokat abszolút pozicionálással helyezi el, és a Google Fonts CDN-ről tölt be 14 előre jóváhagyott betűtípust. A `wait_until='networkidle'` biztosítja, hogy a betűtípusok betöltődjenek a screenshot előtt, a `document.fonts.ready` Promise pedig garantálja a renderelés teljességét.
 
-A Playwright használatának előnye, hogy a CSS teljes eszköztára rendelkezésre áll: text-shadow, letter-spacing, text-transform, opacity — mindez pixelpontosan megjelenik a végleges képen. Hátránya a szerver oldali erőforrásigény: a Docker konténerbe Chromium böngészőt is telepíteni kell.
+A Playwright használatának előnye, hogy a CSS teljes eszköztára rendelkezésre áll: text-shadow, letter-spacing, text-transform, opacity, és mindez pixelpontosan megjelenik a végleges képen. Hátránya a szerver oldali erőforrásigény: a Docker konténerbe Chromium böngészőt is telepíteni kell.
 
 ## 5.4. Prompt engineering
 
@@ -163,10 +163,7 @@ A JSON Schema használata garantálja, hogy az LLM mindig géppel feldolgozható
 
 ### 5.4.2. Modellválasztás
 
-A rendszer két LLM modellt használ:
-
-- **Grok 4.1 Fast** — Az alapértelmezett modell promptgeneráláshoz. Gyors válaszidővel rendelkezik és jól teljesít kreatív szövegalkotásban.
-- **Gemini 3 Flash** — Kizárólag képelemzési feladatokhoz (stílusanalízis, szövegdetektálás, réteg-verifikáció), mert multimodális képességei kifinomultabbak.
+A rendszer két LLM modellt használ. A Grok 4.1 Fast az alapértelmezett modell promptgeneráláshoz, gyors válaszidővel és jó teljesítménnyel a kreatív szövegalkotásban. A Gemini 3 Flash kizárólag képelemzési feladatokhoz használatos (stílusanalízis, szövegdetektálás, réteg-verifikáció), mert multimodális képességei kifinomultabbak.
 
 Mindkét modell az OpenRouter[8] API-n keresztül érhető el, ami egy egységes felületet biztosít különböző LLM szolgáltatók modelljeihez. A választásom azért esett az OpenRouter-re, mert egyetlen API kulccsal több tucat modell elérhető, és modellváltás kódmódosítás nélkül lehetséges.
 
@@ -190,7 +187,7 @@ def _build_book_details_content(book_data, include_title=True):
     return "\n".join(parts)
 ```
 
-A "Cover Ideas" mező különösen fontos: itt a felhasználó saját elképzelését adja meg (pl. "sötét erdő, holdvilág, egy magányos alak"), amely közvetlenül irányítja a vizuális generálást. Ez a mező opcionális — ha nincs megadva, az LLM a cím, műfaj és leírás alapján önállóan tervez.
+A "Cover Ideas" mező különösen fontos: itt a felhasználó saját elképzelését adja meg (pl. "sötét erdő, holdvilág, egy magányos alak"), amely közvetlenül irányítja a vizuális generálást. Ez a mező opcionális, és ha nincs megadva, az LLM a cím, műfaj és leírás alapján önállóan tervez.
 
 ## 5.5. Képgenerálási integráció
 
@@ -229,10 +226,7 @@ A polling másodpercenként kérdez, és legfeljebb 120 próbálkozás után tim
 
 ### 5.5.2. Két API végpont
 
-A WaveSpeed két végpontot biztosít:
-
-- **`/bytedance/seedream-v4.5`** — Text-to-image generálás. Bemenete egy szöveges prompt és a kívánt méret.
-- **`/bytedance/seedream-v4.5/edit`** — Képszerkesztés. Bemenete egy vagy több referenciakép, egy szöveges utasítás, és a kívánt méret. Ez a végpont a tipográfia hozzáadásához és a stílusreferencia-alapú generáláshoz használatos.
+A WaveSpeed két végpontot biztosít. A `/bytedance/seedream-v4.5` végpont text-to-image generálást végez: bemenete egy szöveges prompt és a kívánt méret. A `/bytedance/seedream-v4.5/edit` végpont képszerkesztésre szolgál: bemenete egy vagy több referenciakép, egy szöveges utasítás, és a kívánt méret. Ez utóbbi a tipográfia hozzáadásához és a stílusreferencia-alapú generáláshoz használatos.
 
 A méret meghatározásánál a felhasználó által választott képarányt (pl. 2:3, 3:2, 1:1) pixel-értékekre képezem le egy előre definiált táblázat alapján.
 

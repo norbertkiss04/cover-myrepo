@@ -1,6 +1,6 @@
 # 7. Valós idejű kommunikáció
 
-A könyvborító generálása 15-60 másodpercig tart a pipeline típusától és a lépések számától függően. Ez az időtartam túl hosszú ahhoz, hogy a felhasználó visszajelzés nélkül várakozzon — szüksége van arra, hogy lépésről lépésre lássa a haladást. A hagyományos HTTP kérés-válasz modell erre nem alkalmas: a hosszú pollozás pazarló, a szerver oldali események (SSE) pedig egyirányúak. A választásom a WebSocket protokollra[16] esett, konkrétan a Socket.IO[6] könyvtárra, amely kétirányú, valós idejű kommunikációt biztosít.
+A könyvborító generálása 15-60 másodpercig tart a pipeline típusától és a lépések számától függően. Ez az időtartam túl hosszú ahhoz, hogy a felhasználó visszajelzés nélkül várakozzon, szüksége van arra, hogy lépésről lépésre lássa a haladást. A hagyományos HTTP kérés-válasz modell erre nem alkalmas: a hosszú pollozás pazarló, a szerver oldali események (SSE) pedig egyirányúak. A választásom a WebSocket protokollra[16] esett, konkrétan a Socket.IO[6] könyvtárra, amely kétirányú, valós idejű kommunikációt biztosít.
 
 ## 7.1. Kommunikációs architektúra
 
@@ -63,7 +63,7 @@ A haladási információ az adatbázisba is íródik, nem csak a WebSocket-re ke
 
 ## 7.3. Háttérfeladat-kezelés
 
-A generálási pipeline nem a WebSocket eseménykezelő szálában fut — az túl sokáig blokkolná a szerver válaszképességét. Ehelyett a Flask-SocketIO `start_background_task` metódusával indítok háttérfeladatot:
+A generálási pipeline nem a WebSocket eseménykezelő szálában fut, mert az túl sokáig blokkolná a szerver válaszképességét. Ehelyett a Flask-SocketIO `start_background_task` metódusával indítok háttérfeladatot:
 
 ```python
 socketio.start_background_task(
@@ -125,9 +125,7 @@ except Exception as e:
     }, room=room)
 ```
 
-- **GenerationCancelled** — A felhasználó megszakította. A feladat csendben leáll, mert a megszakítás kezelés már frissítette az adatbázist.
-- **InsufficientCreditsError** — Elfogytak a kreditek közben. Specifikus hibaüzenet a felhasználónak.
-- **Egyéb kivétel** — Váratlan hiba (API timeout, hálózati hiba stb.). Generikus hibaüzenet a felhasználónak, részletes log a szerveren.
+A `GenerationCancelled` kivétel esetén a felhasználó megszakította a folyamatot, így a feladat csendben leáll, mert a megszakítás kezelés már frissítette az adatbázist. Az `InsufficientCreditsError` azt jelzi, hogy elfogytak a kreditek közben, és specifikus hibaüzenetet küld a felhasználónak. Minden egyéb kivétel (API timeout, hálózati hiba stb.) esetén a felhasználó generikus hibaüzenetet kap, míg a szerveren részletes log keletkezik.
 
 Minden esetben az adatbázis konzisztens állapotba kerül (`status='failed'`), és a kliens értesül a hibáról.
 
@@ -147,7 +145,7 @@ if active:
     })
 ```
 
-Ez biztosítja, hogy a felhasználó soha ne veszítse el a generálási folyamat állapotát — akár szándékos oldalújratöltés, akár hálózati probléma esetén a progress panel azonnal visszaáll az aktuális lépéshez.
+Ez biztosítja, hogy a felhasználó soha ne veszítse el a generálási folyamat állapotát: akár szándékos oldalújratöltés, akár hálózati probléma esetén a progress panel azonnal visszaáll az aktuális lépéshez.
 
 Emellett, ha a generálás az elmúlt 2 percben fejeződött be, a szerver a `generation_completed` eseményt is elküldi, így a felhasználó akkor sem veszít eredményt, ha éppen a befejezés pillanatában szakadt meg a kapcsolata.
 
@@ -168,12 +166,7 @@ Az 5 percnél régebbi, még mindig "generating" státuszú rekordok automatikus
 
 ## 7.7. Frontend állapotgép
 
-A kliens oldalon a `GenerationContext` React kontextus kezeli a WebSocket kommunikációt és a generálási állapotot. Az állapotgép négy állapotot definiál:
-
-- **idle** — Nincs aktív generálás, a felhasználó kitöltheti az űrlapot
-- **generating** — Generálás folyamatban, a progress panel látható
-- **completed** — Generálás kész, az eredmény megtekinthető
-- **failed** — Hiba történt, hibaüzenet látható
+A kliens oldalon a `GenerationContext` React kontextus kezeli a WebSocket kommunikációt és a generálási állapotot. Az állapotgép négy állapotot definiál: idle (nincs aktív generálás, a felhasználó kitöltheti az űrlapot), generating (generálás folyamatban, a progress panel látható), completed (generálás kész, az eredmény megtekinthető) és failed (hiba történt, hibaüzenet látható).
 
 Az átmenetek kizárólag szerver-eseményeken alapulnak:
 

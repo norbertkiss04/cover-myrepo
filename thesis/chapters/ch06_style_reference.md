@@ -6,10 +6,10 @@ Az InstaCover egyik legértékesebb funkciója a stílusreferencia rendszer: a f
 
 Amikor a felhasználó feltölt egy stílusreferencia képet, a rendszer azonnal AI-alapú elemzést futtat rajta. A Gemini 3 Flash multimodális modell négy dimenzió mentén dekompozícionálja a borítót:
 
-- **Feeling** — az érzelmi hangulat és atmoszféra (pl. "sötét, misztikus, feszültségkeltő")
-- **Layout** — a kompozíciós szerkezet és térelosztás (pl. "központi alak, felső harmadban cím")
-- **Illustration rules** — a médium, művészeti technika és színpaletta (pl. "digitális festmény, hideg tónusok, kontrasztos megvilágítás")
-- **Typography** — betűtípus-választás, hierarchia és kezelés (pl. "nagy serif cím, kis sans-serif szerzőnév")
+- Az érzelmi hangulat és atmoszféra (feeling), például "sötét, misztikus, feszültségkeltő"
+- A kompozíciós szerkezet és térelosztás (layout), például "központi alak, felső harmadban cím"
+- A médium, művészeti technika és színpaletta (illustration rules), például "digitális festmény, hideg tónusok, kontrasztos megvilágítás"
+- A betűtípus-választás, hierarchia és kezelés (typography), például "nagy serif cím, kis sans-serif szerzőnév"
 
 Az elemzés JSON Schema-val kényszerített struktúrában érkezik:
 
@@ -35,7 +35,7 @@ def analyze_style_reference(self, image_url, user=None):
     return result
 ```
 
-A multimodális hívásban a kép URL-ként kerül az üzenetbe — a modell közvetlenül "látja" a borítót és szöveges analízist ad vissza. Az eredmény a `StyleReference` modellben tárolódik, ahol minden dimenzió külön mezőt kap.
+A multimodális hívásban a kép URL-ként kerül az üzenetbe, így a modell közvetlenül "látja" a borítót és szöveges analízist ad vissza. Az eredmény a `StyleReference` modellben tárolódik, ahol minden dimenzió külön mezőt kap.
 
 ## 6.2. Szövegdetektálás és szelekció
 
@@ -68,8 +68,8 @@ A felhasználó a frontend-en kiválaszthatja, mely szövegelemeket szeretné me
 
 A stílusreferencia pipeline működéséhez a rendszernek két származtatott képre van szüksége az eredeti borítóból:
 
-1. **Clean variáns** — az eredeti kép szöveg nélkül (csak háttérgrafika)
-2. **Text variáns** — a szöveg kiemelve fehér háttérre (csak tipográfia)
+1. A clean variáns az eredeti kép szöveg nélkül (csak háttérgrafika)
+2. A text variáns a szöveg kiemelve fehér háttérre (csak tipográfia)
 
 Ezek előállítása költséges (képgenerálási API hívások), ezért a rendszer lusta kiértékeléssel és cache-eléssel dolgozik:
 
@@ -96,7 +96,7 @@ def ensure_reference_variant(style_ref, variant_type, user_id, user=None):
         return storage_service.get_signed_url(upload['path'], expires_in=600)
 ```
 
-Az első használatkor a variáns legenerálódik és az adatbázisban cache-elődik. Minden további generálásnál a cache-elt verzió töltődik be, így nem kell újra fizetni a variáns előállításáért. Ez a megoldás különösen fontos, mert egy stílusreferenciát a felhasználó tipikusan többször is felhasznál — minden új borítógenerálásnál.
+Az első használatkor a variáns legenerálódik és az adatbázisban cache-elődik. Minden további generálásnál a cache-elt verzió töltődik be, így nem kell újra fizetni a variáns előállításáért. Ez a megoldás különösen fontos, mert egy stílusreferenciát a felhasználó tipikusan többször is felhasznál, minden új borítógenerálásnál.
 
 ### 6.3.1. Text layer verifikáció
 
@@ -146,7 +146,7 @@ def get_style_analysis(self, mode: str = 'both') -> dict:
 
 ## 6.5. Text blending módok
 
-A kétlépéses stílusreferencia pipeline utolsó fázisában — amikor a szöveget kell ráhelyezni az alapképre — három blending módszer közül választhat a felhasználó:
+A kétlépéses stílusreferencia pipeline utolsó fázisában, amikor a szöveget kell ráhelyezni az alapképre, három blending módszer közül választhat a felhasználó:
 
 ### 6.5.1. AI Blend
 
@@ -187,4 +187,4 @@ A fehér háttér eltávolítása egy küszöbértékkel történik: minden pixe
 
 ### 6.5.3. Separate Reference
 
-A legegyszerűbb AI-alapú mód: egyetlen WaveSpeed edit hívás kap két referenciaképet — az alapképet és a text layert — és egy utasítást, hogy egyesítse őket. Ez gyorsabb és olcsóbb, mint az AI Blend, de kevesebb kontrollal rendelkezik a szövegcsere felett.
+A legegyszerűbb AI-alapú mód: egyetlen WaveSpeed edit hívás kap két referenciaképet (az alapképet és a text layert) és egy utasítást, hogy egyesítse őket. Ez gyorsabb és olcsóbb, mint az AI Blend, de kevesebb kontrollal rendelkezik a szövegcsere felett.

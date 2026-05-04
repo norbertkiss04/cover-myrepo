@@ -50,7 +50,7 @@ BEGIN
 END; $$;
 ```
 
-Az `UPDATE ... WHERE used_at IS NULL` biztosítja, hogy egy kódot csak egyszer lehessen felhasználni — még párhuzamos kérések esetén is.
+Az `UPDATE ... WHERE used_at IS NULL` biztosítja, hogy egy kódot csak egyszer lehessen felhasználni, még párhuzamos kérések esetén is.
 
 ## 8.3. Row-Level Security
 
@@ -73,7 +73,7 @@ CREATE POLICY "Users can only access own generations"
 
 Ez a minta minden táblán azonos: a `users` tábla `google_id = auth.uid()::text` feltétellel, a többi tábla a `user_id` mezőn keresztül, alkérdéssel visszavezetve az autentikált felhasználóra.
 
-Az RLS kiegészíti — nem helyettesíti — az alkalmazás szintű szűrést. A backend kódban is minden lekérdezés tartalmazza a `.eq('user_id', user.id)` feltételt. Ez a "defense in depth" elv: ha az alkalmazás szintű szűrés hibás lenne, az adatbázis szintű védelem még megáll.
+Az RLS kiegészíti, nem helyettesíti az alkalmazás szintű szűrést. A backend kódban is minden lekérdezés tartalmazza a `.eq('user_id', user.id)` feltételt. Ez a "defense in depth" elv: ha az alkalmazás szintű szűrés hibás lenne, az adatbázis szintű védelem még megáll.
 
 ## 8.4. Input validáció és prompt injection
 
@@ -109,15 +109,11 @@ INJECTION_PATTERNS = re.compile(
 
 Ha a mintaillesztés pozitív eredményt ad, a generálás elutasításra kerül. Ez nem tökéletes védelem (a prompt injection nem oldható meg regex-szel teljes bizonyossággal), de az ismert, gyakori támadási mintákat kiszűri.
 
-A harmadik védelmi vonal az, hogy a felhasználó szövege soha nem kerül közvetlenül a system promptba — mindig a user prompton belül, strukturált formátumban jelenik meg.
+A harmadik védelmi vonal az, hogy a felhasználó szövege soha nem kerül közvetlenül a system promptba, mindig a user prompton belül, strukturált formátumban jelenik meg.
 
 ## 8.5. Rate limiting
 
-Több szintű rate limitinget alkalmazok a visszaélések megelőzésére:
-
-- **REST API** — Flask-Limiter végpont-specifikus korlátokkal: 30 kérés/perc az általános végpontokon, 10/perc a kredit-kiosztáson, 5/perc az API token generáláson.
-- **WebSocket** — Egyéni implementáció: 10 esemény/60 másodperc felhasználónként. A sliding window algoritmus időbélyegeket tárol és a régieket kiszűri.
-- **Természetes korlát** — A kreditrendszer önmagában rate limiter: ha elfogynak a kreditek, nem indítható több generálás.
+Több szintű rate limitinget alkalmazok a visszaélések megelőzésére. A REST API végpontokon Flask-Limiter biztosítja a korlátokat: 30 kérés/perc az általános végpontokon, 10/perc a kredit-kiosztáson, 5/perc az API token generáláson. A WebSocket eseményekre egyéni implementáció él: 10 esemény/60 másodperc felhasználónként, sliding window algoritmussal. Emellett a kreditrendszer természetes korlátként is funkcionál, hiszen ha elfogynak a kreditek, nem indítható több generálás.
 
 ## 8.6. Kreditrendszer
 
@@ -195,4 +191,4 @@ def calculate_generation_cost(
     return {'llm_calls': llm_calls, 'image_calls': image_calls, 'total': total}
 ```
 
-A `style_ref_has_clean` és `style_ref_has_text` paraméterek figyelembe veszik, hogy a variánsok már cache-elve vannak-e — ha igen, azokért nem kell fizetni újra.
+A `style_ref_has_clean` és `style_ref_has_text` paraméterek figyelembe veszik, hogy a variánsok már cache-elve vannak-e, és ha igen, azokért nem kell fizetni újra.

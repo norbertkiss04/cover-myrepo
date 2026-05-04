@@ -1,6 +1,6 @@
 # 1. Bevezetés
 
-A self-publishing iparág az elmúlt évtizedben robbanásszerű növekedésen ment keresztül[18]. Az Amazon Kindle Direct Publishing és hasonló platformok lehetővé tették, hogy bárki publikáljon könyvet hagyományos kiadó nélkül. Ezzel együtt megnőtt az igény professzionális megjelenésű könyvborítók iránt — a borító ugyanis a vásárlói döntés egyik legfontosabb vizuális tényezője.
+A self-publishing iparág az elmúlt évtizedben robbanásszerű növekedésen ment keresztül[18]. Az Amazon Kindle Direct Publishing és hasonló platformok lehetővé tették, hogy bárki publikáljon könyvet hagyományos kiadó nélkül. Ezzel együtt megnőtt az igény professzionális megjelenésű könyvborítók iránt, mivel a borító a vásárlói döntés egyik legfontosabb vizuális tényezője.
 
 Az önálló szerzők (indie authors) számára a borítókészítés hagyományosan két úton érhető el: grafikus megbízása (20-200 dollár/borító, napok-hetek átfutással) vagy saját készítés általános célú tervezőeszközökkel (időigényes, gyakran amatőr eredménnyel). Egyik megoldás sem ideális költségérzékeny, több könyvet publikáló szerzők számára.
 
@@ -10,18 +10,18 @@ Szakdolgozatomban egy webalkalmazást mutatok be, amely mesterséges intelligenc
 
 A meglévő megoldások nem képesek egyszerre teljesíteni az alábbi elvárásokat:
 
-- **Teljes automatizáció** — A felhasználó leírja könyvét, és kap kész borítót, manuális tervezés nélkül
-- **Stílus-konzisztencia** — Sorozat-borítók vizuálisan egységesek maradjanak
-- **Azonnali kiszolgálás** — Az eredmény másodpercek-percek alatt elérhető legyen
-- **Alacsony költség** — Egy borító ne kerüljön többe néhány centnél
+- Teljes automatizáció a leírástól a kész borítóig, manuális tervezés nélkül
+- Vizuális konzisztencia sorozat-borítók között
+- Másodpercek-percek alatti kiszolgálás
+- Néhány centes egységköltség borítónként
 
 ## 1.2. A megoldás
 
 Az InstaCover három generálási pipeline-t implementál, amelyek eltérő felhasználói igényeket szolgálnak ki:
 
-1. **Standard pipeline** — A felhasználó megadja könyve adatait (cím, szerző, műfaj, borítóötletek), és a rendszer teljes borítót generál
-2. **Stílusreferencia pipeline** — Egy feltöltött borítókép vizuális stílusát elemzi AI-val és reprodukálja
-3. **Sablon pipeline** — HTML/CSS sablonon alapuló, pixelpontos tipográfiai kontroll
+1. A standard pipeline a felhasználó könyvadatai (cím, szerző, műfaj, borítóötletek) alapján generál teljes borítót
+2. A stílusreferencia pipeline egy feltöltött borítókép vizuális stílusát elemzi AI-val és reprodukálja
+3. A sablon pipeline HTML/CSS sablonon alapuló, pixelpontos tipográfiai kontrollt biztosít
 
 Az alkalmazás valós idejű visszajelzést ad a generálási folyamatról WebSocket-en keresztül, kreditrendszerrel biztosítja a költségkontrollt, és zárt béta meghívó-rendszerrel kezeli a hozzáférést.
 

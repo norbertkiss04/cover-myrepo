@@ -6,9 +6,9 @@ Az InstaCover egy háromrétegű webalkalmazás, amely egyoldalas frontend-et (S
 
 Az alkalmazás három fő rétegből áll:
 
-- **Frontend (React SPA)** — A felhasználói felületet szolgálja ki statikus fájlokként. A böngészőben fut, és REST API illetve WebSocket kapcsolaton keresztül kommunikál a backend-del.
-- **Backend (Flask API)** — REST végpontokat és WebSocket eseménykezelőket biztosít. Itt fut az üzleti logika: a generálási pipeline-ok, az LLM integráció, a képgenerálási hívások és a kredit-kezelés.
-- **Külső szolgáltatások** — Supabase[5] (adatbázis, autentikáció, fájltárolás), OpenRouter[8] (LLM hozzáférés) és WaveSpeed AI[9] (képgenerálás).
+- A frontend (React SPA) a felhasználói felületet szolgálja ki statikus fájlokként. A böngészőben fut, és REST API illetve WebSocket kapcsolaton keresztül kommunikál a backend-del.
+- A backend (Flask API) REST végpontokat és WebSocket eseménykezelőket biztosít. Itt fut az üzleti logika: a generálási pipeline-ok, az LLM integráció, a képgenerálási hívások és a kredit-kezelés.
+- A külső szolgáltatások réteg: Supabase[5] (adatbázis, autentikáció, fájltárolás), OpenRouter[8] (LLM hozzáférés) és WaveSpeed AI[9] (képgenerálás).
 
 A rétegek közötti kommunikáció kizárólag HTTPS-en zajlik. A frontend és backend között kétféle csatorna működik: REST API a CRUD műveletekhez (generálási előzmények, stílusreferenciák, sablonok kezelése) és WebSocket a valós idejű generálási folyamathoz.
 
@@ -16,9 +16,9 @@ A rétegek közötti kommunikáció kizárólag HTTPS-en zajlik. A frontend és 
 
 A frontend egy React[1] alapú egyoldalas alkalmazás TypeScript[2]-ben, Vite[3] build eszközzel. Az alkalmazás állapotkezelése három React Context-re épül:
 
-- **AuthContext** — A Supabase Auth integrációt kezeli: session menedzsment, token frissítés, felhasználói profil
-- **GenerationContext** — A WebSocket kapcsolatot és a generálási állapotgépet tartja karban (idle → generating → completed/failed)
-- **GenerationFormContext** — Az űrlap mezőinek állapota (cím, szerző, műfajok, beállítások)
+- Az AuthContext a Supabase Auth integrációt kezeli: session menedzsment, token frissítés, felhasználói profil
+- A GenerationContext a WebSocket kapcsolatot és a generálási állapotgépet tartja karban (idle → generating → completed/failed)
+- A GenerationFormContext az űrlap mezőinek állapota (cím, szerző, műfajok, beállítások)
 
 A szerver-állapot lekérdezéséhez (generálási előzmények, stílusreferenciák listája, sablonok) a TanStack Query[19] könyvtárat használom, amely automatikus cache-elést, háttérfrissítést és optimista frissítéseket biztosít.
 
@@ -42,15 +42,15 @@ A szolgáltatások singleton példányok (`llm_service`, `image_service`, `stora
 
 Az adatbázis öt fő táblából áll, PostgreSQL-ben Supabase-en hostolva:
 
-**Users** — Felhasználói adatok: azonosító, Supabase auth ID (`google_id`), email, név, kreditegyenleg, admin státusz, API token, preferenciák (JSONB).
+A **Users** tábla felhasználói adatokat tartalmaz: azonosító, Supabase auth ID (`google_id`), email, név, kreditegyenleg, admin státusz, API token, preferenciák (JSONB).
 
-**Generations** — Generálási rekordok: bemenet (cím, szerző, ötletek, műfaj, leírás), beállítások (képarány, pipeline típus, referencia mód), eredmények (base prompt, text prompt, kép URL-ek), és futási állapot (status, current_step, error_message).
+A **Generations** tábla generálási rekordokat tárol: bemenet (cím, szerző, ötletek, műfaj, leírás), beállítások (képarány, pipeline típus, referencia mód), eredmények (base prompt, text prompt, kép URL-ek), és futási állapot (status, current_step, error_message).
 
-**StyleReferences** — Stílusreferencia képek: eredeti kép útvonala, AI elemzés négy dimenzióban, származtatott variánsok útvonala (clean, text layer), detektált szövegek (JSONB).
+A **StyleReferences** tábla stílusreferencia képeket tartalmaz: eredeti kép útvonala, AI elemzés négy dimenzióban, származtatott variánsok útvonala (clean, text layer), detektált szövegek (JSONB).
 
-**CoverTemplates** — Borítósablonok: felhasználó által definiált szövegdoboz-konfigurációk (`title_box`, `author_box` JSONB mezőkben), amelyek pozíciót, betűtípust, méretet és stílust határoznak meg.
+A **CoverTemplates** tábla borítósablonokat tárol: felhasználó által definiált szövegdoboz-konfigurációk (`title_box`, `author_box` JSONB mezőkben), amelyek pozíciót, betűtípust, méretet és stílust határoznak meg.
 
-**Invites** — Meghívókódok: kód, létrehozó, lejárat, felhasználás időpontja. A zárt béta hozzáférés-kezeléséhez.
+Az **Invites** tábla meghívókódokat tartalmaz: kód, létrehozó, lejárat, felhasználás időpontja. A zárt béta hozzáférés-kezeléséhez használatos.
 
 A táblák közötti kapcsolatok:
 - `generations.user_id → users.id` (CASCADE DELETE)
@@ -63,8 +63,8 @@ A táblák közötti kapcsolatok:
 
 Az alkalmazás Docker[10] konténerekben fut, két szolgáltatással:
 
-- **instacover-api** — Python 3.11 alapú konténer Flask + Gunicorn-nal, Playwright/Chromium-mal a sablon-rendereléshez. Port: 5000 (belső), 7710 (külső).
-- **instacover-web** — Többlépcsős build: Node.js 20-al fordít, majd Nginx Alpine-nal szolgálja ki a statikus fájlokat. Port: 80 (belső), 7711 (külső).
+- Az instacover-api egy Python 3.11 alapú konténer Flask + Gunicorn-nal, Playwright/Chromium-mal a sablon-rendereléshez. Port: 5000 (belső), 7710 (külső).
+- Az instacover-web egy többlépcsős build: Node.js 20-al fordít, majd Nginx Alpine-nal szolgálja ki a statikus fájlokat. Port: 80 (belső), 7711 (külső).
 
 A konténerek egy közös Docker bridge hálózaton futnak. A külvilág felé Nginx Proxy Manager végzi a reverse proxy feladatot és a TLS terminációt, a domain pedig Cloudflare mögött áll.
 

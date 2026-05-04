@@ -498,6 +498,150 @@ def configure_toc_styles(doc):
         tabs.append(tab)
 
 
+def link_citations_to_bibliography(doc):
+    bib_started = False
+    bookmark_id_counter = 500
+    ref_pattern = re.compile(r"\[(\d+)\]")
+
+    for para in doc.paragraphs:
+        if para.style and para.style.name.startswith("Heading") and "Irodalomjegyzék" in para.text:
+            bib_started = True
+            continue
+        if bib_started and para.style and para.style.name.startswith("Heading"):
+            break
+        if bib_started and para.text.strip():
+            m = ref_pattern.match(para.text.strip())
+            if m:
+                num = m.group(1)
+                bm_name = f"_Ref_{num}"
+                bm_start = OxmlElement("w:bookmarkStart")
+                bm_start.set(qn("w:id"), str(bookmark_id_counter))
+                bm_start.set(qn("w:name"), bm_name)
+                bm_end = OxmlElement("w:bookmarkEnd")
+                bm_end.set(qn("w:id"), str(bookmark_id_counter))
+                para._p.insert(0, bm_start)
+                para._p.append(bm_end)
+                bookmark_id_counter += 1
+
+    for para in doc.paragraphs:
+        if para.style and para.style.name.startswith("Heading"):
+            if "Irodalomjegyzék" in para.text:
+                break
+            continue
+
+        full_text = para.text
+        if not ref_pattern.search(full_text):
+            continue
+
+        runs_data = []
+        for run in para.runs:
+            runs_data.append({
+                'text': run.text,
+                'bold': run.font.bold,
+                'italic': run.font.italic,
+                'size': run.font.size,
+                'name': run.font.name,
+            })
+
+        combined = "".join(rd['text'] for rd in runs_data)
+        if not ref_pattern.search(combined):
+            continue
+
+        for run in list(para.runs):
+            run._r.getparent().remove(run._r)
+
+        pos = 0
+        run_idx = 0
+        char_pos_in_run = 0
+
+        def get_style_at(char_idx):
+            ci = 0
+            for rd in runs_data:
+                if ci + len(rd['text']) > char_idx:
+                    return rd
+                ci += len(rd['text'])
+            return runs_data[-1] if runs_data else {'bold': None, 'italic': None, 'size': BODY_SIZE, 'name': FONT_NAME}
+
+        segments = []
+        last_end = 0
+        for m in ref_pattern.finditer(combined):
+            if m.start() > last_end:
+                segments.append(('text', combined[last_end:m.start()], last_end))
+            segments.append(('ref', m.group(0), m.start()))
+            last_end = m.end()
+        if last_end < len(combined):
+            segments.append(('text', combined[last_end:], last_end))
+
+        for seg_type, seg_text, seg_start in segments:
+            style_info = get_style_at(seg_start)
+            if seg_type == 'ref':
+                num = seg_text.strip("[]")
+                bm_name = f"_Ref_{num}"
+
+                hyperlink = OxmlElement("w:hyperlink")
+                hyperlink.set(qn("w:anchor"), bm_name)
+
+                run_el = OxmlElement("w:r")
+                rPr = OxmlElement("w:rPr")
+                rFonts = OxmlElement("w:rFonts")
+                font_name = style_info.get('name') or FONT_NAME
+                rFonts.set(qn("w:ascii"), font_name)
+                rFonts.set(qn("w:hAnsi"), font_name)
+                rFonts.set(qn("w:cs"), font_name)
+                rPr.append(rFonts)
+                sz = OxmlElement("w:sz")
+                size_val = style_info.get('size') or BODY_SIZE
+                sz.set(qn("w:val"), str(int(size_val.pt * 2)) if hasattr(size_val, 'pt') else "24")
+                rPr.append(sz)
+                color = OxmlElement("w:color")
+                color.set(qn("w:val"), "000000")
+                rPr.append(color)
+                u = OxmlElement("w:u")
+                u.set(qn("w:val"), "none")
+                rPr.append(u)
+                if style_info.get('bold'):
+                    b = OxmlElement("w:b")
+                    rPr.append(b)
+                if style_info.get('italic'):
+                    i = OxmlElement("w:i")
+                    rPr.append(i)
+                run_el.append(rPr)
+                t = OxmlElement("w:t")
+                t.set(qn("xml:space"), "preserve")
+                t.text = seg_text
+                run_el.append(t)
+                hyperlink.append(run_el)
+                para._p.append(hyperlink)
+            else:
+                run_el = OxmlElement("w:r")
+                rPr = OxmlElement("w:rPr")
+                rFonts = OxmlElement("w:rFonts")
+                font_name = style_info.get('name') or FONT_NAME
+                rFonts.set(qn("w:ascii"), font_name)
+                rFonts.set(qn("w:hAnsi"), font_name)
+                rFonts.set(qn("w:cs"), font_name)
+                rPr.append(rFonts)
+                sz = OxmlElement("w:sz")
+                size_val = style_info.get('size') or BODY_SIZE
+                sz.set(qn("w:val"), str(int(size_val.pt * 2)) if hasattr(size_val, 'pt') else "24")
+                rPr.append(sz)
+                color = OxmlElement("w:color")
+                color.set(qn("w:val"), "000000")
+                rPr.append(color)
+                if style_info.get('bold'):
+                    b = OxmlElement("w:b")
+                    rPr.append(b)
+                if style_info.get('italic'):
+                    i = OxmlElement("w:i")
+                    rPr.append(i)
+                run_el.append(rPr)
+                t = OxmlElement("w:t")
+                t.set(qn("xml:space"), "preserve")
+                t.text = seg_text
+                run_el.append(t)
+                para._p.append(run_el)
+
+
 def postprocess(docx_path):
     doc = Document(docx_path)
 
@@ -512,6 +656,7 @@ def postprocess(docx_path):
 
     configure_toc_styles(doc)
     add_bookmarks_to_headings(doc)
+    link_citations_to_bibliography(doc)
     generate_toc(doc)
     add_page_numbers(doc)
     add_initial_page_break(doc)
