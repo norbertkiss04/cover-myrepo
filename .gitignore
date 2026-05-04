@@ -35,3 +35,6 @@ Thumbs.db
 
 # Course docs (not part of the application)
 szakodga.txt
+
+# Thesis build output
+thesis/build/

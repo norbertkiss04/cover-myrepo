@@ -216,3 +216,41 @@
 | Szak pontos megnevezése | Hiányzik | Címlaphoz kell |
 | Pontos befejezési év | 2025 (feltételezett) | Megerősítés |
 | Screenshotok bemergelése | `ux-docs` branch-ben | Ellenőrizni kell merge státuszt |
+
+---
+
+## Build pipeline
+
+### Követelmények
+
+- Pandoc 3.6+
+- LibreOffice (headless mód)
+- Python 3 + `python-docx` + `docxcompose`
+
+### Futtatás
+
+```bash
+cd thesis/
+./build.sh
+```
+
+### Kimenet
+
+| Fájl | Leírás |
+|------|--------|
+| `build/eleje.docx` | Első kötéstábla (konvertált sablon — kitöltendő) |
+| `build/thesis_body.docx` | Pandoc kimenet: absztrakt + tartalomjegyzék + fejezetek + irodalom + nyilatkozat |
+| `build/thesis_final.docx` | Összefűzött végleges dokumentum |
+| `build/thesis_final.pdf` | PDF export CooSpace feltöltéshez |
+
+### Lépések
+
+1. `eleje.doc` és `vege.doc` → `.docx` konverzió (LibreOffice)
+2. Pandoc: markdown fejezetek → `thesis_body.docx` (`szakdolgozat_formai_ajanlas.docx` stílusreferenciával)
+3. `docxcompose` merge: `eleje.docx` + `thesis_body.docx` + `vege.docx` → `thesis_final.docx`
+4. LibreOffice PDF export
+
+### Manuális teendők
+
+- `build/eleje.docx` kitöltése: témavezető neve, szak, évszám
+- Feladatkiírás beszúrása (ha megérkezik a témavezetőtől)
