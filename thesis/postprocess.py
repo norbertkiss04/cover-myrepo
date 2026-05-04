@@ -656,13 +656,19 @@ def postprocess(docx_path):
 
     configure_toc_styles(doc)
     add_bookmarks_to_headings(doc)
-    link_citations_to_bibliography(doc)
     generate_toc(doc)
     add_page_numbers(doc)
     add_initial_page_break(doc)
 
     doc.save(docx_path)
     print(f"    Post-processed: {docx_path}")
+
+
+def postprocess_final(docx_path):
+    doc = Document(docx_path)
+    link_citations_to_bibliography(doc)
+    doc.save(docx_path)
+    print(f"    Citation links added: {docx_path}")
 
 
 def add_initial_page_break(doc):
@@ -685,13 +691,20 @@ def add_initial_page_break(doc):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        docx_path = Path(__file__).parent / "build" / "thesis_body.docx"
+    if len(sys.argv) >= 3 and sys.argv[1] == "--final":
+        docx_path = Path(sys.argv[2])
+        if not docx_path.exists():
+            print(f"ERROR: {docx_path} does not exist")
+            sys.exit(1)
+        postprocess_final(str(docx_path))
     else:
-        docx_path = Path(sys.argv[1])
+        if len(sys.argv) < 2:
+            docx_path = Path(__file__).parent / "build" / "thesis_body.docx"
+        else:
+            docx_path = Path(sys.argv[1])
 
-    if not docx_path.exists():
-        print(f"ERROR: {docx_path} does not exist")
-        sys.exit(1)
+        if not docx_path.exists():
+            print(f"ERROR: {docx_path} does not exist")
+            sys.exit(1)
 
-    postprocess(str(docx_path))
+        postprocess(str(docx_path))

@@ -55,6 +55,11 @@ echo "=== Step 4: Merge documents ==="
 python3 "$THESIS_DIR/merge.py"
 
 echo ""
+echo "=== Step 4b: Add citation links (post-merge) ==="
+
+python3 "$THESIS_DIR/postprocess.py" --final "$BUILD_DIR/thesis_final.docx"
+
+echo ""
 echo "=== Step 5: Export to PDF ==="
 
 libreoffice --headless --convert-to pdf \
