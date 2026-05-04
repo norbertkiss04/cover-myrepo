@@ -196,7 +196,3 @@ def calculate_generation_cost(
 ```
 
 A `style_ref_has_clean` és `style_ref_has_text` paraméterek figyelembe veszik, hogy a variánsok már cache-elve vannak-e — ha igen, azokért nem kell fizetni újra.
-
-## 8.7. Összegzés
-
-A biztonsági modell a "defense in depth" elvet követi: minden szinten van védelem, és egyetlen réteg megkerülése nem kompromittálja a teljes rendszert. Az RLS az adatbázisban, a token validáció a backend-ben, az input sanitizáció a bemenetnél, a rate limiting a terhelésnél, és a kreditrendszer a költségnél — együttesen biztosítják, hogy a rendszer biztonságosan és fenntarthatóan működjön.

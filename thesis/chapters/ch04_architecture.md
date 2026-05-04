@@ -88,7 +88,3 @@ Egy tipikus generálási kérés adatfolyama:
 9. A frontend megjeleníti az eredményt signed URL-lel
 
 Minden lépésnél `generation_progress` események tájékoztatják a felhasználót a haladásról.
-
-## 4.7. Összegzés
-
-Az architektúra tudatosan egyszerű: két konténer, egy külső adatbázis-szolgáltatás, és két AI API. Nincs message queue, nincs microservice szétdarabolás, nincs saját auth rendszer. Ez a döntés a projekt méretéből adódik — egyedüli fejlesztőként a komplexitás minimalizálása fontosabb volt, mint az elméleti skálázhatóság.

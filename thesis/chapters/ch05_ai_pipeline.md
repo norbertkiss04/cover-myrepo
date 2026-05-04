@@ -262,18 +262,3 @@ def _submit(self, url, payload, user=None):
 ```
 
 Ha a kredit nem elegendő, az `InsufficientCreditsError` kivétel azonnal leállítja a pipeline-t, és a felhasználó hibaüzenetet kap a WebSocket-en.
-
-## 5.7. Összegzés
-
-A háromágú pipeline architektúra lehetővé teszi, hogy egyetlen alkalmazáson belül három fundamentálisan eltérő generálási stratégiát szolgáljak ki. A standard pipeline egyszerű és gyors, a stílusreferencia pipeline finomhangolt vizuális konzisztenciát biztosít, a sablon pipeline pedig pixelpontos tipográfiai kontrollt ad.
-
-A megoldás kulcselemei:
-
-- Externalizált prompt sablonok JSON fájlban a könnyű iterációhoz
-- JSON Schema kényszerített LLM válaszformátum a megbízható gépi feldolgozáshoz
-- Aszinkron job-kezelés polling mechanizmussal a képgeneráláshoz
-- Lépésenkénti kredit-levonás a méltányos költségelszámoláshoz
-- Automatikus szegélydetektálás és -eltávolítás a konzisztens output minőséghez
-- Megszakítás-ellenőrzés minden lépés előtt a felhasználói élmény javításához
-
-A következő fejezetben a stílusreferencia rendszert mutatom be részletesen, amely a három pipeline közül a legösszetettebb: a feltöltött képek AI-alapú dekompozícióját és az ebből származó vizuális irányítás módszereit.

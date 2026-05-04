@@ -1,0 +1,50 @@
+Egy kiegészítés, ami nem szerepel a sablonban: MI-használat dokumentálása
+
+Mindenkinek be kell illesztenie egy kb. 2 oldalas fejezetet arról, hogy a szakdolgozat készítése során hol és hogyan használtátok a mesterséges intelligenciát. Ez nem adminisztratív formalitás — ez mérnöki önreflexió, ami a mai fejlesztői gyakorlat szerves része.
+Szempontrendszer a fejezet megírásához
+
+Az alábbi kérdéseket járjátok körbe. Nem kérdés-válasz formában, hanem összefüggő szövegként, de mindegyik szemponthoz térjetek ki:
+
+1. Milyen eszközöket használtatok?
+
+    Konkrét megnevezés (pl. Claude Sonnet 4.5, Gemini CLI, GitHub Copilot, ChatGPT)
+    Melyik fázisban melyiket és miért azt
+
+2. Milyen feladatokra használtátok? Soroljátok fel konkrétan, pl.:
+
+    Kódgenerálás (milyen típusú kódra?)
+    Kódreview, refaktorálás
+    Hibakeresés, debuggolás
+    Architektúra-tervezés, döntéshozás támogatása
+    Dokumentáció írása, fogalmazás
+    Tesztek generálása
+    Irodalom feldolgozása, összefoglalása
+
+3. Hogyan validáltatok?
+
+    Az MI kimenetét hipotézisként kezeltétek, vagy elfogadtátok ahogy jött?
+    Volt-e eset, amikor az MI által javasolt megoldás hibás volt, és ti találtátok meg? Hozzatok 1–2 konkrét példát.
+    Milyen módszerrel ellenőriztétek a kimenetet (futtatás, tesztek, saját tudás, dokumentáció, második modell)?
+
+4. Hol NEM használtatok MI-t és miért?
+
+    Ez legalább olyan fontos, mint hogy hol használtátok
+    Van-e olyan rész, amit szándékosan magatok írtatok (pl. a szakdolgozat szövegének gondolati magja, az értékelési fejezet, egy kritikus algoritmus)?
+
+5. Mit tanultatok a folyamatból?
+
+    Miben gyorsított?
+    Miben lassított vagy félrevezetett?
+    Mit csinálnátok másképp a következő projektben?
+
+Ami NEM elfogadható
+
+    Általános marketingszöveg ("az MI segített nekem gyorsabban dolgozni")
+    Egy mondatos említés ("használtam Copilotot")
+    Olyan állítás, hogy "nem használtam MI-t" — ha ez tényleg így van, akkor is leírandó, indoklással
+
+Terjedelem és elhelyezés
+
+    Kb. 2 oldal (sem 1, sem 5)
+    A szakdolgozat végén, önálló fejezetként — a "Összefoglalás" előtt vagy után
+    Fejezetcím javaslat: "Mesterséges intelligencia használata a fejlesztés során"

@@ -229,12 +229,35 @@ def add_page_numbers(doc):
             run5._r.append(fldChar3)
 
 
+def make_bookmark_name(text):
+    clean = re.sub(r"[^\w\s]", "", text)
+    clean = re.sub(r"\s+", "_", clean.strip())
+    return f"_Toc_{clean[:40]}"
+
+
+def add_bookmarks_to_headings(doc):
+    bookmark_id = 100
+    for para in doc.paragraphs:
+        if para.style.name.startswith("Heading") and para.text.strip():
+            level = get_heading_level(para.style.name)
+            if level <= 2:
+                bm_name = make_bookmark_name(para.text.strip())
+                bm_start = OxmlElement("w:bookmarkStart")
+                bm_start.set(qn("w:id"), str(bookmark_id))
+                bm_start.set(qn("w:name"), bm_name)
+                bm_end = OxmlElement("w:bookmarkEnd")
+                bm_end.set(qn("w:id"), str(bookmark_id))
+                para._p.insert(0, bm_start)
+                para._p.append(bm_end)
+                bookmark_id += 1
+
+
 def generate_toc(doc):
     headings = []
     for para in doc.paragraphs:
         if para.style.name.startswith("Heading") and para.text.strip():
             level = get_heading_level(para.style.name)
-            if level <= 3:
+            if level <= 2:
                 headings.append((level, para.text.strip()))
 
     body = doc.element.body
@@ -288,8 +311,6 @@ def make_toc_entry(level, text):
         indent.set(qn("w:left"), "0")
     elif level == 2:
         indent.set(qn("w:left"), "567")
-    else:
-        indent.set(qn("w:left"), "1134")
     pPr.append(indent)
 
     tabs = OxmlElement("w:tabs")
@@ -310,6 +331,10 @@ def make_toc_entry(level, text):
     para.append(pPr)
 
     display_text = text.upper() if level == 1 else text
+    bm_name = make_bookmark_name(text)
+
+    hyperlink = OxmlElement("w:hyperlink")
+    hyperlink.set(qn("w:anchor"), bm_name)
 
     run = OxmlElement("w:r")
     rPr = OxmlElement("w:rPr")
@@ -330,12 +355,17 @@ def make_toc_entry(level, text):
     color = OxmlElement("w:color")
     color.set(qn("w:val"), "000000")
     rPr.append(color)
+    u = OxmlElement("w:u")
+    u.set(qn("w:val"), "none")
+    rPr.append(u)
+    rStyle = OxmlElement("w:rStyle")
+    rStyle.set(qn("w:val"), "Hyperlink")
     run.append(rPr)
     t = OxmlElement("w:t")
     t.set(qn("xml:space"), "preserve")
     t.text = display_text
     run.append(t)
-    para.append(run)
+    hyperlink.append(run)
 
     tab_run = OxmlElement("w:r")
     tab_rPr = OxmlElement("w:rPr")
@@ -349,10 +379,18 @@ def make_toc_entry(level, text):
     if level <= 2:
         tab_b = OxmlElement("w:b")
         tab_rPr.append(tab_b)
+    color2 = OxmlElement("w:color")
+    color2.set(qn("w:val"), "000000")
+    tab_rPr.append(color2)
+    u2 = OxmlElement("w:u")
+    u2.set(qn("w:val"), "none")
+    tab_rPr.append(u2)
     tab_run.append(tab_rPr)
     tab_char = OxmlElement("w:tab")
     tab_run.append(tab_char)
-    para.append(tab_run)
+    hyperlink.append(tab_run)
+
+    para.append(hyperlink)
 
     return para
 
@@ -410,7 +448,7 @@ def configure_toc_styles(doc):
 
     styles = doc.styles
 
-    for level in range(1, 4):
+    for level in range(1, 3):
         style_name = f"toc {level}"
         try:
             style = styles[style_name]
@@ -473,6 +511,7 @@ def postprocess(docx_path):
         fix_table(table)
 
     configure_toc_styles(doc)
+    add_bookmarks_to_headings(doc)
     generate_toc(doc)
     add_page_numbers(doc)
     add_initial_page_break(doc)

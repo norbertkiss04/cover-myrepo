@@ -54,7 +54,3 @@ A GitHub Actions[11] CI pipeline minden push és pull request esetén három pá
 3. **lint** — `flake8` futtatás a backend kódon (figyelmeztetésként, nem blokkoló)
 
 A deployment manuális: `docker compose up --build` a VPS-en. Automata deployment-et nem implementáltam, mert a zárt béta jellegű alkalmazásnál a manuális ellenőrzés előnyösebb.
-
-## 9.5. Összegzés
-
-A 204 automatizált teszt és a CI pipeline együttesen biztosítják, hogy kódváltoztatások ne törjék el a meglévő funkcionalitást. A mock-alapú teszt infrastruktúra gyors és megbízható futást garantál külső függőségek nélkül.

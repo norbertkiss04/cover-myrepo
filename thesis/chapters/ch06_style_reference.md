@@ -188,14 +188,3 @@ A fehér háttér eltávolítása egy küszöbértékkel történik: minden pixe
 ### 6.5.3. Separate Reference
 
 A legegyszerűbb AI-alapú mód: egyetlen WaveSpeed edit hívás kap két referenciaképet — az alapképet és a text layert — és egy utasítást, hogy egyesítse őket. Ez gyorsabb és olcsóbb, mint az AI Blend, de kevesebb kontrollal rendelkezik a szövegcsere felett.
-
-## 6.6. Összegzés
-
-A stílusreferencia rendszer a pipeline architektúra legösszetettebb ága. A feltöltéskori elemzés, a lusta variáns-generálás, a verifikációs lépés és a háromféle blending mód együttesen biztosítják, hogy a felhasználó finomhangoltan átvehesse egy meglévő borító vizuális stílusát — akár csak a hátteret, akár csak a tipográfiát, akár mindkettőt.
-
-A megoldás tervezési elvei:
-
-- Cache-elés az ismételt költségek elkerülésére
-- Verifikációs lépés az output minőség garantálásához
-- Három blending mód a minőség/költség/sebesség trade-off mentén
-- Moduláris elemzés négy dimenzióban a szelektív stílus-átvételhez

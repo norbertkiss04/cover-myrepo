@@ -231,7 +231,3 @@ def _check_socket_rate_limit(sid):
 ```
 
 Ha a limit túllépésre kerül, a felhasználó `generation_error` eseményt kap és a kérése elutasítódik.
-
-## 7.9. Összegzés
-
-A WebSocket-alapú kommunikáció lehetővé teszi, hogy a felhasználó valós időben kísérje figyelemmel a generálási folyamatot, miközben a szerver oldalon a háttérfeladatok aszinkron módon dolgoznak. A szoba-alapú üzenetküldés, az állapot-visszaállítás, a stale detection és a rate limiting együttesen egy robusztus, felhasználóbarát rendszert alkotnak.
