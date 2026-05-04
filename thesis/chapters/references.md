@@ -1,5 +1,6 @@
 # Irodalomjegyzék
 
+::: {custom-style="Bibliography"}
 [1] React — A JavaScript library for building user interfaces. https://react.dev (Utolsó megtekintés: 2025. 12. 15.)
 
 [2] TypeScript — Typed JavaScript at Any Scale. https://www.typescriptlang.org (Utolsó megtekintés: 2025. 12. 15.)
@@ -39,3 +40,4 @@
 [19] TanStack Query — Powerful asynchronous state management. https://tanstack.com/query (Utolsó megtekintés: 2025. 12. 15.)
 
 [20] Framer Motion — A production-ready motion library for React. https://www.framer.com/motion/ (Utolsó megtekintés: 2025. 12. 15.)
+:::
