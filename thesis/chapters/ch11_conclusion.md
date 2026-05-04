@@ -1,6 +1,6 @@
-# 10. Összefoglalás
+# 11. Összefoglalás
 
-## 10.1. Eredmények
+## 11.1. Eredmények
 
 Szakdolgozatomban bemutattam az InstaCover webalkalmazást, egy AI-alapú könyvborító-generátort indie szerzők számára. Az alkalmazás sikeresen egyesíti a nagy nyelvi modelleket, a képgenerálási technológiát és a szerver oldali renderelést egy egységes, felhasználóbarát felületen.
 
@@ -14,7 +14,7 @@ A főbb megvalósított képességek:
 
 A zárt béta tesztelés során a rendszer megbízhatóan működött, a felhasználók sikeresen generáltak borítókat különböző pipeline-okon keresztül.
 
-## 10.2. Tapasztalatok
+## 11.2. Tapasztalatok
 
 A fejlesztés során több fontos tanulságot szűrtem le:
 
@@ -24,7 +24,9 @@ A fejlesztés során több fontos tanulságot szűrtem le:
 
 **A lépésenkénti kredit-levonás méltányosabb.** Az előre levonás + visszatérítés modellel szemben a lépésenkénti levonás biztosítja, hogy sikertelen generálás esetén a felhasználó csak a ténylegesen elhasznált erőforrásokért fizet.
 
-## 10.3. Továbbfejlesztési lehetőségek
+**Az AI-eszközök hatékony kiegészítők, de nem helyettesítők.** A fejlesztés során szisztematikusan alkalmaztam nagy nyelvi modelleket kódgenerálásra, tesztírásra és dokumentálásra. A tapasztalat egyértelműen megmutatta, hogy ezek az eszközök valódi sebességnövelést hoznak jól behatárolt feladatoknál, ugyanakkor a mérnöki ítélőképességet nem pótolják — a generált kód validálása és a kritikus döntések meghozatala mindig emberi felelősség maradt. A részletes tapasztalatokat a 10. fejezet tartalmazza.
+
+## 11.3. Továbbfejlesztési lehetőségek
 
 A rendszer több irányban bővíthető:
 
@@ -34,6 +36,6 @@ A rendszer több irányban bővíthető:
 - **Alternatív objektumtárolás** — Migrálás Cloudflare R2-re vagy AWS S3-ra a Supabase free tier tárhelykorlátainak megkerülésére
 - **Szerver oldali események** — A polling helyett WebSocket push a WaveSpeed eredményeknél, ha az API támogatná
 
-## 10.4. Záró gondolatok
+## 11.4. Záró gondolatok
 
 Az InstaCover demonstrálja, hogy a modern AI szolgáltatások (LLM + képgenerálás) megfelelő orkesztrációval képesek egy korábban kizárólag emberi kreativitást igénylő feladatot — a könyvborító-tervezést — hozzáférhetővé tenni azok számára is, akik nem rendelkeznek grafikai ismeretekkel. A felhasználónak elegendő leírnia könyvét, és a rendszer perceken belül professzionális minőségű borítót ad.

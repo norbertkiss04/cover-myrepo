@@ -47,12 +47,13 @@
 | **7** | **Valós idejű kommunikáció** | 2-3 | Socket.IO, GenerationContext, állapotgép |
 | **8** | **Biztonság és kreditrendszer** | 2-3 | RLS, prompt injection, kredit atomikus műveletek |
 | **9** | **Tesztelés és CI/CD** | 1-2 | pytest, GitHub Actions, coverage |
-| **10** | **Összefoglalás** | 1-2 | Eredmények, tapasztalatok, továbbfejlesztés |
+| **10** | **MI-használat dokumentálása** | 2 | `official_base/ai_requirement.txt`, saját tapasztalat |
+| **11** | **Összefoglalás** | 1-2 | Eredmények, tapasztalatok, továbbfejlesztés |
 | - | Irodalomjegyzék | 1 | ~15-20 forrás |
 | - | Nyilatkozat | 1 | Hivatalos sablon |
 | - | Mellékletek | 3-5+ | Extra screenshotok, DB séma, API végpontok |
 
-**Becsült összterjedelem:** ~28-32 oldal törzs + mellékletek
+**Becsült összterjedelem:** ~30-34 oldal törzs + mellékletek
 
 ---
 
@@ -194,8 +195,9 @@
 | 7. | Ch. 9 – Tesztelés | Rövid, tényszerű |
 | 8. | Ch. 2 – Piackutatás | Kontextus |
 | 9. | Ch. 1 – Bevezetés | Könnyebb ha tudjuk mit mond a dolgozat |
-| 10. | Ch. 10 – Összefoglalás | Legutoljára |
-| 11. | Front/back matter | Absztrakt, nyilatkozat, hivatkozások, mellékletek |
+| 10. | Ch. 10 – MI-használat | Önreflexió, tapasztalat alapú |
+| 11. | Ch. 11 – Összefoglalás | Legutoljára |
+| 12. | Front/back matter | Absztrakt, nyilatkozat, hivatkozások, mellékletek |
 
 ### Együttműködési modell
 
