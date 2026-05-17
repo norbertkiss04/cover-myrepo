@@ -8,7 +8,7 @@ services:
       - ./backend/.env
     environment:
       - FLASK_ENV=production
-      - FRONTEND_URL=http://localhost:5174
+      - FRONTEND_URL=https://instacover.kissh.tech
     restart: unless-stopped
     networks:
       - authorverse
@@ -18,9 +18,9 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_URL: https://api.instacover.yourdomain.com
-        VITE_SUPABASE_URL: https://your-project.supabase.co
-        VITE_SUPABASE_ANON_KEY: your-anon-key
+        VITE_API_URL: https://api-instacover.kissh.tech
+        VITE_SUPABASE_URL: https://ubkxrbehuupvfrgknbdz.supabase.co
+        VITE_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVia3hyYmVodXVwdmZyZ2tuYmR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkzNTM2NzUsImV4cCI6MjA4NDkyOTY3NX0.jGKg4XORV72x-PbneMb9rRE7rGVv-gjgzkbsoUsn1to
     ports:
       - "7711:80"
     restart: unless-stopped

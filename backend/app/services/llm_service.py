@@ -91,7 +91,7 @@ class LLMService:
             self.api_key = current_app.config['OPENROUTER_API_KEY']
             self.base_url = current_app.config['OPENROUTER_BASE_URL']
 
-    def _make_request(self, messages, schema=None, model='x-ai/grok-4.1-fast', user=None):
+    def _make_request(self, messages, schema=None, model='x-ai/grok-4.3', user=None):
         self._get_config()
 
         if user is not None:
