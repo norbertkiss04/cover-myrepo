@@ -9,6 +9,7 @@ from app.models.cover_template import CoverTemplate
 from app.routes.auth import api_token_required
 from app.routes.generate import AVAILABLE_GENRES
 from app.services.storage_service import storage_service
+from app.services.generation_cleanup_service import cleanup_stale_generated_covers_safe
 from app.services.credit_service import (
     validate_generation_credits,
     deduct_credits,
@@ -499,6 +500,7 @@ def generate(current_user):
     }
 
     try:
+        cleanup_stale_generated_covers_safe()
         insert_result = get_supabase().table('generations').insert(generation_data).execute()
         generation = Generation.from_row(insert_result.data[0])
         gen_id = generation.id

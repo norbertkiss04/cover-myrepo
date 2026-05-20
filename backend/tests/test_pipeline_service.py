@@ -114,9 +114,9 @@ class TestRunStandardPipeline:
             mock_llm.generate_text_overlay_prompt.assert_called_once()
             mock_image.generate_image_with_text.assert_called_once()
 
-            assert len(progress_calls) == 4
+            assert len(progress_calls) == 3
             assert progress_calls[0][0] == 1
-            assert progress_calls[3][0] == 4
+            assert progress_calls[2][0] == 3
 
     @patch('app.services.pipeline_service.storage_service')
     @patch('app.services.pipeline_service.image_service')
@@ -204,7 +204,7 @@ class TestRunStyleRefPipeline:
                 'typography': 'Bold serif',
             })
 
-            mock_llm.generate_style_referenced_prompt.return_value = 'Style referenced prompt'
+            mock_llm.generate_style_referenced_prompt_no_text.return_value = 'Style referenced prompt'
             mock_storage.get_signed_url.return_value = 'https://signed.com/ref.png'
 
             mock_image.generate_image_with_text.return_value = {'image_url': 'https://ext.com/final.png'}
@@ -227,13 +227,13 @@ class TestRunStyleRefPipeline:
             assert result.status == 'completed'
             assert result.final_image_url == 'https://storage.com/final.png'
 
-            mock_llm.generate_style_referenced_prompt.assert_called_once()
-            call_kwargs = mock_llm.generate_style_referenced_prompt.call_args[1]
+            mock_llm.generate_style_referenced_prompt_no_text.assert_called_once()
+            call_kwargs = mock_llm.generate_style_referenced_prompt_no_text.call_args[1]
             assert call_kwargs['style_analysis'] is not None
             assert call_kwargs['style_analysis']['feeling'] == 'Dark and mysterious'
-            mock_image.generate_image_with_text.assert_called_once()
+            assert mock_image.generate_image_with_text.call_count == 3
 
-            assert len(progress_calls) == 2
+            assert len(progress_calls) == 5
 
     @patch('app.services.pipeline_service.storage_service')
     @patch('app.services.pipeline_service.image_service')
@@ -297,7 +297,7 @@ class TestRunStyleRefPipeline:
                 'title': 'Dark Style',
             })
 
-            mock_llm.generate_style_referenced_prompt.return_value = 'Style referenced prompt'
+            mock_llm.generate_style_referenced_prompt_no_text.return_value = 'Style referenced prompt'
             mock_storage.get_signed_url.return_value = 'https://signed.com/ref.png'
 
             mock_image.generate_image_with_text.return_value = {'image_url': 'https://ext.com/final.png'}
@@ -311,8 +311,8 @@ class TestRunStyleRefPipeline:
                 10, '2:3', 1,
             )
 
-            mock_llm.generate_style_referenced_prompt.assert_called_once()
-            call_kwargs = mock_llm.generate_style_referenced_prompt.call_args[1]
+            mock_llm.generate_style_referenced_prompt_no_text.assert_called_once()
+            call_kwargs = mock_llm.generate_style_referenced_prompt_no_text.call_args[1]
             assert call_kwargs['style_analysis'] is None
 
     def test_style_reference_not_found_raises(self, app, mock_generation, book_data):

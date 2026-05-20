@@ -140,7 +140,7 @@ def test_auto_create_user_on_first_login(app, client):
     data = response.get_json()
     assert data['email'] == 'newuser@example.com'
     assert data['name'] == 'New User'
-    assert data['credits'] == 30
+    assert data['credits'] == 200
 
 
 def test_race_condition_insert_fails_retry_finds_user(app, client):

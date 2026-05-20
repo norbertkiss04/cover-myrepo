@@ -17,6 +17,7 @@ from app.sockets.helpers import (
     _cleanup_rate_limit,
 )
 from app.sockets.tasks import _run_generation_task
+from app.services.generation_cleanup_service import cleanup_stale_generated_covers_safe
 from app.utils.db import get_supabase
 from app.utils.validation import sanitize_generation_data
 
@@ -228,6 +229,8 @@ def handle_start_generation(data):
         'status': 'generating',
     }
 
+    cleanup_stale_generated_covers_safe()
+
     result = get_supabase().table('generations').insert(gen_data).execute()
     generation = Generation.from_row(result.data[0])
 
@@ -335,6 +338,8 @@ def handle_start_regeneration(data):
         'two_step_generation': original.two_step_generation,
         'status': 'generating',
     }
+
+    cleanup_stale_generated_covers_safe()
 
     insert_result = get_supabase().table('generations').insert(new_gen_data).execute()
     new_generation = Generation.from_row(insert_result.data[0])
