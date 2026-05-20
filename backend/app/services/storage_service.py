@@ -29,6 +29,13 @@ class StorageService:
         supabase_url = current_app.config['SUPABASE_URL'].rstrip('/')
         bucket = current_app.config['SUPABASE_STORAGE_BUCKET']
         return f"{supabase_url}/storage/v1/object/public/{bucket}/{path}"
+
+    def _build_storage_path(self, folder: str, extension: str) -> str:
+        bucket = current_app.config["SUPABASE_STORAGE_BUCKET"]
+        filename = f"{uuid.uuid4()}.{extension}"
+        if not folder or folder == bucket:
+            return filename
+        return f"{folder}/{filename}"
     
     def upload_from_url(self, image_url: str, folder: str = 'covers') -> dict:
         client = self._get_client()
@@ -46,7 +53,7 @@ class StorageService:
             size_kb, folder, content_type,
         )
         
-        filename = f"{folder}/{uuid.uuid4()}.{ext}"
+        filename = self._build_storage_path(folder, ext)
         
         logger.info("Uploading to storage: %s", filename)
         result = client.storage.from_(self._bucket).upload(
@@ -63,7 +70,7 @@ class StorageService:
         client = self._get_client()
         
         ext = filename.rsplit('.', 1)[-1] if '.' in filename else 'png'
-        unique_filename = f"{folder}/{uuid.uuid4()}.{ext}"
+        unique_filename = self._build_storage_path(folder, ext)
         
         size_kb = len(file_data) / 1024
         logger.info(
@@ -85,7 +92,7 @@ class StorageService:
         client = self._get_client()
 
         ext = 'png' if 'png' in content_type else 'jpg'
-        filename = f"{folder}/{uuid.uuid4()}.{ext}"
+        filename = self._build_storage_path(folder, ext)
 
         size_kb = len(data) / 1024
         logger.info("Uploading bytes to storage: %s (%.1f KB)", filename, size_kb)
