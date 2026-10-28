@@ -9,6 +9,10 @@ from app.services.credit_service import deduct_image_credit, InsufficientCredits
 
 logger = logging.getLogger(__name__)
 
+IMAGE_MODEL = 'bytedance/seedream-v5.0-pro'
+IMAGE_RESOLUTION = '2k'
+MODEL_ASPECT_RATIOS = {'1:1.5': '2:3'}
+
 
 def _colors_similar(c1, c2, tolerance):
     return (abs(c1[0] - c2[0]) <= tolerance and
@@ -97,10 +101,21 @@ class ImageService:
             'Content-Type': 'application/json'
         }
 
-    def _get_size_string(self, aspect_ratio):
+    def _get_size_params(self, aspect_ratio):
         from app.models.generation import ASPECT_RATIOS
-        ratio_info = ASPECT_RATIOS.get(aspect_ratio, ASPECT_RATIOS['2:3'])
-        return f"{ratio_info['width']}*{ratio_info['height']}"
+        if aspect_ratio not in ASPECT_RATIOS:
+            aspect_ratio = '2:3'
+        return {
+            'aspect_ratio': MODEL_ASPECT_RATIOS.get(aspect_ratio, aspect_ratio),
+            'resolution': IMAGE_RESOLUTION,
+            'output_format': 'png',
+        }
+
+    def _generate_url(self):
+        return f'{self.base_url}/{IMAGE_MODEL}'
+
+    def _edit_url(self):
+        return f'{self.base_url}/{IMAGE_MODEL}/edit'
 
     def _submit(self, url, payload, user=None):
         if user is not None:
@@ -159,17 +174,17 @@ class ImageService:
     def generate_base_image(self, prompt, aspect_ratio='2:3', user=None):
         self._get_config()
 
-        size = self._get_size_string(aspect_ratio)
+        size_params = self._get_size_params(aspect_ratio)
 
         payload = {
             'prompt': prompt,
-            'size': size,
+            **size_params,
             'enable_base64_output': False,
             'enable_sync_mode': False,
         }
 
         job_id = self._submit(
-            f'{self.base_url}/bytedance/seedream-v4.5',
+            self._generate_url(),
             payload,
             user=user,
         )
@@ -182,18 +197,18 @@ class ImageService:
         if isinstance(image_urls, str):
             image_urls = [image_urls]
 
-        size = self._get_size_string(aspect_ratio)
+        size_params = self._get_size_params(aspect_ratio)
 
         payload = {
             'prompt': text_prompt,
             'images': image_urls,
-            'size': size,
+            **size_params,
             'enable_base64_output': False,
             'enable_sync_mode': False,
         }
 
         job_id = self._submit(
-            f'{self.base_url}/bytedance/seedream-v4.5/edit',
+            self._edit_url(),
             payload,
             user=user,
         )
@@ -203,7 +218,7 @@ class ImageService:
     def generate_clean_background(self, image_url, aspect_ratio='2:3', user=None):
         self._get_config()
 
-        size = self._get_size_string(aspect_ratio)
+        size_params = self._get_size_params(aspect_ratio)
 
         prompt = (
             "Remove all text, titles, words, logos, symbols, and typography from this image. "
@@ -214,13 +229,13 @@ class ImageService:
         payload = {
             'prompt': prompt,
             'images': [image_url],
-            'size': size,
+            **size_params,
             'enable_base64_output': False,
             'enable_sync_mode': False,
         }
 
         job_id = self._submit(
-            f'{self.base_url}/bytedance/seedream-v4.5/edit',
+            self._edit_url(),
             payload,
             user=user,
         )
@@ -230,7 +245,7 @@ class ImageService:
     def generate_text_layer(self, image_url, aspect_ratio='2:3', selected_texts=None, user=None):
         self._get_config()
 
-        size = self._get_size_string(aspect_ratio)
+        size_params = self._get_size_params(aspect_ratio)
 
         if selected_texts and len(selected_texts) > 0:
             text_descriptions = []
@@ -259,13 +274,13 @@ class ImageService:
         payload = {
             'prompt': prompt,
             'images': [image_url],
-            'size': size,
+            **size_params,
             'enable_base64_output': False,
             'enable_sync_mode': False,
         }
 
         job_id = self._submit(
-            f'{self.base_url}/bytedance/seedream-v4.5/edit',
+            self._edit_url(),
             payload,
             user=user,
         )
@@ -275,7 +290,7 @@ class ImageService:
     def cleanup_text_layer(self, image_url, artifacts_description, text_details=None, aspect_ratio='2:3', user=None):
         self._get_config()
 
-        size = self._get_size_string(aspect_ratio)
+        size_params = self._get_size_params(aspect_ratio)
 
         text_context = "All visible text elements"
         if text_details:
@@ -312,14 +327,14 @@ class ImageService:
         payload = {
             'prompt': prompt,
             'images': [image_url],
-            'size': size,
+            **size_params,
             'enable_base64_output': False,
             'enable_sync_mode': False,
         }
 
         logger.info("Cleaning up text layer, removing: %s", artifacts_description[:100])
         job_id = self._submit(
-            f'{self.base_url}/bytedance/seedream-v4.5/edit',
+            self._edit_url(),
             payload,
             user=user,
         )
