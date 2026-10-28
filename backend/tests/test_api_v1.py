@@ -383,7 +383,8 @@ class TestGenerate:
         data = response.get_json()
         assert 'credit' in data['error'].lower()
 
-    def test_generate_success(self, client, api_token_headers, app):
+    @patch('app.routes.api_v1.socketio.start_background_task')
+    def test_generate_success(self, mock_task, client, api_token_headers, app):
         response = client.post('/api/v1/generate', headers=api_token_headers, json={
             'book_title': 'Test Book',
             'author_name': 'Test Author',
@@ -391,12 +392,14 @@ class TestGenerate:
         })
 
         assert response.status_code == 200
+        mock_task.assert_called_once()
         data = response.get_json()
         assert data['status'] == 'processing'
         assert 'generation_id' in data
         assert isinstance(data['generation_id'], int)
 
-    def test_generate_with_cover_template(self, client, api_token_headers, app):
+    @patch('app.routes.api_v1.socketio.start_background_task')
+    def test_generate_with_cover_template(self, mock_task, client, api_token_headers, app):
         app._test_store.setdefault('cover_templates', []).append({
             'id': 9,
             'user_id': 101,
@@ -413,6 +416,7 @@ class TestGenerate:
         })
 
         assert response.status_code == 200
+        assert mock_task.call_args.kwargs['cover_template_id'] == 9
         data = response.get_json()
         assert data['status'] == 'processing'
         assert 'generation_id' in data
