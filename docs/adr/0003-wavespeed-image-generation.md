@@ -31,3 +31,11 @@ A könyvborító-generáláshoz szükség van egy képgenerálási API-ra, amely
 - Egyedi méretek támogatása → nem kell utólagos crop/resize
 - Hibamódok kezelése szükséges: timeout, rate limit, content filter rejection
 - Vendor dependency: ha WaveSpeed megszűnik, az image_service cserélhető (egyetlen service class mögött van)
+
+## Frissítés (2026-10-28)
+
+A modell `bytedance/seedream-v5.0-pro` lett (`/edit` a szerkesztéshez). Az LMArena text-to-image ranglistán (2026. 10. 26.) a Seedream 5.0 Pro 1250 pontos, a 4.5-ös verzió felett áll. Ára 0,045 USD képenként (korábban 0,04 USD).
+
+- Az 5.0 Pro nem pixelméretet (`size`), hanem `aspect_ratio` és `resolution` mezőt vár. Az `image_service` az alkalmazás képarányait a modell értékeire képezi le (`1:1.5` → `2:3`), a felbontás `2k`.
+- A GPT Image 2.5 és a Nano Banana 2.1 magasabb pontszámú, de szigorúbb tartalomszűrővel működik, ezért a Seedream család maradt.
+- A modellnév egy helyen (`IMAGE_MODEL`) szerepel, így a következő csere egysoros módosítás.

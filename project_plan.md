@@ -30,7 +30,7 @@ A többlépéses AI pipeline megbízható orkesztrálása. Egy generálás 2–4
 | Backend / logika | Flask + Flask-SocketIO + Gunicorn | Lightweight Python backend, natív Socket.IO támogatás valós idejű kommunikációhoz, Python ökoszisztéma az AI/ML integrációkhoz (Pillow képfeldolgozás, prompt kezelés) |
 | Adattárolás | Supabase (PostgreSQL + Object Storage) | Egy platformon: relációs DB + fájltárolás + RLS policy-k, beépített signed URL támogatás, RPC funkciók az atomikus kreditműveletekhez |
 | Auth | Supabase Auth (Google OAuth + email/password) | Beépített JWT kezelés, social login támogatás, a Supabase ökoszisztémán belül marad (RLS-sel összekapcsolható), nem kell saját auth rendszert írni |
-| AI szolgáltatások | OpenRouter (LLM) + WaveSpeed AI (képgenerálás) | OpenRouter: egy API mögött több LLM modell (Grok, Gemini), könnyű modellváltás; WaveSpeed: Seedream V4.5 modell jó minőség/ár aránnyal könyvborítókra |
+| AI szolgáltatások | OpenRouter (LLM) + WaveSpeed AI (képgenerálás) | OpenRouter: egy API mögött több LLM modell (Grok 4.7, Gemini 3.8 Flash), könnyű modellváltás; WaveSpeed: Seedream 5.0 Pro modell jó minőség/ár aránnyal könyvborítókra |
 
 ## Ami kimarad (non-goals)
 

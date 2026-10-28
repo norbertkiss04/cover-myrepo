@@ -31,13 +31,13 @@ Az alkalmazás három fő rétegből áll:
 **Külső szolgáltatások**:
 
 - Supabase szolgáltatja az adatbázist (PostgreSQL), az autentikációt és az objektumtárolást
-- OpenRouter biztosítja az LLM hozzáférést (Grok, Gemini modellek)
-- WaveSpeed AI végzi a képgenerálást (Seedream V4.5 modell)
+- OpenRouter biztosítja az LLM hozzáférést (Grok 4.7 promptgeneráláshoz, Gemini 3.8 Flash képelemzéshez)
+- WaveSpeed AI végzi a képgenerálást (Seedream 5.0 Pro modell)
 
 ### Generálási folyamat
 
 1. **Bevitel feldolgozása**: A felhasználó megadja a könyv adatait (cím, szerző, borítóötletek, műfaj). A frontend WebSocketen keresztül elküldi a `start_generation` eseményt a backendnek.
-2. **Kredit ellenőrzés és levonás**: A backend ellenőrzi a felhasználó kreditegyenlegét, levonja a generálási költséget (3 kredit), majd létrehozza a Generation rekordot az adatbázisban "generating" státusszal.
+2. **Kredit ellenőrzés és levonás**: A backend összeveti a felhasználó kreditegyenlegét a becsült költséggel, majd létrehozza a Generation rekordot az adatbázisban "generating" státusszal. A kreditek a pipeline lépései közben, hívásonként vonódnak le (LLM hívás: 1, képhívás: 6 kredit).
 3. **Prompt generálás**: Az LLM szolgáltatás elküldi a könyv adatait az OpenRouter API-nak, amely egy részletes, könyvborító-esztétikára optimalizált képgenerálási promptot ad vissza.
 4. **Alapkép létrehozása**: Az Image szolgáltatás a WaveSpeed API-hoz küldi a promptot. A kép generálása aszinkron: a rendszer job ID-t kap vissza, majd polling-gal ellenőrzi az állapotot a kép elkészültéig.
 5. **Tipográfia réteg**: Ha nem csak alapképet kér a felhasználó, egy második LLM hívás tipográfiai promptot generál, majd a WaveSpeed újabb képet készít a címmel és szerzőnévvel.
@@ -93,8 +93,8 @@ A WebSocket kapcsolat (Socket.IO) biztosítja az azonnali visszajelzést:
 ### Külső szolgáltatások
 
 - **Supabase**: PostgreSQL adatbázis, autentikáció és objektumtárolás
-- **OpenRouter**: LLM gateway (Grok, Gemini modellek) promptgeneráláshoz
-- **WaveSpeed AI**: Képgenerálás (Seedream V4.5 modell)
+- **OpenRouter**: LLM gateway (Grok 4.7, Gemini 3.8 Flash) promptgeneráláshoz és képelemzéshez
+- **WaveSpeed AI**: Képgenerálás (Seedream 5.0 Pro modell)
 
 ### Infrastruktúra
 

@@ -50,9 +50,11 @@ A `backend/tests/conftest.py` tartalmaz egy teljes in-memory Supabase mock-ot:
 | test_services.py | 12 | Pipeline és kredit szolgáltatások |
 | test_pipeline_service.py | 12 | Pipeline orchestráció és lépések |
 | test_sockets.py | 10 | WebSocket kapcsolatkezelés |
+| test_image_service.py | 8 | Képgenerálási kérések formátuma, szegélyvágás |
 | test_generate.py | 7 | Generálási logika |
+| test_generation_cleanup_service.py | 5 | Elakadt és elavult generálások takarítása |
 | test_health.py | 1 | Health check endpoint |
-| **Összesen** | **204** | — |
+| **Összesen** | **217** | 15 fájl |
 
 ## Tesztelési stratégia típusonként
 
