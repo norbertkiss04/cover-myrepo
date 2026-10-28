@@ -1,0 +1,26 @@
+{
+  "slug": "fantasy",
+  "mode": "two_step",
+  "aspect_ratio": "2:3",
+  "input": {
+    "book_title": "Ashes of the Iron Crown",
+    "author_name": "Lena Hart",
+    "genres": [
+      "Fantasy",
+      "Adventure"
+    ],
+    "description": "A young blacksmith discovers that the broken crown she was asked to repair is the key to an old war between mountain kingdoms.",
+    "cover_ideas": "",
+    "character_description": "A young woman blacksmith with short dark hair, leather apron, holding a glowing broken iron crown"
+  },
+  "models": {
+    "prompt": "x-ai/grok-4.7",
+    "vision": "google/gemini-3.8-flash",
+    "image": "bytedance/seedream-v5.0-pro"
+  },
+  "base_prompt": "A young woman blacksmith with short dark hair and a soot-stained leather apron holds a cracked iron crown glowing ember-gold in a mountain forge. Sparks and smoke swirl as jagged peaks rise beyond the forge mouth, faint spectral armies shimmering in the firelight. Cinematic fantasy adventure, dramatic rim light, bronze and steel palette, painterly realism, no text.",
+  "text_prompt": "Add book cover typography to the existing cover image. Place the title \"Ashes of the Iron Crown\" prominently in the upper third, centered horizontally, in a large ornate fantasy serif with subtle metallic iron highlights and a soft dark drop shadow for contrast. Break the title across three centered lines: \"Ashes\" / \"of the\" / \"Iron Crown\", with \"of the\" smaller and lighter than the other two lines. Position the author name \"Lena Hart\" centered in the lower third in a smaller, elegant complementary serif, tracking slightly open, in warm gold or off-white so it remains readable against the artwork. Keep both text blocks clear of busy focal details, with strong contrast, balanced spacing, and a classic fantasy-adventure hierarchy: title dominant, author secondary.",
+  "llm_calls": 2,
+  "image_calls": 2,
+  "seconds": 236.6
+}

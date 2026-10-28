@@ -1,0 +1,25 @@
+{
+  "slug": "scifi",
+  "mode": "two_step",
+  "aspect_ratio": "2:3",
+  "input": {
+    "book_title": "Orbit of Silence",
+    "author_name": "Daniel Varga",
+    "genres": [
+      "Science Fiction"
+    ],
+    "description": "The crew of a research station orbiting a dead planet receives a signal that repeats their own mission logs, one day before they are written.",
+    "cover_ideas": "A ring-shaped space station in orbit around a dark red planet, cold blue light, sense of isolation",
+    "character_description": ""
+  },
+  "models": {
+    "prompt": "x-ai/grok-4.7",
+    "vision": "google/gemini-3.8-flash",
+    "image": "bytedance/seedream-v5.0-pro"
+  },
+  "base_prompt": "A solitary ring-shaped space station orbiting a vast dark red dead planet, cold blue light grazing its metallic hull against deep black space, immense emptiness and isolation, cinematic science-fiction illustration, dramatic low-key lighting, no text",
+  "text_prompt": "Add typography to the existing science-fiction book cover of a ring-shaped space station orbiting a dark red planet in cold blue light. Place the title \"Orbit of Silence\" prominently across the upper third, centered, in a large, clean futuristic sans-serif with slightly wide letter-spacing and a subtle metallic silver-to-cold-blue gradient; keep it sharp, high-contrast against the dark space background, with a faint outer glow so it remains readable over the station. Position the author name \"Daniel Varga\" smaller beneath the title, centered, in a refined complementary sans-serif at roughly one-third the title size, in cool white with light tracking, clearly secondary but legible. Ensure both lines sit in open negative space, do not obscure the station or planet, and maintain strong contrast and hierarchy for maximum visual impact.",
+  "llm_calls": 2,
+  "image_calls": 2,
+  "seconds": 240.6
+}

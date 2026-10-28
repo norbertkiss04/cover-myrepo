@@ -41,7 +41,7 @@ A `backend/tests/conftest.py` tartalmaz egy teljes in-memory Supabase mock-ot:
 |---|---|---|
 | test_api_v1.py | 34 | REST API v1 endpointok (CRUD, auth, pagination) |
 | test_generate_routes.py | 31 | Generálási route-ok (validáció, jogosultság) |
-| test_llm_service.py | 21 | LLM szolgáltatás (prompt generálás, hibakezelés) |
+| test_llm_service.py | 24 | LLM szolgáltatás (prompt generálás, hibakezelés) |
 | test_auth.py | 21 | Autentikáció (token validáció, invite, user CRUD) |
 | test_socket_handlers.py | 15 | WebSocket eseménykezelők |
 | test_models.py | 14 | Adatmodellek (Generation, User, StyleReference) |
@@ -54,7 +54,7 @@ A `backend/tests/conftest.py` tartalmaz egy teljes in-memory Supabase mock-ot:
 | test_generate.py | 7 | Generálási logika |
 | test_generation_cleanup_service.py | 5 | Elakadt és elavult generálások takarítása |
 | test_health.py | 1 | Health check endpoint |
-| **Összesen** | **217** | 15 fájl |
+| **Összesen** | **220** | 15 fájl |
 
 ## Tesztelési stratégia típusonként
 

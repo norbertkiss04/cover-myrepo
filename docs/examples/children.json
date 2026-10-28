@@ -1,0 +1,24 @@
+{
+  "slug": "children",
+  "mode": "one_step",
+  "aspect_ratio": "1:1",
+  "input": {
+    "book_title": "Pip and the Paper Boat",
+    "author_name": "Eszter Kovacs",
+    "genres": [
+      "Children's"
+    ],
+    "description": "A small fox folds a paper boat and follows it down the river to find out where the water goes.",
+    "cover_ideas": "Watercolor style, a small orange fox on a riverbank watching a paper boat, soft spring colors",
+    "character_description": ""
+  },
+  "models": {
+    "prompt": "x-ai/grok-4.7",
+    "vision": "google/gemini-3.8-flash",
+    "image": "bytedance/seedream-v5.0-pro"
+  },
+  "prompt": "Watercolor children's cover, one soft spring scene of pale greens, sky blue, and warm gold light. A small orange fox on a grassy riverbank watches a white paper boat drift on a gentle stream among reeds and blossoms. Playful rounded lettering spells \"Pip and the Paper Boat\" across the sky; smaller elegant script reads \"Eszter Kovacs\" near the fox. No other text.",
+  "llm_calls": 1,
+  "image_calls": 1,
+  "seconds": 96.9
+}

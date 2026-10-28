@@ -1,0 +1,26 @@
+{
+  "slug": "lighthouse",
+  "mode": "two_step",
+  "aspect_ratio": "2:3",
+  "input": {
+    "book_title": "The Last Lighthouse Keeper",
+    "author_name": "Mara Ellison",
+    "genres": [
+      "Literary Fiction",
+      "Mystery"
+    ],
+    "description": "A retired keeper returns to a remote island lighthouse after a ship vanishes in a storm, and finds letters that change how she sees her own past.",
+    "cover_ideas": "A lone lighthouse on a rocky cliff at dusk, storm clouds, a faint beam over a dark sea",
+    "character_description": ""
+  },
+  "models": {
+    "prompt": "x-ai/grok-4.7",
+    "vision": "google/gemini-3.8-flash",
+    "image": "bytedance/seedream-v5.0-pro"
+  },
+  "base_prompt": "A solitary weathered lighthouse perched on a jagged rocky cliff at dusk, its faint golden beam cutting through heavy storm clouds over a dark, restless sea. Moody literary mystery atmosphere, cinematic lighting, deep indigo and slate tones with a warm beam, wind-whipped spray, dramatic clouds, photorealistic painterly book cover, no text.",
+  "text_prompt": "Add typography to the book cover image of a lone lighthouse on a rocky cliff at dusk, with storm clouds and a faint beam over a dark sea. Place the title \"The Last Lighthouse Keeper\" prominently in the upper third, centered, in an elegant high-contrast serif typeface with slightly condensed letterforms and refined, literary weight—not ornate fantasy script and not heavy thriller block lettering. Set the title in off-white or warm ivory so it reads clearly against the dusk sky and storm clouds, with a subtle dark drop shadow or soft edge glow only if needed for contrast. Allow the title to break across two or three balanced lines (\"The Last\" / \"Lighthouse\" / \"Keeper\" or \"The Last Lighthouse\" / \"Keeper\") so it feels spacious and prominent without crowding the lighthouse. Below the title, or alternatively along the lower third above the dark sea, place the author name \"Mara Ellison\" in a smaller complementary serif or refined small-caps style, roughly one-third the visual size of the title, letterspaced slightly, in the same ivory tone or a muted warm gold. Keep both text blocks clear of the lighthouse beam and the cliff silhouette, with generous margins, strong contrast, and a quiet, mysterious literary-fiction mood.",
+  "llm_calls": 2,
+  "image_calls": 2,
+  "seconds": 263.4
+}
