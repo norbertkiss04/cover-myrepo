@@ -92,6 +92,36 @@ class TestGenerateBaseImagePrompt:
         assert 'zero text' in system_prompt.lower() or 'no text' in system_prompt.lower()
 
     @patch.object(LLMService, '_make_request')
+    def test_one_step_includes_title_and_author(self, mock_request, llm, book_data):
+        mock_request.return_value = {'prompt': 'full cover'}
+
+        llm.generate_base_image_prompt(book_data, base_image_only=False)
+
+        messages = mock_request.call_args[0][0]
+        user_content = messages[1]['content']
+        assert 'The Dragon King' in user_content
+        assert 'Jane Doe' in user_content
+
+    @patch.object(LLMService, '_make_request')
+    def test_one_step_system_prompt_requires_text(self, mock_request, llm, book_data):
+        mock_request.return_value = {'prompt': 'full cover'}
+
+        llm.generate_base_image_prompt(book_data, base_image_only=False)
+
+        system_prompt = mock_request.call_args[0][0][0]['content']
+        assert 'must include the exact book title and author name' in system_prompt.lower()
+        assert 'do not include any text' not in system_prompt.lower()
+
+    @patch.object(LLMService, '_make_request')
+    def test_base_image_only_excludes_author(self, mock_request, llm, book_data):
+        mock_request.return_value = {'prompt': 'no text image'}
+
+        llm.generate_base_image_prompt(book_data, base_image_only=True)
+
+        user_content = mock_request.call_args[0][0][1]['content']
+        assert 'Jane Doe' not in user_content
+
+    @patch.object(LLMService, '_make_request')
     def test_omits_empty_optional_fields(self, mock_request, llm):
         mock_request.return_value = {'prompt': 'minimal'}
         minimal_data = {

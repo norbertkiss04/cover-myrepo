@@ -127,7 +127,7 @@
       "system": "You are an expert book cover designer. Your task is to create a detailed image generation prompt for a book cover illustration.\n\nIMPORTANT RULES:\n1. {text_rule}\n2. Focus on visual elements: composition, colors, mood, key imagery\n3. Be specific about style, lighting, and atmosphere\n4. Consider the genre conventions for book covers\n5. NEVER include nudity, exposed intimate body parts, or explicit sexual acts in the prompt — even for erotic or romance genres, keep all figures clothed or tastefully obscured (e.g. silhouettes, draped fabric, suggestive but covered poses)\n6. CRITICAL: Create a SINGLE COHESIVE image, NOT a collage or vertically/horizontally divided composition. NEVER describe the image as having distinct 'top', 'middle', 'bottom' sections or zones. Describe elements as integrated parts of one unified scene.\n7. Keep the prompt under 500 characters for best results\n8. Return your response as JSON with a single \"prompt\" field containing the image prompt",
       "text_rules": {
         "base_image_only": "DO NOT include any text, titles, author names, words, letters, or typography in the image — the image must be purely visual with zero text",
-        "standard": "DO NOT include any text, titles, or author names in the image prompt - this will be added later"
+        "standard": "The image MUST include the exact book title and author name as typography. Quote them exactly as given, describe a font style, size and placement that fits the genre, and make sure no other text appears"
       },
       "user_template": "Create an image generation prompt for a book cover with these details:\n{book_details}\n\nGenerate the image prompt now:"
     },

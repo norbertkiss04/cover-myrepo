@@ -39,6 +39,9 @@ def _build_book_details_content(book_data, include_title=True):
     if include_title and book_data.get('book_title'):
         parts.append(f"Title: {book_data.get('book_title')}")
 
+    if include_title and book_data.get('author_name'):
+        parts.append(f"Author: {book_data.get('author_name')}")
+
     if book_data.get('cover_ideas'):
         parts.append(f"Cover Ideas (author's vision): {book_data.get('cover_ideas')}")
 
